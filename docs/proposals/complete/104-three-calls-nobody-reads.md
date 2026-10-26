@@ -105,7 +105,7 @@ as their rules say.
 ## Done
 
 ```
-Merged: PR to be opened
+Merged: PR #129 (find the sha with git log --grep P-104 after the merge)
 Released: (fill in after release)
 Evidence: llm preview --json, samples 3, no network, corpus 9d22d9ce, the 4,815 samples the adapter stages or routes to the server pass, main cf26ecb against this branch: planned calls 42,827 → 34,634 (−8,193, 19.1%); benign 38,001 → 30,408, malicious 4,685 → 4,091; benign skill samples 27,444 → 19,851
 Evidence: intent 9,849 → 1,656 calls (2,731 of 3,283 skill artifacts have no behaviour file: 2,531 of 2,879 benign skill samples, 191 of 393 malicious); mcp-config 1,176 either way; triage 1,379 calls either way, payload 484,681 → 359,879 bytes (25.7% fewer), items 4,387 → 3,315, fewer in 212 of 1,202 samples
