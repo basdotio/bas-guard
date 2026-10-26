@@ -93,8 +93,9 @@ func Fold(s corpus.Sample, lrow ledger.Row, res model.ScanResult, opt Options) (
 	questions := 0
 	if j := res.Judge; j != nil {
 		row.JudgeCalls, row.JudgeFailed = j.Calls, j.Failed
-		if n > 0 && j.Calls > triage {
-			questions = (j.Calls - triage) / n
+		// A settled call belonged to a question that was answered (P-103): it is asked about, not missing.
+		if n > 0 && j.Calls+j.Settled > triage {
+			questions = (j.Calls + j.Settled - triage) / n
 		}
 	}
 	row.TriageCalls, row.Questions = intp(triage), intp(questions)

@@ -38,6 +38,13 @@ func TestJudgeUsageLine(t *testing.T) {
 	if got := judgeUsageLine(stats, elapsed, judge.TokenUsage{Prompt: 1200, Completion: 90, CachedPrompt: 800}); got != want {
 		t.Errorf("cached tokens reported:\n got %q\nwant %q", got, want)
 	}
+
+	// P-103: the calls a question did not need are named after the calls made, only when there are some.
+	stats.Settled = 4
+	want = "LLM judge: 9 call(s), 4 not needed, in 4.321s (p50 2s, p95 2s) · 1 retry · 2 failed · 1200 tokens in / 90 out\n"
+	if got := judgeUsageLine(stats, elapsed, judge.TokenUsage{Prompt: 1200, Completion: 90}); got != want {
+		t.Errorf("settled calls:\n got %q\nwant %q", got, want)
+	}
 }
 
 // cachedUsageServer answers like usageServer, with prompt_tokens_details.cached_tokens set, except
@@ -112,6 +119,7 @@ func TestE2E_UncachedEndpointBlockUnchanged(t *testing.T) {
 	}
 	withoutByPass := *j
 	withoutByPass.UsageByPass = nil
+	withoutByPass.Settled = 0 // P-103: absent when 0, so the rest of the block is still what P-071 left
 	raw, err := json.Marshal(withoutByPass)
 	if err != nil {
 		t.Fatal(err)
@@ -226,9 +234,13 @@ func TestE2E_JudgeBlockUsageByPass(t *testing.T) {
 		if u.PromptTokens != 100*u.Calls || u.CompletionTokens != 7*u.Calls || u.CachedPromptTokens != 64*u.Calls {
 			t.Errorf("%s: %+v; want 100 / 7 / 64 per call, the retried call counted once", pass, u)
 		}
-		if pass != "triage" && u.Calls%3 != 0 {
-			t.Errorf("%s: %d call(s); a question is asked 3 times at samples 3", pass, u.Calls)
+		// Every answer is clean, so each question is asked twice and its third sample settles (P-103).
+		if pass != "triage" && u.Calls%2 != 0 {
+			t.Errorf("%s: %d call(s); a clean question is asked twice at samples 3", pass, u.Calls)
 		}
+	}
+	if j.Calls-j.TriageCalls != 2*j.Settled {
+		t.Errorf("calls %d (triage %d), settled %d: want one settled call per question", j.Calls, j.TriageCalls, j.Settled)
 	}
 	if tr := j.UsageByPass["triage"]; tr.Calls != j.TriageCalls {
 		t.Errorf("triage entry %+v, triage_calls %d", tr, j.TriageCalls)
@@ -260,5 +272,46 @@ func TestE2E_NoCallNoUsageByPass(t *testing.T) {
 	}
 	if strings.Contains(string(raw), "usage_by_pass") {
 		t.Errorf("a block with no call carries usage_by_pass: %s", raw)
+	}
+}
+
+// TestE2E_SettledCallsAreNotAGap (P-103): at samples 3 with clean answers every question settles after
+// two samples. The block says how many calls were not needed, apart from skipped, and --fail-on-llm
+// does not read them as a gap; the usage log carries the count. At samples 1 nothing can settle and
+// the block has no settled key.
+func TestE2E_SettledCallsAreNotAGap(t *testing.T) {
+	root := buildTestRunnerSkill(t, true)
+	srv := usageServer(t, 100, 7)
+	for _, samples := range []int{3, 1} {
+		cfg := writeJudgeConfigSamples(t, srv.URL, "advisory", samples)
+		out, err := scanEnv(root, scanOpts{cfgPath: cfg, llm: true, quiet: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		j := out.Judge
+		if j == nil || !j.Ran || j.Calls == 0 || j.Failed != 0 || j.Skipped != 0 {
+			t.Fatalf("samples %d: judge summary = %+v; want a clean run with calls", samples, j)
+		}
+		raw, err := json.Marshal(j)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if samples == 1 {
+			if j.Settled != 0 || strings.Contains(string(raw), `"settled"`) {
+				t.Errorf("samples 1 settled something: %s", raw)
+			}
+			continue
+		}
+		// Every question settled: two of its three samples were asked, one was not needed.
+		if j.Settled == 0 || j.Calls-j.TriageCalls != 2*j.Settled || !strings.Contains(string(raw), `"settled":`) {
+			t.Errorf("samples 3: calls %d (triage %d), settled %d; want two asked per settled one: %s",
+				j.Calls, j.TriageCalls, j.Settled, raw)
+		}
+		if gap := judgeGap(j); gap != "" {
+			t.Errorf("settled calls were read as a gap: %s", gap)
+		}
+		if line := usageLineFor("scan", "environment", out.ToolVersion, out.RulesVersion, "now", j); line.Settled != j.Settled {
+			t.Errorf("usage line settled %d, block %d", line.Settled, j.Settled)
+		}
 	}
 }

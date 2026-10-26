@@ -278,3 +278,21 @@ func TestJudgeUsage_ModelAndUsageByPassReachTheRow(t *testing.T) {
 		t.Errorf("a summary without model or usage_by_pass folds into a row that carries them: %s", old)
 	}
 }
+
+// TestJudgeUsage_SettledIsCarriedWhenAny (P-103): the calls a settled question did not need reach the
+// row as printed; a block without the key (samples 1, or a binary older than the count) folds into a
+// row without it.
+func TestJudgeUsage_SettledIsCarriedWhenAny(t *testing.T) {
+	printed := `{"artifacts":[],"judge":{"ran":true,"artifacts":1,"calls":7,"failed":0,"skipped":0,
+  "settled":3,"findings":0,"triage_calls":1,"retries":0}}`
+	if got := foldDoc(t, printed); got.Settled != 3 {
+		t.Errorf("settled = %d; want 3, as printed", got.Settled)
+	}
+	row, err := json.Marshal(foldDoc(t, budgetCut))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(row), "settled") {
+		t.Errorf("judge_usage %s carries settled; want no key when the binary printed none", row)
+	}
+}

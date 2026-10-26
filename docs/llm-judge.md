@@ -535,7 +535,7 @@ effective score.
   default, and the judge block says `temperature_omitted: true` (P-052).
 - **That variance never reaches `overall`.** Two runs can produce different LLM findings; the
   deterministic score comes out bit-identical either way.
-- **It costs what it says:** `samples: 3` means three times the calls, so it is opt-in. Triage
+- **It costs what it says:** `samples: 3` means up to three times the calls, so it is opt-in. Triage
   is never sampled — it produces display labels, not findings, so there is nothing to vote on.
 - **The samples of a question are one request sent k times** (P-080). They share one nonce, drawn
   when the run starts, so the k requests are byte-identical, and an endpoint with a prompt cache can
@@ -547,6 +547,20 @@ effective score.
   skill still sends its calls at once. A re-ask draws a nonce of its own. Measured on 20 benign
   skills at `samples: 3` against gpt-4.1-mini: 44.5% of the prompt tokens were served from the
   cache, none before, with the same calls and no slower.
+- **A question stops when its remaining samples cannot change the outcome** (P-103). A finding
+  escalates with `majority(n)` votes, so once the first `n − majority(n) + 1` answers of a question are
+  all clean — no flag, no barrier, nothing claimed that could not be quoted — the samples left cannot
+  reach the bar between them and are not sent. At `samples: 3` the third sample goes out only when one
+  of the first two is not clean; at `samples: 5`, the last two only when one of the first three is not.
+  A failed call and a claim that failed to ground count as not clean, so a question the model struggles
+  with is asked in full. For the same first answers, every escalation, both scores and both gates are
+  what asking all n would give; what can differ is a below-the-bar finding only an unsent sample would
+  have produced (and the LLM-005 count with it), so a count of single votes read off a run is not
+  comparable with runs before this. A worker that would otherwise sit idle does not take such a sample:
+  in a `check` of one skill, a question that needs its third sample waits one more round trip for it.
+  The calls not made are counted as `settled` in the judge block — neither calls nor skipped, and never a
+  gap: nothing they could have said changes an escalation. `bas-guard llm preview` says "up to" for a
+  sampled plan.
 
 The threshold is derived (`majority = n/2 + 1`), not configured, so there is no way to declare
 a "consensus" of 1-of-3.
@@ -557,9 +571,12 @@ With `--llm` the summary carries one line about the judge itself — `LLM judge 
 artifact(s) in M call(s) and had nothing to add`, `… and added K advisory leads`, or `LLM judge
 did not run: <reason>` — and the "LLM judge leads" section is present even when empty, carrying
 that line. When some replies needed the closed-early repair or a re-ask, the line says how many beside the
-failures (`(0 failed, 0 skipped, 1 repaired, 2 re-asked)`); with none it reads as before. JSON has the same as
+failures (`(0 failed, 0 skipped, 1 repaired, 2 re-asked)`); with none it reads as before. When questions settled
+(P-103) it names the calls they did not need after the calls made (`in 6 call(s), 3 more not needed (their
+questions' first answers were clean), and …`). JSON has the same as
 `judge` (`ran`, `reason`, `artifacts`, `calls`, `failed`, `skipped`, `repaired`, `reasked` — always present, like
-the two before it — `findings`, `endpoint` (with its credentials redacted, see [Configuration](#configuration)), and `temperature_omitted` when the endpoint refused the temperature member), plus what it cost: `triage_calls` (the part of `calls` that
+the two before it — `settled` when a question settled (absent when 0, which is also how a report from before the
+count reads), `findings`, `endpoint` (with its credentials redacted, see [Configuration](#configuration)), and `temperature_omitted` when the endpoint refused the temperature member), plus what it cost: `triage_calls` (the part of `calls` that
 was triage, asked once where a question is asked `samples` times), `retries`, and
 `prompt_tokens` / `completion_tokens` — the last two absent when the endpoint reported no usage,
 rather than a 0 that would read as a measurement — and `cached_prompt_tokens`, the part of `prompt_tokens`

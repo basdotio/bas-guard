@@ -161,6 +161,13 @@ func TestFold_RefusesToGuessTheSampleCount(t *testing.T) {
 	if _, err := Fold(sample, scored(0), unmarked, Options{Threshold: model.SevHigh}); err == nil {
 		t.Error("a vote without its count at samples 3 was read as 1 of 1")
 	}
+	// P-103: a settled call was asked about, not missing — the question it belonged to was answered.
+	j := judged(5, 0, 0, 3)
+	j.Settled = 2
+	if a, err := Fold(sample, scored(1), result(j, nil), Options{Threshold: model.SevHigh}); err != nil ||
+		*a.Row.Questions != 2 || a.Row.Incomplete != "" {
+		t.Errorf("calls 5 + settled 2 - triage 1 at samples 3: %v, questions %v, incomplete %q", err, a.Row.Questions, a.Row.Incomplete)
+	}
 	one := result(judged(2, 0, 0, 1), nil, art(model.KindSkill, vote("LLM-003", model.SevHigh, 1, 1, 1, true)))
 	a, err := Fold(sample, scored(0), one, Options{Threshold: model.SevHigh})
 	if err != nil {
