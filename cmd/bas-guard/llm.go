@@ -222,6 +222,9 @@ func runLLMTest(w io.Writer, cfgPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), call)
 	defer cancel()
 	client := judge.NewHTTP(cfg.LLM.BaseURL, key, cfg.LLM.Model, nil)
+	if err := client.SetRequestOptions(cfg.LLM.RequestOptions); err != nil {
+		return err
+	}
 	took, err := client.Ping(ctx)
 	recordJudgeUsage(os.Stderr, "llm test", version, detect.RulesVersion(), []usageBlock{{judge: llmTestUsage(cfg.LLM, client, err)}})
 	if err != nil {

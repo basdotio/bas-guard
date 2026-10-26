@@ -9,6 +9,8 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -74,6 +76,12 @@ type LLMConfig struct {
 	// the effective score. 1 (default) asks once. N costs N times as much, so it is opt-in —
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
+	// RequestOptions are extra members added to every request body as written (P-107): what a vendor
+	// takes beside the chat-completions members — `thinking: {type: disabled}` for a GLM model that
+	// thinks by default, `reasoning_effort` for another. The judge sets the members in
+	// ReservedRequestOptions itself, and Load refuses them here. Recorded in the judge block, since they
+	// change what the model does.
+	RequestOptions map[string]any `yaml:"request_options"`
 	// Authority decides whether this endpoint's opinion may have CONSEQUENCES: "advisory"
 	// (default) means the judge can only inform, "escalate" additionally permits the
 	// --fail-on-llm gate. It does not change what the effective score says — that number must
@@ -84,6 +92,40 @@ type LLMConfig struct {
 	// and forgeable. A hosted endpoint would assert its own tier server-side instead — a client
 	// must never be able to self-certify.
 	Authority string `yaml:"authority"`
+}
+
+// ReservedRequestOptions are the request members llm.request_options may not set (P-107): the three the
+// judge sets itself, and two that change the shape of the reply it reads (`stream`, `n`). The judge's
+// client refuses them too; its tests keep this list covering every member it sends.
+var ReservedRequestOptions = []string{"model", "messages", "temperature", "stream", "n"}
+
+// RequestOptionsJSON is llm.request_options as one compact JSON object, keys in order and HTML left
+// unescaped — the form the judge block records — or "" when there are none.
+func (c LLMConfig) RequestOptionsJSON() (string, error) {
+	if len(c.RequestOptions) == 0 {
+		return "", nil
+	}
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(c.RequestOptions); err != nil {
+		return "", err
+	}
+	return strings.TrimRight(b.String(), "\n"), nil
+}
+
+// checkRequestOptions refuses a reserved member and a value with no JSON form, so neither waits for a
+// scan to fail on (P-107).
+func (c LLMConfig) checkRequestOptions() error {
+	for _, k := range ReservedRequestOptions {
+		if _, ok := c.RequestOptions[k]; ok {
+			return fmt.Errorf("config llm.request_options.%s: the judge sets %q itself; remove it", k, k)
+		}
+	}
+	if _, err := c.RequestOptionsJSON(); err != nil {
+		return fmt.Errorf("config llm.request_options: every value must have a JSON form: %w", err)
+	}
+	return nil
 }
 
 // Default returns the safe default: LLM disabled, local endpoint.
@@ -205,6 +247,9 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 	if err := cfg.LLM.applyPreset(); err != nil {
+		return Config{}, err
+	}
+	if err := cfg.LLM.checkRequestOptions(); err != nil {
 		return Config{}, err
 	}
 	switch cfg.LLM.Authority {

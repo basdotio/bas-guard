@@ -251,3 +251,36 @@ func TestLLMConfig_GateReady(t *testing.T) {
 		t.Errorf("MinSamplesToEscalate = %d; the measurements behind it were taken at 3 (P-041), change them before this", MinSamplesToEscalate)
 	}
 }
+
+// TestLoad_RequestOptions (P-107): llm.request_options is read as written — nested maps included — and a
+// member the judge sets itself, or a value that has no JSON form, is refused at load time rather than
+// sent. No key, no options.
+func TestLoad_RequestOptions(t *testing.T) {
+	load := func(t *testing.T, body string) (Config, error) {
+		t.Helper()
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return Load(p)
+	}
+	cfg, err := load(t, "llm:\n  enabled: true\n")
+	if err != nil || cfg.LLM.RequestOptions != nil {
+		t.Fatalf("no key: options %v, err %v", cfg.LLM.RequestOptions, err)
+	}
+	cfg, err = load(t, "llm:\n  request_options:\n    thinking:\n      type: disabled\n    max_tokens: 800\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := cfg.LLM.RequestOptionsJSON(); err != nil || got != `{"max_tokens":800,"thinking":{"type":"disabled"}}` {
+		t.Errorf("options read as %q (%v)", got, err)
+	}
+	for _, key := range ReservedRequestOptions {
+		if _, err := load(t, "llm:\n  request_options:\n    "+key+": x\n"); err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("request_options.%s: err %v, want a refusal naming it", key, err)
+		}
+	}
+	if _, err := load(t, "llm:\n  request_options:\n    weird:\n      1: x\n"); err == nil {
+		t.Error("a value with no JSON form (a map keyed by a number) was accepted")
+	}
+}
