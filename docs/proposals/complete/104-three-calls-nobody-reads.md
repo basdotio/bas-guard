@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 # 104 — Two judge calls whose answers nobody can use: the intent question asked of a skill with no behaviour file, and triage sending every repeat of a rule under a verdict schema it does not use
 
-- **Source**: The maintainer, 2026-10-26 (judge spend)
+- **Source**: The maintainer, 2026-10-26 (how many calls the judge makes)
 - **Depends on**: P-054 (a quote of the declared purpose is not evidence of a behaviour), P-027 (the preview shares the run's plan), P-031 (the two judge versions)
 - **Branch**: `p/104-three-calls-nobody-reads`
 
