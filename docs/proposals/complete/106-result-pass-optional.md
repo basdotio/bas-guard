@@ -106,7 +106,7 @@ without the difference being visible.
 ## Done
 
 ```
-Merged: PR to be opened (find the sha with git log --grep P-106 after the merge)
+Merged: PR #130 (find the sha with git log --grep P-106 after the merge)
 Released: (fill in after the release)
 Evidence: TestPlan_ResultPassIsOptIn (internal/judge/result_pass_test.go): default options plan planFor's menu without the result question, payload for payload; ResultPass plans the full menu. TestLoad_ResultPassIsOptIn: default false, `result_pass: true` read. TestE2E_ResultPassOffIsInTheBlock: off → passes_off ["result"] in the block and the usage line; on → no key and more calls; a judge not configured names no pass. TestJudgeIdentityLine_NamesAPassOff; TestJudgeUsage_PassesOffReachTheRow (ledger row)
 Evidence: reverse — with ResultPass on, TestRun_UsageByPass, the re-ask, budget, slow-call, grounding and steering tests keep their assertions; TestJudgefold_Golden unchanged (its config turns the pass on); TestE2E_UncachedEndpointBlockUnchanged with passes_off set aside like usage_by_pass. judge-prompt=b851dfd5412b on main and here; ExcerptVersion 9 → 12 with the fixture digest 9b48519aaa7b6b16 → cbb3db8b81b93515
