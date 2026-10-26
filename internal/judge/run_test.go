@@ -135,7 +135,7 @@ func TestRun_SlowCallDoesNotStarveTheRest(t *testing.T) {
 		return 0
 	}}
 
-	notes, stats := Run(context.Background(), client, arts, Options{Concurrency: 4, CallTimeout: 60 * time.Millisecond})
+	notes, stats := Run(context.Background(), client, arts, Options{Concurrency: 4, CallTimeout: 60 * time.Millisecond, ResultPass: true})
 
 	if stats.Failed != 3 { // all three of skill01's calls time out
 		t.Errorf("failed calls = %d, want 3 (only the hung artifact)", stats.Failed)
@@ -161,7 +161,7 @@ func TestRun_BudgetCutsDeterministicallyAndSaysWhat(t *testing.T) {
 	for run := 0; run < 3; run++ {
 		arts := skillTree(t, 5)
 		client := &scriptedClient{}
-		notes, stats := Run(context.Background(), client, arts, Options{MaxCalls: 3, Concurrency: 4})
+		notes, stats := Run(context.Background(), client, arts, Options{MaxCalls: 3, Concurrency: 4, ResultPass: true})
 
 		if stats.Calls != 3 {
 			t.Fatalf("run %d: issued %d call(s), want exactly the budget (3)", run, stats.Calls)

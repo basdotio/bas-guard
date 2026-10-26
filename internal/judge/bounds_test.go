@@ -239,7 +239,7 @@ func TestPlan_CutsFallOnCharacterBoundaries(t *testing.T) {
 			for k := 0; k < utf8.UTFMax; k++ {
 				label := fmt.Sprintf("%s, %q, offset %d", s.name, run, k)
 				arts := s.build(t, strings.Repeat("a", k), run)
-				tasks := buildTasks(arts, 1, egress{})
+				tasks := buildTasks(arts, Options{Samples: 1, ResultPass: true}, egress{})
 				checkFields(t, label, tasks)
 				for _, tk := range tasks {
 					if tk.kind != taskJudge || len(tk.req.Behavior) < 200 {
@@ -348,7 +348,7 @@ func FuzzPlanFields(f *testing.F) {
 	f.Add("--token", "--password\n", "printf '\xff\xfe' --api-key", "\xe4\xb8 --token", "a\xff/"+strings.Repeat("p", 990), "x --token", "\xf0\x9f\x98 --token", uint8(5))
 	f.Fuzz(func(t *testing.T, desc, body, script, blob, file, snippet, cmd string, n uint8) {
 		arts := fuzzArtifacts(t, desc, body, script, blob, file, snippet, cmd, n)
-		checkFields(t, "fuzz", buildTasks(arts, 1, newEgress("/home/fz")))
+		checkFields(t, "fuzz", buildTasks(arts, Options{Samples: 1, ResultPass: true}, newEgress("/home/fz")))
 	})
 }
 

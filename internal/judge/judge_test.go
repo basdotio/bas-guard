@@ -167,7 +167,7 @@ func TestRun_OnlySkills_RedactsBehavior(t *testing.T) {
 		{Kind: model.KindSkill, Name: "demo", Path: skill},
 		{Kind: model.KindPermission, Name: "permissions", Path: skill}, // must be skipped
 	}
-	notes, _ := Run(context.Background(), fc, arts, Options{})
+	notes, _ := Run(context.Background(), fc, arts, Options{ResultPass: true})
 	if len(notes) != 0 {
 		t.Errorf("no failures expected, got notes %+v", notes)
 	}

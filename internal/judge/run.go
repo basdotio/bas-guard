@@ -36,6 +36,9 @@ type Options struct {
 	// and every grounded verdict counts. >1 asks N times and requires a MAJORITY before a
 	// finding may affect the effective score — it costs N times as much, so it is opt-in.
 	Samples int
+	// ResultPass asks each skill the result question (LLM-011, P-068). Off — the zero value — the
+	// plan leaves it out (P-106); every other question is unchanged.
+	ResultPass bool
 	// Home is the scanned environment's home directory, replaced by `~` in what is sent (egress.go)
 	// IN ADDITION to the OS user's home, which Run always replaces: empty adds nothing, it does
 	// not turn the scrub off. A relative Home is resolved against the working directory.
@@ -442,7 +445,7 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 // (llm.max_calls) refuses, with the notes that say what will not be seen. Run makes the first;
 // Plan shows both — one function, so the preview cannot plan a run of its own (P-027).
 func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, notes []model.Finding) {
-	send = buildTasks(arts, opts.Samples, newEgress(userHome(), opts.Home))
+	send = buildTasks(arts, opts, newEgress(userHome(), opts.Home))
 	if over := len(send) - opts.MaxCalls; opts.MaxCalls > 0 && over > 0 {
 		notes = append(notes, coverageNote(fmt.Sprintf(
 			"call budget (llm.max_calls=%d) reached: %d planned call(s) covering %s were NOT made",
@@ -479,13 +482,18 @@ const crossFileChainRule = "EXFIL-002"
 // buildTasks turns the artifact list into the full call plan, in a fixed order, expanding
 // each question into `samples` independent calls. Samples of one question stay consecutive and
 // share a group id, so the votes can be counted without disturbing the order everything else
-// depends on.
-func buildTasks(arts []model.ArtifactReport, samples int, eg egress) []task {
+// depends on. planFor lists every question an artifact can be asked; the result question is kept only
+// when the run asks it (opts.ResultPass, P-106).
+func buildTasks(arts []model.ArtifactReport, opts Options, eg egress) []task {
+	samples := opts.Samples
 	var tasks []task
 	group := 0
 	fam := score.Families(arts)
 	for i := range arts {
 		for _, t := range planFor(i, arts[i], eg) {
+			if t.req.Mode == ModeSteering && !opts.ResultPass {
+				continue
+			}
 			if t.kind == taskTriage {
 				// A plugin's child repeats the plugin tree's findings (P-044). One its plugin row already
 				// shows is triaged there, and its copy on the child is not printed, so a second label

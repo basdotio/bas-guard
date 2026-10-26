@@ -116,7 +116,7 @@ func sumPasses(m map[string]model.PassUsage) model.PassUsage {
 // the retried call and the re-asked one included — and the entries sum exactly to the run's totals.
 func TestRun_UsageByPass(t *testing.T) {
 	arts := append(previewFixture(t), serverTree(t)...)
-	opts := Options{Samples: 3, Concurrency: 4, MaxRetries: 2}
+	opts := Options{Samples: 3, Concurrency: 4, MaxRetries: 2, ResultPass: true}
 
 	planned := map[string]int{}
 	for _, c := range Plan(arts, opts) {

@@ -251,3 +251,21 @@ func TestLLMConfig_GateReady(t *testing.T) {
 		t.Errorf("MinSamplesToEscalate = %d; the measurements behind it were taken at 3 (P-041), change them before this", MinSamplesToEscalate)
 	}
 }
+
+// TestLoad_ResultPassIsOptIn (P-106): the result question is off unless the config turns it on.
+func TestLoad_ResultPassIsOptIn(t *testing.T) {
+	if Default().LLM.ResultPass {
+		t.Fatal("the default config asks the result question")
+	}
+	p := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(p, []byte("llm:\n  enabled: true\n  result_pass: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.LLM.ResultPass {
+		t.Error("result_pass: true was not read")
+	}
+}

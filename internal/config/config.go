@@ -74,6 +74,10 @@ type LLMConfig struct {
 	// the effective score. 1 (default) asks once. N costs N times as much, so it is opt-in —
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
+	// ResultPass asks each skill the result question (LLM-011, P-068): does a required step change
+	// what the user gets. Off by default (P-106): it is about a third of a skill's calls, and what it
+	// catches is output manipulation — turn it on where that is the threat, gate or not.
+	ResultPass bool `yaml:"result_pass"`
 	// Authority decides whether this endpoint's opinion may have CONSEQUENCES: "advisory"
 	// (default) means the judge can only inform, "escalate" additionally permits the
 	// --fail-on-llm gate. It does not change what the effective score says — that number must

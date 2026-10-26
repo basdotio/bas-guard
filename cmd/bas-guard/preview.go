@@ -63,7 +63,7 @@ func (p *previewSink) record(cfg config.Config, arts []model.ArtifactReport, hom
 // asked, the call budget, the home replaced by `~`. runJudge adds the ones that decide how it is
 // sent; the preview uses these alone, so the two cannot plan different runs.
 func judgePlanOptions(cfg config.Config, home string) judge.Options {
-	return judge.Options{MaxCalls: cfg.LLM.MaxCalls, Samples: cfg.LLM.Samples, Home: home}
+	return judge.Options{MaxCalls: cfg.LLM.MaxCalls, Samples: cfg.LLM.Samples, ResultPass: cfg.LLM.ResultPass, Home: home}
 }
 
 // previewOpts are the inputs of one preview: a target (`check --llm`), or none (`scan --llm` over

@@ -25,7 +25,7 @@ import (
 var excerptGolden = struct {
 	version int
 	digest  string
-}{version: 9, digest: "9b48519aaa7b6b16"}
+}{version: 12, digest: "cbb3db8b81b93515"}
 
 func TestExcerptVersion_IsPinnedWithItsGolden(t *testing.T) {
 	got := excerptDigest(t)
@@ -167,7 +167,7 @@ var groundingQuotes = []string{
 func excerptDigest(t *testing.T) string {
 	t.Helper()
 	var b strings.Builder
-	tasks := buildTasks(excerptFixture(t), 1, newEgress(fixtureHome))
+	tasks := buildTasks(excerptFixture(t), Options{Samples: 1}, newEgress(fixtureHome))
 	for i, tk := range tasks {
 		fmt.Fprintf(&b, "task %d kind=%d mode=%d shortened=%q\ndeclared=%q\nbehavior=%q\n",
 			i, tk.kind, tk.req.Mode, tk.shortened, tk.req.Declared, tk.req.Behavior)

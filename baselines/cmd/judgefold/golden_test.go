@@ -153,6 +153,7 @@ func judgeConfig(t *testing.T, url string, maxCalls int) string {
 	p := filepath.Join(t.TempDir(), "judge.yaml")
 	put(t, p, "llm:\n  enabled: true\n  provider: openai_compatible\n  base_url: "+url+"\n  model: scripted\n"+
 		"  concurrency: 1\n  timeout: 10s\n  total_timeout: 1m\n  max_retries: 0\n  samples: 3\n  authority: advisory\n"+
+		"  result_pass: true\n"+
 		"  max_calls: "+strconv.Itoa(maxCalls)+"\n")
 	return p
 }
