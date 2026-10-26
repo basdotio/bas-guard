@@ -300,3 +300,24 @@ func TestLLMPreview_TerminalViewIsSanitized(t *testing.T) {
 		t.Errorf("--json does not carry the payload's bytes as sent:\n%s", js)
 	}
 }
+
+// TestPreviewText_SampledPlanIsAnUpperBound (P-103): when a question is asked more than once the text
+// says the count is an upper bound; at samples 1 the header reads as before.
+func TestPreviewText_SampledPlanIsAnUpperBound(t *testing.T) {
+	for _, c := range []struct {
+		calls int
+		want  string
+	}{
+		{1, "\n4 call(s) would be made. Each block"},
+		{3, "\nUp to 4 call(s) would be made (a question's later samples go out only when one of its first answers is not clean). Each block"},
+	} {
+		r := previewReport{Previews: "check --llm", Target: "x", Endpoint: "e", Model: "m", Calls: 4,
+			Artifacts: []previewArtifact{{Kind: "skill", Name: "x", Requests: []previewRequest{
+				{Pass: "triage", Calls: 1}, {Pass: "injection", Calls: c.calls}}}}}
+		var b strings.Builder
+		writePreviewText(&b, r)
+		if !strings.Contains(b.String(), c.want) {
+			t.Errorf("samples %d: header does not read %q:\n%s", c.calls, c.want, b.String())
+		}
+	}
+}

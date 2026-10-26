@@ -133,6 +133,7 @@ func checkCandidate(c inbox.Candidate, o scanOpts, judge *model.JudgeSummary) mo
 			judge.Skipped += res.Judge.Skipped
 			judge.Repaired += res.Judge.Repaired
 			judge.Reasked += res.Judge.Reasked
+			judge.Settled += res.Judge.Settled
 			judge.TemperatureOmitted = judge.TemperatureOmitted || res.Judge.TemperatureOmitted
 			judge.Findings += res.Judge.Findings
 			judge.TriageCalls += res.Judge.TriageCalls

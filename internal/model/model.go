@@ -596,6 +596,11 @@ type JudgeSummary struct {
 	Skipped   int    `json:"skipped"`          // calls never issued: budget or deadline
 	Repaired  int    `json:"repaired"`         // answered calls read only by the closed-early repair (P-034)
 	Reasked   int    `json:"reasked"`          // calls whose first reply was unreadable and that were asked once more (P-069)
+	// Settled is the planned calls a question did not need (P-103): at samples n, once the first
+	// n−majority(n)+1 answers of a question were all clean, the rest could not reach the consensus bar
+	// and were not sent. Not calls, not skipped, not a gap. Absent when 0, which is also how a report
+	// from before the count reads: nothing settled.
+	Settled int `json:"settled,omitempty"`
 	// TemperatureOmitted: the endpoint refused the temperature member (a model that allows only its
 	// default) and the calls went without it, so a consensus run sampled at that default (P-052).
 	TemperatureOmitted bool   `json:"temperature_omitted,omitempty"`

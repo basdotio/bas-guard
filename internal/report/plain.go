@@ -616,6 +616,11 @@ func judgeLine(j *model.JudgeSummary) string {
 	case j.Failed > 0 || j.Skipped > 0:
 		s += fmt.Sprintf(" (%d failed, %d skipped)", j.Failed, j.Skipped)
 	}
+	if j.Settled > 0 {
+		// Not a gap, so not in the parenthesis with the failures (P-103): a run that settled questions
+		// answered every one of them.
+		s += fmt.Sprintf(", %d more not needed (their questions' first answers were clean),", j.Settled)
+	}
 	switch j.Findings {
 	case 0:
 		s += " and had nothing to add."
