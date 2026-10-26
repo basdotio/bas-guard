@@ -26,7 +26,7 @@ import (
 // results are pinned to a digest TOGETHER with this value, so changing either alone is red. A change
 // the fixture does not exercise still relies on the editor; a forgotten bump lets two reports claim
 // the same excerpts while the judge was shown different text.
-const ExcerptVersion = 9 // 8: the documents a SKILL.md names go to the injection pass (P-065); 7: a skill's files are read by the rules' predicate (P-056)
+const ExcerptVersion = 11 // 11: a skill with no behaviour file is not asked the intent question (P-104; 10 named the rejected P-070 branch's excerpts, which committed results carry); 8: the documents a SKILL.md names go to the injection pass (P-065); 7: a skill's files are read by the rules' predicate (P-056)
 
 // A model can produce a fluent, plausible, entirely invented finding. Nothing downstream can
 // tell that apart from a real one — same shape, same severity, same confident sentence. So a
@@ -50,6 +50,12 @@ type sourceUnit struct {
 	// which lived on one line in its encoded form. Every position in it maps to firstLine;
 	// counting lines inside it would invent a location that was never in the file.
 	collapsed bool
+	// declaration marks a skill's declared purpose carried by a question whose verdict must not rest on
+	// it: the injection question of a skill with no behaviour file (P-104). The intent question used to
+	// be the only one whose units held the description, so a description that addresses the analyzer
+	// grounded its LLM-007 there; asked of no such skill now, the injection question grounds that
+	// barrier quote instead, and its verdict still grounds in the body alone.
+	declaration bool
 	// goesHome is set on a behaviour unit whose FULL file reads a named credential and sends it
 	// only to that credential's own service or to loopback (detect.CredentialGoesHome, P-062).
 	// The judge sees a 2,000-byte excerpt and cannot tell WEATHER_API_KEY going to

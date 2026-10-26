@@ -202,8 +202,11 @@ func groundedFinding(t task, v Verdict) (verdict, barrier *model.Finding, droppe
 		// a server's docstrings are its declaration too. Grounded only in the declaration, it is
 		// dropped like an unquotable claim, and the note says which it was.
 		units := t.units
-		if t.req.Mode == ModeIntent || t.req.Mode == ModeServer {
+		switch t.req.Mode {
+		case ModeIntent, ModeServer:
 			units = behaviourUnits(t.units)
+		case ModeInjection:
+			units = withoutDeclaration(t.units) // a barrier quote may land in it, the verdict may not (P-104)
 		}
 		if s, ok := groundSpan(v.Evidence, units); ok {
 			f.Evidence[0] = s.evidence()
@@ -243,7 +246,7 @@ func groundedFinding(t task, v Verdict) (verdict, barrier *model.Finding, droppe
 		} else {
 			dropped = true
 			unquoted = clipQuote(v.Evidence)
-			if len(units) != len(t.units) {
+			if (t.req.Mode == ModeIntent || t.req.Mode == ModeServer) && len(units) != len(t.units) {
 				if _, inDeclared := groundSpan(v.Evidence, t.units); inDeclared {
 					unquoted += " (the declared purpose, not a behaviour)"
 				}
@@ -535,8 +538,9 @@ func artifactLabel(a model.ArtifactReport) string { return string(a.Kind) + ":" 
 //   - INJECTION IS UNCONDITIONAL on every kind carrying text an agent reads. Gating it on a
 //     static hit would leave the judge re-examining only what the regexes already found —
 //     precisely the blind spot it exists to cover. Its scope is one file, so it is affordable.
-//   - The expensive whole-tree passes (intent, collusion) ARE gated on a static signal, which
-//     is a reasonable prior once a call costs real money.
+//   - A question that sets two things against each other is asked only when both exist: intent
+//     needs a behaviour file (P-104), collusion the static screen's cross-file chain. Neither is
+//     gated on a static finding of its own.
 //
 // Every piece of artifact text below goes through eg.redact (Redact, then strip the home) as it
 // is turned into a request and its units, so the two hold the same bytes. The label is not sent:
@@ -559,18 +563,33 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 		if !collect.SkillMDRefused(a.Path) {
 			skill := parse.ReadSkill(a.Path)
 			declared = declaredPurpose(skill.Description, eg)
-			behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
 			// The declared purpose is part of what the model saw, so a verdict may legitimately
 			// quote it; it lives in SKILL.md's frontmatter, near the top.
-			intentUnits := append([]sourceUnit{{file: "SKILL.md", text: declared, firstLine: 1, collapsed: true}}, behaviorUnits...)
-			ask(Request{Mode: ModeIntent, Declared: declared, Behavior: behavior}, intentUnits)
+			declaredUnit := sourceUnit{file: "SKILL.md", text: declared, firstLine: 1, collapsed: true}
+			// The intent question sets the declared purpose against the behaviour files, so it is
+			// asked only of a skill that has some (P-104). With none the model was shown "(no readable
+			// behavior found)", and the only text it could quote was the description, which is not
+			// evidence of a behaviour (P-054): the question could not yield an LLM-001.
+			behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
+			if behavior != "" {
+				ask(Request{Mode: ModeIntent, Declared: declared, Behavior: behavior}, append([]sourceUnit{declaredUnit}, behaviorUnits...))
+			}
 
 			body, bodyLM := condense("SKILL.md", eg.redact(skill.Body), false)
 			body, bodyLM = settleExcerpt(capHeadTail(body, bodyLM, maxExcerptBytes))
 			// The description is the second side here too: "beyond what it says it is for" is a
 			// far sharper question than "contains instructions", which every skill body does.
 			bodyUnit := sourceUnit{file: "SKILL.md", text: body, firstLine: skill.BodyLine, lineMap: offsetLines(bodyLM, skill.BodyLine-1)}
-			ask(Request{Mode: ModeInjection, Declared: declared, Behavior: body}, []sourceUnit{bodyUnit})
+			injectionUnits := []sourceUnit{bodyUnit}
+			if behavior == "" {
+				// No intent question, so this is the question whose units hold the description: a
+				// description that addresses the analyzer grounds its LLM-007 here (P-104), and the
+				// verdict still grounds in the body alone (sourceUnit.declaration).
+				d := declaredUnit
+				d.declaration = true
+				injectionUnits = append(injectionUnits, d)
+			}
+			ask(Request{Mode: ModeInjection, Declared: declared, Behavior: body}, injectionUnits)
 
 			// The documents the body tells the agent to read are instruction text too (P-065): the
 			// same question, against the same declared purpose, over what SKILL.md points at.
@@ -1179,6 +1198,18 @@ func unitGoesHome(units []sourceUnit, file string) bool {
 		}
 	}
 	return false
+}
+
+// withoutDeclaration is the units a verdict may ground in: all but a declared purpose carried only so
+// that a barrier quote of it grounds (sourceUnit.declaration, P-104).
+func withoutDeclaration(units []sourceUnit) []sourceUnit {
+	out := make([]sourceUnit, 0, len(units))
+	for _, u := range units {
+		if !u.declaration {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 func behaviourUnits(units []sourceUnit) []sourceUnit {
