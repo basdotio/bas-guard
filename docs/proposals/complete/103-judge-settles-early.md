@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 # 103 — At `samples: 3` every judge question is asked a third time, even when its first two answers were clean and the third cannot change the outcome
 
-- **Source**: the maintainer, 2026-10-26 (the judge's spend); reading the committed `samples: 3` runs
+- **Source**: the maintainer, 2026-10-26 (how many calls the judge makes); reading the committed `samples: 3` runs
 - **Depends on**: P-080 (one nonce per question, and the dispatch queue that decides which call a free worker takes)
 - **Branch**: `p/103-judge-settles-early`
 
