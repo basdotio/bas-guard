@@ -141,6 +141,10 @@ func TestPromptVersion_EveryInputIsDecided(t *testing.T) {
 			if len(s.triage) <= maxTriageItems {
 				t.Errorf("%s carries %d items; it must exceed the cap (%d) so the cap is in what is hashed", s.name, len(s.triage), maxTriageItems)
 			}
+			// P-104: the per-rule cap too — one rule past it, and past the per-artifact cap once its repeats go.
+			if _, repeats, left := triageSent(s.triage); repeats == 0 || left == 0 {
+				t.Errorf("%s: %d repeat(s) and %d item(s) past the cap left out; both caps must bite so both are hashed", s.name, repeats, left)
+			}
 			continue
 		}
 		variants[key{s.req.Mode, s.req.Temperature}]++
