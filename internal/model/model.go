@@ -631,6 +631,10 @@ type JudgeSummary struct {
 	ExcerptVersion int    `json:"excerpt_version,omitempty"`
 	Model          string `json:"model,omitempty"`
 	Samples        int    `json:"samples,omitempty"`
+	// RequestOptions is llm.request_options as every request carried it (P-107), one compact JSON object
+	// passed through the secret patterns — `{"thinking":{"type":"disabled"}}`. They change what the model
+	// does, so a reading names them like the model. Absent when there were none.
+	RequestOptions string `json:"request_options,omitempty"`
 }
 
 // PassUsage is what one pass of the judge used in a run (P-072): the calls it issued — a retry is the

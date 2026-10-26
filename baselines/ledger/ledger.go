@@ -140,7 +140,10 @@ type JudgeUsage struct {
 	Basis string `json:"basis"`
 	// Model is the model the binary printed in its judge summary (P-031), so a row copied or folded
 	// out of its run still says which model answered (P-072). Absent when the binary printed none.
-	Model            string `json:"model,omitempty"`
+	Model string `json:"model,omitempty"`
+	// RequestOptions is the summary's request_options as the binary printed it (P-107): what every request
+	// also carried, such as thinking turned off. Absent when there were none, or the binary predates it.
+	RequestOptions   string `json:"request_options,omitempty"`
 	Calls            int    `json:"calls"`
 	Failed           int    `json:"failed"`
 	Skipped          int    `json:"skipped"`

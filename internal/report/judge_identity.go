@@ -19,6 +19,10 @@ func judgeIdentityLine(j *model.JudgeSummary) string {
 	if j == nil || !j.Ran || j.PromptVersion == "" {
 		return ""
 	}
-	return fmt.Sprintf("LLM judge: model %s · samples %d · prompt_version %s · excerpt_version %d",
+	line := fmt.Sprintf("LLM judge: model %s · samples %d · prompt_version %s · excerpt_version %d",
 		j.Model, j.Samples, j.PromptVersion, j.ExcerptVersion)
+	if j.RequestOptions != "" { // P-107: what every request also carried is part of which judge it was
+		line += " · request_options " + j.RequestOptions
+	}
+	return line
 }

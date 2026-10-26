@@ -28,7 +28,18 @@ func judgeConfigured(llm config.LLMConfig, artifacts int) *model.JudgeSummary {
 		Artifacts: artifacts, Endpoint: redact.Endpoint(llm.BaseURL),
 		PromptVersion: judge.PromptVersion(), ExcerptVersion: judge.ExcerptVersion,
 		Model: judge.ModelFor(llm.Model), Samples: judge.SamplesFor(llm.Samples),
+		RequestOptions: requestOptionsShown(llm),
 	}
+}
+
+// requestOptionsShown is llm.request_options as a report records it (P-107): compact JSON through the
+// secret patterns, "" when there are none. Load already refused a value without a JSON form.
+func requestOptionsShown(llm config.LLMConfig) string {
+	s, err := llm.RequestOptionsJSON()
+	if err != nil {
+		return ""
+	}
+	return redact.Secrets(s)
 }
 
 // judgeNotConfigured is the block for a run where --llm was passed but the config does not enable
