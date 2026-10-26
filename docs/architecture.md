@@ -285,7 +285,7 @@ Requires **both** `llm.enabled: true` in config **and** `--llm`, which `scan` an
 take; `clean` and the load-time gate never call it (the gate's scanners never set `llm`, pinned by
 `TestGateScannerNeverEnablesLLM`). Per artifact kind it runs passes for hidden injection, intent mismatch, deobfuscation
 (decode only, never execute), cross-file collusion, hook capability, MCP configuration, and
-triage labelling. Scanned content is treated as **hostile**: every call fences it inside a
+triage labelling, plus the result question (output manipulation) when `llm.result_pass` turns it on (P-106). Scanned content is treated as **hostile**: every call fences it inside a
 `crypto/rand` nonce barrier as inert data, and a nonce generation failure fails the call rather
 than degrading to a guessable fence. The nonce is drawn once per question and shared by its
 samples, so an endpoint's prompt cache can serve the repeats; a re-ask and triage draw their own
