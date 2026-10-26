@@ -72,8 +72,8 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   都是它(P-019,`rawroot_test.go` 等四个包的写法矩阵钉着)。单目标的 `check ./skill` 仍回显敲进来的路径。**不要从敲进来的 root 取 home**:`filepath.Dir` 只看字符串,`--root .` 下
   home == root(用户级 MCP、home 的 CLAUDE.md、桌面版全在 root 里找),`--root .claude` 下 home 是相对的 `.`,以绝对路径链接安装的
   skill 被 `withinDir` 当成"指到 HOME 外"丢掉。也不要解析 root:`~/.claude → ~/dotfiles/claude` 的 home 会被挪走。**root 顶层的
-  `.mcp.json`/`.claude.json` 照读**(`collect.RootMCPConfigs`,与 home 那份是同一个文件时不读两遍):CI 模板 `scan --root .` 把仓库
-  当 root,项目 MCP 配置就在那里;以前只有 `.` 因为 home == root 碰巧读到,绝对写法不读,而 `rootOwned` 声称读了(P-012)。
+  `.mcp.json`/`.claude.json` 照读**(`collect.RootMCPConfigs`,与 home 那份是同一个文件时不读两遍):放 skill 的仓库(CI 模板在顶层
+  有 `skills/` 时)`scan --root .` 把仓库当 root,项目 MCP 配置就在那里;以前只有 `.` 因为 home == root 碰巧读到,绝对写法不读,而 `rootOwned` 声称读了(P-012)。
 - **root 采集器是布局白名单,所以必须有人认领"剩下那一半"**
   ([collect/unowned.go](../../internal/collect/unowned.go))。`~/.claude/install.sh` 里写
   `curl | bash` + `rm -rf /`,以前扫出来是 **100/100 + "✅ No risk findings" + 退出码 0** ——
@@ -169,6 +169,15 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   P-038 加了第四个理由:**`check` 的目标本身是判官什么都不问的**(`judge.Unasked`:directory/quarantined,以及**没有任何可加载
   skill/命令/子 agent 的** plugin —— 有的话判官经子项回答,P-044)也是 4;`scan` 和 root 形的 `check` **不**因此退 4,只出一条 `LLM-000`
   计数(note 和退出码读同一个函数)。triage 不算问题。
+- **`--fail-on` 也有一个 4**(`failGate` + `nothingToGate`,P-105):根目录下有个**没读的 `.claude` 目录**,或**什么都没收集到**。
+  判据只有 collect 发的那两条 COV-000(`collect.UnauditedRoot`:`ProjectDirNoteTitle` 优先,其次 `EmptyRootNoteTitle`),报告和退出码读同一个决定。
+  以前 `hack/github-action.yml` 从项目顶层跑 `--root .`,`.claude` 只是 unowned 列表里的一个名字(刻意跳过,headline 照说 looks safe),
+  典型仓库报 "Checked 1 file." 然后退 0,项目里的 skill、hook、权限一个都没读。**别把别的覆盖 note 接进来**(spec 约定覆盖 note 不改退出码;
+  这两条说的是"根目录指错了",不是覆盖缺口);**别让 scan 自己钻进 `.claude`**(`--root` 就是敲的那个,P-012);**1 先于 4**;
+  `check` 一个空的普通目录**不算**(它有一个 artifact,就是用户点名的目标)。`TestFailGate_NothingToGate` 两向都钉,
+  `TestScan_CITemplatePicksTheRoot` 用 `/bin/sh` 真跑模板选 root 的那一行,四种仓库布局各自读到该读的。**root 本身是配置根时不发这条**
+  (`collect.configRootLayout`:名叫 `.claude`,或自带 `settings.json`/`settings.local.json`/`skills/`/`plugins/installed_plugins.json`):
+  Claude Code 在 `~/.claude` 里跑会写 `~/.claude/.claude/settings.local.json`,第一版因此在用户自己的环境上退了 4(评审在真机上发现)。
 - **插件的 skill、命令、子 agent 是各自的 artifact,但不是各自的一票**(`collect/plugincontents.go` + `score/family.go`,P-044)。只采
   Claude Code 2.1.107 加载器会加载的(一种情形一行 fixture,`TestPluginContents_FollowClaudeCodesLoader`;**别"顺手"多采 `docs/`、`.agents/`
   这类副本**,那是 `issues/017`),插件树 artifact 与哈希不动。同一份字节被读两遍,所以凡是会数两遍的地方都问 `score.Families`:环境分按

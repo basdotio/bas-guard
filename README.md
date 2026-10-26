@@ -220,18 +220,20 @@ That includes a note attached to one item, such as a `settings.json` that does n
 summary then names the item as not fully checked, and does the same for a file that could not be
 read. When something Claude Code loads was not fully read — a file that could not be read or parsed,
 an item carrying its own coverage note, a skill folder the scan could not open, a file over the size
-cap, a hook script it could not follow — the summary says coverage is incomplete instead of calling
+cap, a hook script it could not follow, a project's `.claude` under the root (the root is one level too
+high: point `--root` at the `.claude`) — the summary says coverage is incomplete instead of calling
 the setup safe. Notes about things the scan skips by design (your own session history at the top of
 the config directory, a plugin's `node_modules/`) are listed but do not change that sentence. When
 the inventory has nothing to count — `bas-guard check` on a single file or a plain folder — the summary
-says what it checked ("Checked 1 file.") rather than that nothing was found. Coverage notes never change the score, and change the exit code in one case only: with `--fail-on-llm`, a judge that could not answer for every artifact exits `4` (below). Findings are never folded in either mode, and `--json` / `--html` / `--md` always carry everything, so
+says what it checked ("Checked 1 file.") rather than that nothing was found. Coverage notes never change the score, and change the exit code in two cases only, both `4` (below): with `--fail-on`, a root that held nothing to check or held a project's `.claude` it did not read; with `--fail-on-llm`, a judge that could not answer for every artifact. Findings are never folded in either mode, and `--json` / `--html` / `--md` always carry everything, so
 what a CI job sees never depends on which flag a human passed.
 
 **Exit codes**: `0` below threshold · `1` a finding at/above `--fail-on` · `2` runtime error
-(and, for `clean` only, `3` = acted partially, with every refusal named; with `--fail-on-llm` only, `4` = the gate could not be
-evaluated — the judge did not run, a call failed or was never made, or (on `check`) it has no question for the target: a
-plain folder, or a plugin holding no skill, command or agent — with the reason on stderr; `4` is not a pass, and a
-finding at either threshold still exits `1`). A run stopped by a
+(and, for `clean` only, `3` = acted partially, with every refusal named; `4` = a gate could not be evaluated, with the
+reason on stderr: with `--fail-on`, the root held nothing to check, or held a project's `.claude` it did not read; with
+`--fail-on-llm`, the judge did not run, a call failed or was never made, or (on `check`) it has no question for the
+target: a plain folder, or a plugin holding no skill, command or agent. `4` is not a pass, and a finding at either
+threshold still exits `1`). A run stopped by a
 signal ends as `128 + signal` — `130` for Ctrl-C, `141` for a closed output pipe — through the
 npm launcher exactly as for the bare binary.
 `scan` does not exit non-zero on findings by default (informational mode); `check` defaults to `--fail-on high` (gate mode).
@@ -481,10 +483,16 @@ carry the same review and fingerprint, and renew only on a machine that has the 
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
 # CI (GitHub Actions)
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
 See [`hack/`](hack/) for both. A single skill: `bas-guard check ./some-skill` (defaults to `--fail-on high`).
+
+The workflow's first line picks `--root`: the repository itself (`.`) when it keeps `skills/` at its top level or has
+no `.claude`, otherwise the project's `.claude`, which holds its skills, `settings.json` and agents (the project's
+`.mcp.json` and `CLAUDE.md` next to it are read from there too). Replace it with a fixed root if you prefer. Pointed one
+level too high — at a project's top level — a `--fail-on` gate exits `4` and says to scan the `.claude` it did not read,
+rather than passing over skills nobody read; so does a root with nothing to check at all.
 
 ## Reports
 

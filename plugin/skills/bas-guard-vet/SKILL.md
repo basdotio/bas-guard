@@ -59,10 +59,11 @@ bas-guard hash ./some-skill                      # canonical hash: the artifact'
 ```
 
 Exit codes: `0` below threshold · `1` a finding at or above `--fail-on` · `2` runtime error ·
-`4` (only with `--fail-on-llm`) the deep check could not answer for everything — it did not run,
-some of its calls failed, or it has no questions for this kind of target (a plain folder, or a plugin
-holding no skill, command or agent) —
-and the reason is on stderr. A `4` is not a pass either.
+`4` a gate could not be evaluated, and the reason is on stderr: with `--fail-on`, a target laid out
+as a root held nothing to check, or held a project's `.claude` it did not read; with `--fail-on-llm`,
+the deep check could not answer for everything — it did not run, some of its calls failed, or it has
+no questions for this kind of target (a plain folder, or a plugin holding no skill, command or agent).
+A `4` is not a pass either.
 
 **Exit code 2 is not a pass.** `check` errors rather than returning an empty result when the
 target cannot be read, because an empty result renders as `100/100` with exit `0`. A `2` means
@@ -132,7 +133,7 @@ For a repo that publishes skills, the check belongs in CI and pre-commit. Both a
 
 ```bash
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
 Both live in the [agent-guard repo's `hack/`](https://github.com/basdotio/bas-guard/tree/main/hack)
@@ -146,6 +147,7 @@ For gating the *environment* rather than one artifact:
 
 ```bash
 bas-guard scan --fail-on high     # scan is informational by default; this makes it a gate
+bas-guard scan --root .claude --fail-on high   # a project's own config, from its top level
 ```
 
 To make the check run automatically when a skill is **loaded**, not when someone remembers to
