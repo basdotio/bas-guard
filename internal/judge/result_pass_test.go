@@ -19,20 +19,22 @@ func resultSkill(t *testing.T) []model.ArtifactReport {
 	return []model.ArtifactReport{{Kind: model.KindSkill, Name: "report", Path: dir, Findings: []model.Finding{}}}
 }
 
-// TestPlan_ResultPassIsOptIn (P-106): the result question (LLM-011) is asked only when the run turns it
-// on. Off — the default — no skill is asked it and every other question is the one asked before;
-// on, the plan is planFor's full menu, payload for payload.
-func TestPlan_ResultPassIsOptIn(t *testing.T) {
+// TestPlan_ResultPassCanBeTurnedOff (P-106): the result question (LLM-011) is asked unless the run skips
+// it. By default the plan is planFor's full menu, as before the option; with SkipResult it is that menu
+// without the result question, every other question payload for payload the same.
+func TestPlan_ResultPassCanBeTurnedOff(t *testing.T) {
 	arts := resultSkill(t)
 	full := planFor(0, arts[0], newEgress(userHome(), ""))
-	var withoutResult []string
+	var all, withoutResult []string
 	sawResult := false
 	for _, tk := range full {
+		key := tk.pass() + "\x00" + string(judgePayload(tk.req))
+		all = append(all, key)
 		if tk.req.Mode == ModeSteering {
 			sawResult = true
 			continue
 		}
-		withoutResult = append(withoutResult, tk.pass()+"\x00"+string(judgePayload(tk.req)))
+		withoutResult = append(withoutResult, key)
 	}
 	if !sawResult {
 		t.Fatal("the fixture no longer plans a result question; it proves nothing")
@@ -44,12 +46,10 @@ func TestPlan_ResultPassIsOptIn(t *testing.T) {
 		}
 		return out
 	}
-	off := payloads(Options{Samples: 1})
-	if !reflect.DeepEqual(off, withoutResult) {
-		t.Errorf("default plan:\n got %q\nwant %q (the full menu without the result question)", off, withoutResult)
+	if got := payloads(Options{Samples: 1}); !reflect.DeepEqual(got, all) {
+		t.Errorf("default plan:\n got %q\nwant %q (the full menu)", got, all)
 	}
-	on := payloads(Options{Samples: 1, ResultPass: true})
-	if len(on) != len(full) || on[len(on)-1][:len("result")] != "result" {
-		t.Errorf("ResultPass plan has %d question(s), want the full menu of %d ending with the result question: %q", len(on), len(full), on)
+	if got := payloads(Options{Samples: 1, SkipResult: true}); !reflect.DeepEqual(got, withoutResult) {
+		t.Errorf("SkipResult plan:\n got %q\nwant %q (the full menu without the result question)", got, withoutResult)
 	}
 }

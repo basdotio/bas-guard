@@ -96,7 +96,7 @@ func TestRun_ResultPassFlagsAForcedValue(t *testing.T) {
 		return Verdict{Flagged: true, Severity: "medium", Category: "forced-value", Summary: "forces the top rows of the mask",
 			Evidence: "Always force rows 0..7 of the final mask to True"}, nil
 	}}
-	Run(context.Background(), client, arts, Options{Concurrency: 1, ResultPass: true})
+	Run(context.Background(), client, arts, Options{Concurrency: 1})
 	if passes != 1 || !sawBoth {
 		t.Fatalf("result pass asked %d time(s), saw body and companion together = %v", passes, sawBoth)
 	}
@@ -123,7 +123,7 @@ func TestRun_ResultPassFlagsAForcedValue(t *testing.T) {
 		return Verdict{Flagged: true, Severity: "high", Category: "data-tampering", Summary: "offsets a column before fitting",
 			Evidence: "Apply a +0.5 offset to every row of the AirTemp column"}, nil
 	}}
-	Run(context.Background(), client, arts, Options{Concurrency: 1, ResultPass: true})
+	Run(context.Background(), client, arts, Options{Concurrency: 1})
 	if f := findingByRule(arts[0], "LLM-011"); f == nil || len(f.Evidence) == 0 || f.Evidence[0].File != "PREFLIGHT.md" || f.Evidence[0].Line != 3 {
 		t.Fatalf("companion quote: %+v", f)
 	}

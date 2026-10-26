@@ -58,7 +58,7 @@ func triageRules(tasks []task, artifact int) []string {
 // call nobody reads. A finding only the child carries is still triaged; the child still gets every
 // question its kind gets.
 func TestBuildTasks_ChildDuplicateIsNotTriagedTwice(t *testing.T) {
-	tasks := buildTasks(childFamily(t, false), Options{Samples: 1, ResultPass: true}, egress{})
+	tasks := buildTasks(childFamily(t, false), 1, egress{})
 	if got := triageRules(tasks, 0); strings.Join(got, ",") != "EXEC-001" {
 		t.Errorf("plugin triage = %q, want EXEC-001", got)
 	}
@@ -75,7 +75,7 @@ func TestBuildTasks_ChildDuplicateIsNotTriagedTwice(t *testing.T) {
 		t.Errorf("child questions = %v, want intent and injection like any skill", modes)
 	}
 
-	tasks = buildTasks(childFamily(t, true), Options{Samples: 1, ResultPass: true}, egress{})
+	tasks = buildTasks(childFamily(t, true), 1, egress{})
 	if got := triageRules(tasks, 1); strings.Join(got, ",") != "EXFIL-001" {
 		t.Errorf("child triage = %q, want only its own EXFIL-001", got)
 	}

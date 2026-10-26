@@ -36,9 +36,10 @@ type Options struct {
 	// and every grounded verdict counts. >1 asks N times and requires a MAJORITY before a
 	// finding may affect the effective score — it costs N times as much, so it is opt-in.
 	Samples int
-	// ResultPass asks each skill the result question (LLM-011, P-068). Off — the zero value — the
-	// plan leaves it out (P-106); every other question is unchanged.
-	ResultPass bool
+	// SkipResult leaves the result question (LLM-011, P-068) out of the plan: llm.result_pass: false
+	// (P-106). The zero value asks it, as every run did before the option existed; every other
+	// question is the same either way.
+	SkipResult bool
 	// Home is the scanned environment's home directory, replaced by `~` in what is sent (egress.go)
 	// IN ADDITION to the OS user's home, which Run always replaces: empty adds nothing, it does
 	// not turn the scrub off. A relative Home is resolved against the working directory.
@@ -445,7 +446,10 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 // (llm.max_calls) refuses, with the notes that say what will not be seen. Run makes the first;
 // Plan shows both — one function, so the preview cannot plan a run of its own (P-027).
 func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, notes []model.Finding) {
-	send = buildTasks(arts, opts, newEgress(userHome(), opts.Home))
+	send = buildTasks(arts, opts.Samples, newEgress(userHome(), opts.Home))
+	if opts.SkipResult {
+		send = withoutResult(send)
+	}
 	if over := len(send) - opts.MaxCalls; opts.MaxCalls > 0 && over > 0 {
 		notes = append(notes, coverageNote(fmt.Sprintf(
 			"call budget (llm.max_calls=%d) reached: %d planned call(s) covering %s were NOT made",
@@ -462,6 +466,20 @@ func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, 
 		notes = append(notes, n)
 	}
 	return send, refused, notes
+}
+
+// withoutResult is the plan with every sample of the result question taken out (P-106). Filtered after
+// buildTasks rather than inside planFor, so planFor keeps listing every question an artifact can be
+// asked and the tests of the result pass itself read it directly. tasks is not modified.
+func withoutResult(tasks []task) []task {
+	out := make([]task, 0, len(tasks))
+	for _, t := range tasks {
+		if t.kind == taskJudge && t.req.Mode == ModeSteering {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }
 
 // userHome is the OS user's home directory, or "" when the environment does not say — in which
@@ -482,18 +500,13 @@ const crossFileChainRule = "EXFIL-002"
 // buildTasks turns the artifact list into the full call plan, in a fixed order, expanding
 // each question into `samples` independent calls. Samples of one question stay consecutive and
 // share a group id, so the votes can be counted without disturbing the order everything else
-// depends on. planFor lists every question an artifact can be asked; the result question is kept only
-// when the run asks it (opts.ResultPass, P-106).
-func buildTasks(arts []model.ArtifactReport, opts Options, eg egress) []task {
-	samples := opts.Samples
+// depends on.
+func buildTasks(arts []model.ArtifactReport, samples int, eg egress) []task {
 	var tasks []task
 	group := 0
 	fam := score.Families(arts)
 	for i := range arts {
 		for _, t := range planFor(i, arts[i], eg) {
-			if t.req.Mode == ModeSteering && !opts.ResultPass {
-				continue
-			}
 			if t.kind == taskTriage {
 				// A plugin's child repeats the plugin tree's findings (P-044). One its plugin row already
 				// shows is triaged there, and its copy on the child is not printed, so a second label

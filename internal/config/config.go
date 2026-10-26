@@ -75,9 +75,11 @@ type LLMConfig struct {
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
 	// ResultPass asks each skill the result question (LLM-011, P-068): does a required step change
-	// what the user gets. Off by default (P-106): it is about a third of a skill's calls, and what it
-	// catches is output manipulation — turn it on where that is the threat, gate or not.
-	ResultPass bool `yaml:"result_pass"`
+	// what the user gets. On unless the config says `result_pass: false` (P-106): it is about a third
+	// of a skill's calls, and what it catches is output manipulation — turning it off saves those calls
+	// and gives up that class. A pointer so that a config which never mentions it, and an LLMConfig
+	// built without it, both ask it; read it through AsksResultPass.
+	ResultPass *bool `yaml:"result_pass"`
 	// Authority decides whether this endpoint's opinion may have CONSEQUENCES: "advisory"
 	// (default) means the judge can only inform, "escalate" additionally permits the
 	// --fail-on-llm gate. It does not change what the effective score says — that number must
@@ -89,6 +91,9 @@ type LLMConfig struct {
 	// must never be able to self-certify.
 	Authority string `yaml:"authority"`
 }
+
+// AsksResultPass reports whether the result question is asked: unless `result_pass: false` (P-106).
+func (l LLMConfig) AsksResultPass() bool { return l.ResultPass == nil || *l.ResultPass }
 
 // Default returns the safe default: LLM disabled, local endpoint.
 //

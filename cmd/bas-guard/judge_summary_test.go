@@ -195,14 +195,15 @@ func TestRunVersion_JudgeVersionsComeAfterRules(t *testing.T) {
 	}
 }
 
-// TestE2E_ResultPassOffIsInTheBlock (P-106): a run that does not ask the result question says so in its
-// judge block and identity line; one that turns it on says nothing, and asks one question more per skill.
+// TestE2E_ResultPassOffIsInTheBlock (P-106): a run configured with `result_pass: false` says so in its judge
+// block, identity and usage line, and asks one question fewer per skill; a run that leaves it on (the
+// default) carries no key; a judge that was not configured names no pass.
 func TestE2E_ResultPassOffIsInTheBlock(t *testing.T) {
 	root := buildTestRunnerSkill(t, false)
 	srv := usageServer(t, 100, 7)
-	off := writeJudgeConfigSamples(t, srv.URL, "advisory", 1)
-	on := filepath.Join(t.TempDir(), "config.yaml")
-	mustWriteFile(t, on, "llm:\n  enabled: true\n  provider: openai_compatible\n  base_url: "+srv.URL+"\n  model: fake\n  result_pass: true\n")
+	on := writeJudgeConfigSamples(t, srv.URL, "advisory", 1)
+	off := filepath.Join(t.TempDir(), "config.yaml")
+	mustWriteFile(t, off, "llm:\n  enabled: true\n  provider: openai_compatible\n  base_url: "+srv.URL+"\n  model: fake\n  result_pass: false\n")
 	calls := map[string]int{}
 	for name, cfg := range map[string]string{"off": off, "on": on} {
 		out, err := scanEnv(root, scanOpts{cfgPath: cfg, llm: true, quiet: true})
@@ -226,8 +227,8 @@ func TestE2E_ResultPassOffIsInTheBlock(t *testing.T) {
 			t.Errorf("%s: usage line passes_off %v, block %v", name, line.PassesOff, j.PassesOff)
 		}
 	}
-	if calls["on"] <= calls["off"] {
-		t.Errorf("calls with the result pass %d, without %d: turning it on asks no more", calls["on"], calls["off"])
+	if calls["off"] >= calls["on"] {
+		t.Errorf("calls with the result pass off %d, on %d: turning it off asks no fewer", calls["off"], calls["on"])
 	}
 	if nc := judgeNotConfigured(1, "x"); nc.PassesOff != nil {
 		t.Errorf("a judge that was not configured names passes off: %v", nc.PassesOff)
