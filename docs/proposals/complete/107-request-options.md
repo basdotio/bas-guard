@@ -101,7 +101,7 @@ what it is today. The options change what the model does, so a report records th
 ## Done
 
 ```
-Merged: PR to be opened (find the sha with git log --grep P-107 after the merge)
+Merged: PR #132 (find the sha with git log --grep P-107 after the merge)
 Released: (fill in after the release)
 Evidence: TestLoad_RequestOptions (internal/config): nested maps read as written and recorded as {"max_tokens":800,"thinking":{"type":"disabled"}}; model, messages, temperature, stream and n each refused at load, the error naming it; a map keyed by a number refused; no key, no options
 Evidence: TestHTTP_RequestOptionsJoinEveryRequest (real NewHTTP over httptest): a judge question and Ping both end with ,"max_tokens":800,"thinking":{"type":"disabled"}} and are otherwise byte-identical to a client without options (HTML left unescaped, as before). TestRequestOptions_ReservedCoversTheRequest: every chatRequest member is in config.ReservedRequestOptions, and SetRequestOptions refuses each
