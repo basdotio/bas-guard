@@ -47,7 +47,7 @@ In short: the LLM can only push risk **up**, never down. It can surface a risk; 
 |------|----------|---------|------------------|
 | **Injection** | Does this text hide a directive to the agent (paraphrased / unicode / encoded)? | skills, `CLAUDE.md`, subagents, commands, hooks — **always** | 1 · `LLM-003` |
 | **Intent** | Does the behavior do sensitive things the description doesn't disclose? | skills | 10 · `LLM-001` |
-| **Result** | Does a step the instruction text presents as required change the result the user receives — a value forced into the output, data altered before the result, a check decided in advance — with the user told nothing? | skills (the `SKILL.md` body and the documents it names) — **only with `llm.result_pass: true`** (P-106) | 1 · `LLM-011` |
+| **Result** | Does a step the instruction text presents as required change the result the user receives — a value forced into the output, data altered before the result, a check decided in advance — with the user told nothing? | skills (the `SKILL.md` body and the documents it names) — on unless `llm.result_pass: false` (P-106) | 1 · `LLM-011` |
 | **Deobfuscation** | Decode embedded base64/hex blobs (decoded, never executed) — what does the payload do? | skills with a decodable blob | 6 · `LLM-004` |
 | **Collusion** | Do capabilities in *different files* form a chain — collected here, sent from there? | skills the static screen (`EXFIL-002`) flagged | 3 · `LLM-006` |
 | **Capability** | Does this hook do more than intercepting *its* event plausibly requires? | hooks | 2 · `LLM-008` |
@@ -136,7 +136,7 @@ llm:
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
-| `result_pass` | `true` asks each skill the result question (`LLM-011`, P-068); default `false` (P-106). About a third of a skill's calls; what it catches is output manipulation — see [What it checks](#what-it-checks). |
+| `result_pass` | `false` skips the result question (`LLM-011`, P-068) for every skill; default `true` (P-106). About a third of a skill's calls; what it catches is output manipulation — see [What it checks](#what-it-checks). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 Every run prints one line to stderr — `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed
@@ -303,13 +303,14 @@ everything on your machine. That trade-off is yours.
   write notes beside their output and a record under `/root` is already the injection pass's `privilege`. The
   prompt names the step's own rationale as not-evidence; formatting rules, validation and the skill's scratch
   files are not findings. One more question per skill (three calls at `samples: 3`).
-- **The result pass is opt-in** (P-106): `llm.result_pass: true` asks it; without it no skill is asked the question,
-  the judge block says `passes_off: ["result"]` and the identity line `· result pass off`. It is about a third of a
-  skill's calls (31–33% of the calls on the v0.31.0 held-out ClawHub readings, 27% on SkillHarm), and what it buys is
-  concentrated in output manipulation: read again without it, the committed SkillHarm reading keeps 69 of its 81
-  samples at the judge verdict (−12 of 120) and a P-089 malicious reading 155 of 174 (−19 of 240), while the held-out
-  malicious skills keep all 68 and one held-out benign set has two false positives fewer (8 → 6 of 215). Turn it on
-  where output manipulation is the threat — a `--fail-on-llm` gate included, which does not require it.
+- **The result pass can be turned off** (P-106): `llm.result_pass: false` skips it, and the judge block then says
+  `passes_off: ["result"]` and the identity line `· result pass off`; left out of the config, it is asked. It is about
+  a third of a skill's calls (31–33% of the calls on the v0.31.0 held-out ClawHub readings, 27% on SkillHarm), and what
+  it buys is concentrated in output manipulation: read again without it, the committed SkillHarm reading keeps 69 of its
+  81 samples at the judge verdict (−12 of 120) and a P-089 malicious reading 155 of 174 (−19 of 240), while the held-out
+  malicious skills keep all 68 and one held-out benign set has two false positives fewer (8 → 6 of 215). Turn it off
+  where the calls matter more than output manipulation; leave it on where that is the threat, a `--fail-on-llm` gate
+  included.
 - **Downloads items are judged too** when `--llm` is on: the agent-shaped candidates under
   `~/Downloads` (already read and scored by the static check) get the same passes; the rest of
   the folder is still never read. The Downloads section says whether the judge ran and carries

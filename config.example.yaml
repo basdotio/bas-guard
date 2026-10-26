@@ -68,10 +68,10 @@ llm:
 
   # Ask each skill the result question (LLM-011): does a step the instructions present as
   # required change what the user gets — a value forced into the output, data altered first?
-  # Off by default: it is about a third of a skill's calls, and what it catches is output
-  # manipulation. Turn it on where that is the threat. A run without it says so in its
-  # judge block (passes_off: ["result"]).
-  result_pass: false
+  # On by default. It is about a third of a skill's calls, and what it catches is output
+  # manipulation: set false to save those calls where that class matters less. A run
+  # without it says so in its judge block (passes_off: ["result"]).
+  result_pass: true
 
   # Whether this endpoint's opinion may have CONSEQUENCES.
   #   advisory (default) — the judge informs; no gate can act on it
