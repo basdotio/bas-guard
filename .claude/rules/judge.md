@@ -81,3 +81,10 @@ k 个请求逐字节相同,端点的提示词缓存才接得住重复;重问和 
 **判官说明里给 artifact 起的名字只有 `artifactLabel` 一处**(`kind:name`,P-085):不过 `Redact`,和报告列 artifact 的名字一致。**别把 `Redact` 加回去**:熵兜底会把 `migrating-tailwindcss-v4` 这种名字整个换掉,两个 skill 在 `LLM-000` 里读成同一个 `skill:<REDACTED>`、`artifactSpan` 还按标签去重(issues/027)。标签不进任何请求体(`Request.Artifact` 是 notSent);发给模型的摘录照旧走 egress。
 完整参考:[docs/llm-judge.md](../../docs/llm-judge.md)。
 - **服务器趟的 `credential-read` 要看文件有没有越界**(P-098,`unitOverreaches`):引文所在文件 `detect.CredentialOverreach`(别的程序的密钥文件、系统文件、`/proc`/`/sys`、整环境读取但子进程复制环境不算、元数据服务、用户库、钥匙串、cookie 库、临时目录隐藏文件)和 `detect.CredentialSentElsewhere`(读凭证且发往写明的、不属于该凭证服务的主机;没有服务名的凭证如 `settings.password` 遇到任何写明的外部主机都算)都为假,才降 medium。**别把"目的地读不出来"加进 SentElsewhere 的反面**——那是 P-074 的地盘,读不出来的仍降;也别删清单项:每一项都对应 Cisco 集里一个恶意样本,删了它就从 high 掉下来。在 543 个良性服务器上降 43 个,Cisco 127 个恶意降 2 个(都是判官把注入/遍历错归成 credential-read),其余 12 个恶意 MCP 0 个。
+- **Two calls nobody could read (P-104).** Intent is asked only of a skill whose `behaviorExcerpt` is non-empty: with no
+  behaviour file the only quotable text is the description, which P-054 made not evidence — don't ask it again "for
+  coverage". Intent was the one question whose units held the description, so for such a skill the injection question
+  carries it as a `declaration` unit: a barrier quote of it still grounds (`LLM-007` at SKILL.md:1, a committed malicious
+  sample hides its directive there), the verdict does not (`withoutDeclaration`). Triage sends at most `maxTriagePerRule`
+  findings per rule (the label joins every finding of the rule by id) and carries `trustRule` only — don't put
+  `barrierRule`'s verdict schema back in front of its label format.
