@@ -93,7 +93,7 @@ type LLMConfig struct {
 }
 
 // AsksResultPass reports whether the result question is asked: unless `result_pass: false` (P-106).
-func (l LLMConfig) AsksResultPass() bool { return l.ResultPass == nil || *l.ResultPass }
+func (c LLMConfig) AsksResultPass() bool { return c.ResultPass == nil || *c.ResultPass }
 
 // Default returns the safe default: LLM disabled, local endpoint.
 //
