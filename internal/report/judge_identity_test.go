@@ -50,6 +50,17 @@ func TestJudgeIdentityLine_NamesTheJudgeWhenItRan(t *testing.T) {
 	}
 }
 
+// TestJudgeIdentityLine_NamesTheRequestOptions (P-107): options that change what the model does are part
+// of which judge it was.
+func TestJudgeIdentityLine_NamesTheRequestOptions(t *testing.T) {
+	j := ranJudge("glm-5.3-flash")
+	j.RequestOptions = `{"thinking":{"type":"disabled"}}`
+	want := `LLM judge: model glm-5.3-flash · samples 3 · prompt_version 0123456789ab · excerpt_version 3 · request_options {"thinking":{"type":"disabled"}}`
+	if got := judgeIdentityLine(j); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
 // TestJudgeIdentityLine_AbsentWhenNothingToAttribute: a judge that did not run produced no finding
 // to attribute, and a report without --llm says nothing about a judge at all.
 func TestJudgeIdentityLine_AbsentWhenNothingToAttribute(t *testing.T) {
