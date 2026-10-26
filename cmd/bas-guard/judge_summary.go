@@ -28,7 +28,16 @@ func judgeConfigured(llm config.LLMConfig, artifacts int) *model.JudgeSummary {
 		Artifacts: artifacts, Endpoint: redact.Endpoint(llm.BaseURL),
 		PromptVersion: judge.PromptVersion(), ExcerptVersion: judge.ExcerptVersion,
 		Model: judge.ModelFor(llm.Model), Samples: judge.SamplesFor(llm.Samples),
+		PassesOff: passesOff(llm),
 	}
+}
+
+// passesOff names the optional questions this config does not ask (P-106), nil when it asks them all.
+func passesOff(llm config.LLMConfig) []string {
+	if llm.ResultPass {
+		return nil
+	}
+	return []string{"result"}
 }
 
 // judgeNotConfigured is the block for a run where --llm was passed but the config does not enable

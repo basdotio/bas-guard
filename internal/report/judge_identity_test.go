@@ -50,6 +50,16 @@ func TestJudgeIdentityLine_NamesTheJudgeWhenItRan(t *testing.T) {
 	}
 }
 
+// TestJudgeIdentityLine_NamesAPassOff (P-106): a run that did not ask the result question says so on the line.
+func TestJudgeIdentityLine_NamesAPassOff(t *testing.T) {
+	j := ranJudge("gpt-4o-mini")
+	j.PassesOff = []string{"result"}
+	want := "LLM judge: model gpt-4o-mini · samples 3 · prompt_version 0123456789ab · excerpt_version 3 · result pass off"
+	if got := judgeIdentityLine(j); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
 // TestJudgeIdentityLine_AbsentWhenNothingToAttribute: a judge that did not run produced no finding
 // to attribute, and a report without --llm says nothing about a judge at all.
 func TestJudgeIdentityLine_AbsentWhenNothingToAttribute(t *testing.T) {

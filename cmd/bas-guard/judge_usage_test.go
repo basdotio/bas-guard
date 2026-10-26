@@ -112,6 +112,7 @@ func TestE2E_UncachedEndpointBlockUnchanged(t *testing.T) {
 	}
 	withoutByPass := *j
 	withoutByPass.UsageByPass = nil
+	withoutByPass.PassesOff = nil // P-106: a later key, like usage_by_pass
 	raw, err := json.Marshal(withoutByPass)
 	if err != nil {
 		t.Fatal(err)
