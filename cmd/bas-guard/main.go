@@ -729,7 +729,7 @@ func main() {
 	scanCmd.Flags().StringVar(&mdOut, "md", "", mdFlagHelp)
 	scanCmd.Flags().BoolVar(&useLLM, "llm", false, "enable the LLM intent judge — advisory only; set it up once with `bas-guard llm setup` (redacted excerpts are sent to the configured endpoint; never moves the deterministic score)")
 	scanCmd.Flags().BoolVar(&zombie, "zombie", false, "also flag never-used skills via the usage log (weak signal, opt-in)")
-	scanCmd.Flags().StringVar(&scanFailOn, "fail-on", "", "exit 1 when a DETERMINISTIC finding is at/above this level (low|medium|high|critical) — for CI/gates")
+	scanCmd.Flags().StringVar(&scanFailOn, "fail-on", "", "exit 1 when a DETERMINISTIC finding is at/above this level (low|medium|high|critical) — for CI/gates; exit 4 when the root held nothing to check, or a project's .claude it did not read (point --root at it)")
 	scanCmd.Flags().StringVar(&scanFailOnLLM, "fail-on-llm", "", failOnLLMFlagHelp)
 
 	checkCmd := &cobra.Command{
@@ -781,7 +781,7 @@ func main() {
 	checkCmd.Flags().StringVar(&sarifOut, "sarif", "", "also write a SARIF 2.1.0 log to this path (for GitHub Code Scanning / any SARIF viewer)")
 	checkCmd.Flags().StringVar(&mdOut, "md", "", mdFlagHelp)
 	checkCmd.Flags().BoolVar(&asJSON, "json", false, "output JSON")
-	checkCmd.Flags().StringVar(&checkFailOn, "fail-on", "high", "exit 1 when a DETERMINISTIC finding is at/above this level (low|medium|high|critical)")
+	checkCmd.Flags().StringVar(&checkFailOn, "fail-on", "high", "exit 1 when a DETERMINISTIC finding is at/above this level (low|medium|high|critical); exit 4 when a target laid out as a root held nothing to check, or a project's .claude it did not read")
 	checkCmd.Flags().BoolVar(&useLLM, "llm", false, "also run the LLM intent judge on this target — advisory only, same opt-in as scan --llm (redacted excerpts are sent to the configured endpoint; never moves the deterministic score or --fail-on)")
 	checkCmd.Flags().StringVar(&checkFailOnLLM, "fail-on-llm", "", failOnLLMFlagHelp)
 
@@ -951,9 +951,11 @@ func partialGate(res clean.Result) error {
 	return nil
 }
 
-// exitNotEvaluable is --fail-on-llm's "no answer": the judge did not run, or some of its calls
-// failed or were never made, so the gate cannot say nothing reached the threshold (P-026). It is
-// not 3, which is clean's "acted partially": one number, one meaning, across commands.
+// exitNotEvaluable is a gate's "no answer": a gate you asked for cannot say nothing reached its
+// threshold. For --fail-on-llm the judge did not run, or some of its calls failed or were never made
+// (P-026); for --fail-on the root held nothing it read, or held a project's .claude it did not read
+// (P-105). The stderr line names which gate and why. It is not 3, which is clean's "acted partially":
+// one number, one meaning, across commands.
 const exitNotEvaluable = 4
 
 type failExit struct {
@@ -991,6 +993,11 @@ func (e *failExit) Error() string {
 // It used to be 0 — the code a judge that looked and found nothing gets — so a pipeline that asked
 // the judge to gate it went green exactly when the judge was blind (P-026). Order is 2 (refused, above) > 1 (a gate fired: an answer, however much the judge
 // managed) > 4 > 0, and --fail-on alone never reads the judge's state.
+//
+// --fail-on has an exit 4 of its own (nothingToGate, P-105): the root held a project's .claude it did
+// not read, or nothing at all. hack/github-action.yml used to scan a project's top level, and the gate
+// exited 0 on every push over skills nobody read. Only those two collect notes do this; every other
+// coverage note leaves the code alone. Both 4s sit below either gate firing.
 func failGate(out model.ScanResult, failOn, failOnLLM string, llm config.LLMConfig) error {
 	sev, llmSev, err := validateFailGates(failOn, failOnLLM, llm)
 	if err != nil {
@@ -999,21 +1006,55 @@ func failGate(out model.ScanResult, failOn, failOnLLM string, llm config.LLMConf
 	if sev != "" && report.HasAtLeast(out, sev) {
 		return &failExit{code: 1}
 	}
-	if llmSev == "" {
-		return nil
-	}
-	if report.HasAtLeastEffective(out, llmSev) {
+	if llmSev != "" && report.HasAtLeastEffective(out, llmSev) {
 		return &failExit{code: 1}
 	}
-	gap := judgeGap(out.Judge)
-	if gap == "" {
-		gap = unaskedTarget(out)
+	// Each gate that cannot be evaluated says why, on one line: a run where both are blind names both.
+	var blind []string
+	if sev != "" {
+		if why := nothingToGate(out); why != "" {
+			blind = append(blind, fmt.Sprintf("--fail-on could not be evaluated (exit %d): %s", exitNotEvaluable, why))
+		}
 	}
-	if gap != "" {
-		return &failExit{code: exitNotEvaluable,
-			msg: fmt.Sprintf("--fail-on-llm could not be evaluated (exit %d): %s", exitNotEvaluable, gap)}
+	if llmSev != "" {
+		gap := judgeGap(out.Judge)
+		if gap == "" {
+			gap = unaskedTarget(out)
+		}
+		if gap != "" {
+			blind = append(blind, fmt.Sprintf("--fail-on-llm could not be evaluated (exit %d): %s", exitNotEvaluable, gap))
+		}
+	}
+	if len(blind) > 0 {
+		return &failExit{code: exitNotEvaluable, msg: strings.Join(blind, "; ")}
 	}
 	return nil
+}
+
+// nothingToGate says why --fail-on has nothing to stand on, or "" (P-105). collect decides, through
+// the note it already raises for the report (collect.UnauditedRoot), so the exit code and the report
+// cannot disagree about which root was read. Downloads items never gate and are not consulted.
+//
+// The line goes to a terminal or a CI log and carries a path, which under `check` is the target's —
+// a downloaded archive's name is someone else's choice — so it is sanitized like every other
+// human-facing name (invariant #7).
+func nothingToGate(out model.ScanResult) string {
+	n, ok := collect.UnauditedRoot(out.Notes)
+	if !ok {
+		return ""
+	}
+	path := out.Root
+	if len(n.Evidence) > 0 {
+		path = n.Evidence[0].File
+	}
+	path = report.Sanitize(path)
+	// Worded for scan and check alike: check takes its target as an argument and has no use for --root.
+	if n.Title == collect.ProjectDirNoteTitle {
+		return fmt.Sprintf("%s was not read, and it is where a project keeps its skills, hooks and permission grants: "+
+			"scan it as the root (bas-guard scan --root .claude from the project's top level)", path)
+	}
+	return fmt.Sprintf("nothing to audit under %s (0 artifacts collected): scan the directory that holds "+
+		"skills/, settings.json or plugins/ instead (a project's .claude, or ~/.claude)", path)
 }
 
 // unaskedTarget says why the judge's half of the answer is missing for the target of a check whose

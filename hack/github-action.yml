@@ -22,14 +22,21 @@ jobs:
       - name: install bas-guard
         run: go install github.com/basdotio/bas-guard/cmd/bas-guard@latest
 
-      # Point --root at the dir that holds your skills/ (here: the repo itself).
+      # --root is the dir that holds your skills/, and the first line picks it. A repository of skills
+      # keeps skills/ at its top level: the root is the repository (.). A project keeps its agent
+      # files in .claude — skills, settings.json (hooks, permission grants), agents/, commands/ — and
+      # its .mcp.json and CLAUDE.md next to it are read from there too: the root is .claude. Replace
+      # the line with a fixed root if you prefer. A root that holds nothing to check, or a project's
+      # .claude it did not read, exits 4 ("could not be evaluated") rather than passing.
       #
       # continue-on-error so the SARIF still uploads when the gate fails — otherwise the run you most
       # want annotations for is the one that produces none.
       - name: scan as a gate
         id: scan
         continue-on-error: true
-        run: bas-guard scan --root . --fail-on high --sarif bas-guard.sarif
+        run: |
+          root=.claude; if [ -d skills ] || [ ! -d .claude ]; then root=.; fi
+          bas-guard scan --root "$root" --fail-on high --sarif bas-guard.sarif
 
       - name: annotate the pull request
         uses: github/codeql-action/upload-sarif@v3
