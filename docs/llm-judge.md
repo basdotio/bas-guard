@@ -136,6 +136,7 @@ llm:
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
+| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads. Recorded in the judge block. See [Thinking models](#thinking-models). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 Every run prints one line to stderr — `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed
@@ -171,6 +172,25 @@ bas-guard scan --llm --config config.yaml
 
 Bigger models (gpt-4o, Qwen2.5-72B) judge semantic tasks more accurately; local keeps
 everything on your machine. That trade-off is yours.
+
+### Thinking models
+
+Some models think before they answer unless the request says otherwise, and the thinking is billed as completion
+tokens on every call — calls whose answer is a short JSON verdict. `request_options` passes the vendor's own member
+(P-107). Zhipu's GLM models, for example:
+
+```yaml
+llm:
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-5.3-flash
+  request_options:
+    thinking: { type: disabled }
+```
+
+Other vendors name it differently (`reasoning_effort`, `enable_thinking`, …); the tool passes what you write and knows no
+vendor's members. Run `bas-guard llm test` first: an endpoint that does not take a member answers with an error there,
+before a scan. The options are part of which judge produced a report — the judge block, the identity line and the usage
+log record them — so a reading with thinking off is never compared with one that thought without it showing.
 
 ## Privacy
 
