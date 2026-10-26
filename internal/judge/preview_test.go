@@ -57,6 +57,9 @@ func captureServer(t *testing.T) (*httptest.Server, func() []capturedCall) {
 		}
 		nonce := strings.TrimSuffix(strings.TrimPrefix(fence, "===AGUARD:"), "===")
 		instruction, ok := strings.CutSuffix(body.Messages[0].Content, " "+barrierRule(nonce))
+		if !ok { // triage carries the trust rule alone, without the verdict schema (P-104)
+			instruction, ok = strings.CutSuffix(body.Messages[0].Content, " "+trustRule(nonce))
+		}
 		if !ok {
 			t.Errorf("system message does not end with the barrier rule for this call's nonce:\n%s", body.Messages[0].Content)
 		}

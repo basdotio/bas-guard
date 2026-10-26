@@ -2,7 +2,6 @@
 package judge
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,7 +29,7 @@ type PlannedCall struct {
 	Sources []Source
 	// Shortened is what the run discloses as left out of this call: an MCP configuration cut to fit, decoded
 	// payloads or digest lines past the excerpt cap (the run's LLM-000 names each), triage items past the
-	// per-artifact cap.
+	// per-rule or the per-artifact cap.
 	Shortened string
 }
 
@@ -75,13 +74,9 @@ func sameQuestion(a, b task) bool {
 // plannedCall renders one task as the preview shows it.
 func plannedCall(t task, notSent int) PlannedCall {
 	if t.kind == taskTriage {
-		items, left := triageSent(t.items)
-		c := PlannedCall{Artifact: t.artifact, Pass: t.pass(), Instruction: triageTask,
-			Calls: 1, NotSent: notSent, Payload: triagePayload(items)}
-		if left > 0 {
-			c.Shortened = fmt.Sprintf("%d static finding(s) past the first %d not sent", left, maxTriageItems)
-		}
-		return c
+		items, repeats, left := triageSent(t.items)
+		return PlannedCall{Artifact: t.artifact, Pass: t.pass(), Instruction: triageTask,
+			Calls: 1, NotSent: notSent, Payload: triagePayload(items), Shortened: triageShortened(repeats, left)}
 	}
 	info := modeInfo(t.req.Mode)
 	return PlannedCall{Artifact: t.artifact, Pass: t.pass(), Rule: info.rule, Instruction: modeTask(t.req.Mode),

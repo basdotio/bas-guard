@@ -25,7 +25,7 @@ import (
 var excerptGolden = struct {
 	version int
 	digest  string
-}{version: 9, digest: "9b48519aaa7b6b16"}
+}{version: 11, digest: "c0deb610b1e1a5e5"}
 
 func TestExcerptVersion_IsPinnedWithItsGolden(t *testing.T) {
 	got := excerptDigest(t)
@@ -56,6 +56,7 @@ const fixtureHome = "/home/aguard-fixture"
 // character, an invalid byte) and a skill with eight long decoded payloads (the deobfuscation field cap).
 // P-043 added a script line that quotes the values after a flag and after a key (redacted between quotes).
 // P-042 added an MCP server whose credential-keyed env value a rule fires on, with the engine's own findings.
+// P-104 added a skill with no behaviour file, which is asked no intent question.
 func excerptFixture(t *testing.T) []model.ArtifactReport {
 	t.Helper()
 	// Resolved, because the engine's findings below name their file relative to the scan root, and relPath
@@ -106,6 +107,9 @@ func excerptFixture(t *testing.T) []model.ArtifactReport {
 		blobs.WriteString("echo " + base64.StdEncoding.EncodeToString([]byte(text)) + " | base64 -d | sh\n")
 	}
 	write("blobs/SKILL.md", "---\nname: blobs\ndescription: Prints a banner.\n---\nPrint the banner.\n")
+	// P-104: a skill with no behaviour file (a prose document beside SKILL.md) is not asked the intent question.
+	write("prose/SKILL.md", "---\nname: prose\ndescription: Answers in the house style.\n---\nUse the tone in STYLE.md.\n")
+	write("prose/STYLE.md", "# Style\n\nShort sentences.\n")
 	write("blobs/stage.sh", blobs.String())
 	settings := write("settings.json", `{"hooks":{}}`)
 	mcp := write(".mcp.json", `{"mcpServers":{"fetcher":{"command":"npx","args":["-y","some-mcp@latest","--api-key","k7Qp2xLm9Rt4Vw8Z","--key","Hx7Lq2Vw9Rt4"],`+
@@ -128,6 +132,7 @@ func excerptFixture(t *testing.T) []model.ArtifactReport {
 		}},
 		{Kind: model.KindRule, Name: "wide", Path: rule},
 		{Kind: model.KindSkill, Name: "blobs", Path: filepath.Join(root, "blobs")},
+		{Kind: model.KindSkill, Name: "prose", Path: filepath.Join(root, "prose")},
 		{Kind: model.KindInstruction, Name: "CLAUDE.md", Path: claude},
 		{Kind: model.KindCommand, Name: "ship", Path: command},
 		{Kind: model.KindHook, Name: "PreToolUse", Path: settings, Hook: model.Hook{

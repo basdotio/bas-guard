@@ -13,6 +13,12 @@ import (
 
 const maxTriageItems = 40 // cap findings sent per artifact (keeps the prompt bounded)
 
+// maxTriagePerRule caps the findings of one rule a triage call carries (P-104). The model labels each
+// distinct rule id once and the label joins every finding of that rule, so a rule's tenth finding
+// adds bytes and no label; three keep a pattern visible ("the same documentation example each
+// time") without filling the call with it.
+const maxTriagePerRule = 3
+
 // maxReasonBytes bounds a triage label's reason. The prompt asks for "<short>"; the model decides.
 const maxReasonBytes = 256
 
@@ -39,27 +45,56 @@ func (c *HTTPClient) Triage(ctx context.Context, artifact string, items []Triage
 	if len(items) == 0 {
 		return nil, nil
 	}
-	items, _ = triageSent(items)
+	items, _, _ = triageSent(items)
 	nonce, err := newNonce()
 	if err != nil {
 		return nil, err
 	}
 	// Temperature 0: triage produces display labels, never a finding, so there is nothing
 	// to take a vote on and no reason to pay for variance.
-	content, err := c.chat(ctx, triageTask+" "+barrierRule(nonce), fenced(triagePayload(items), nonce), 0)
+	// The barrier is the trust rule alone: triage replies with labels, not the judge's verdict (P-104).
+	content, err := c.chat(ctx, triageTask+" "+trustRule(nonce), fenced(triagePayload(items), nonce), 0)
 	if err != nil {
 		return nil, err
 	}
 	return parseTriage(content, items), nil
 }
 
-// triageSent is the part of an artifact's items a triage call carries — the first maxTriageItems —
-// and how many it leaves out.
-func triageSent(items []TriageItem) ([]TriageItem, int) {
-	if len(items) > maxTriageItems {
-		return items[:maxTriageItems], len(items) - maxTriageItems
+// triageSent is the part of an artifact's items a triage call carries: at most maxTriagePerRule of
+// each rule, in table order, and of those the first maxTriageItems. It says how many it left out for
+// each reason — repeats, whose rule's label covers them, and items past the per-artifact cap, whose
+// rule may go unlabelled. items is not modified.
+func triageSent(items []TriageItem) (sent []TriageItem, repeats, left int) {
+	perRule := map[string]int{}
+	for _, it := range items {
+		if perRule[it.RuleID] >= maxTriagePerRule {
+			repeats++
+			continue
+		}
+		perRule[it.RuleID]++
+		sent = append(sent, it)
 	}
-	return items, 0
+	if len(sent) > maxTriageItems {
+		return sent[:maxTriageItems], repeats, len(sent) - maxTriageItems
+	}
+	return sent, repeats, 0
+}
+
+// triageShortened is what the preview says a triage call left out (triageSent), "" when nothing.
+func triageShortened(repeats, left int) string {
+	var parts []string
+	if repeats > 0 {
+		parts = append(parts, fmt.Sprintf("%d finding(s) of a rule already sent %d times not sent (that rule's label covers them)",
+			repeats, maxTriagePerRule))
+	}
+	if left > 0 {
+		what := "static finding(s)"
+		if repeats > 0 {
+			what = "more"
+		}
+		parts = append(parts, fmt.Sprintf("%d %s past the first %d not sent", left, what, maxTriageItems))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // triagePayload is the text a triage call carries inside its fence, one `[RULE] evidence` line per

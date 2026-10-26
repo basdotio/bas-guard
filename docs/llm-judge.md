@@ -46,21 +46,29 @@ In short: the LLM can only push risk **up**, never down. It can surface a risk; 
 | Pass | Question | Runs on | Dimension · Rule |
 |------|----------|---------|------------------|
 | **Injection** | Does this text hide a directive to the agent (paraphrased / unicode / encoded)? | skills, `CLAUDE.md`, subagents, commands, hooks — **always** | 1 · `LLM-003` |
-| **Intent** | Does the behavior do sensitive things the description doesn't disclose? | skills | 10 · `LLM-001` |
+| **Intent** | Does the behavior do sensitive things the description doesn't disclose? | skills with a behaviour file (a script, or a config file the walker reads) | 10 · `LLM-001` |
 | **Result** | Does a step the instruction text presents as required change the result the user receives — a value forced into the output, data altered before the result, a check decided in advance — with the user told nothing? | skills (the `SKILL.md` body and the documents it names) | 1 · `LLM-011` |
 | **Deobfuscation** | Decode embedded base64/hex blobs (decoded, never executed) — what does the payload do? | skills with a decodable blob | 6 · `LLM-004` |
 | **Collusion** | Do capabilities in *different files* form a chain — collected here, sent from there? | skills the static screen (`EXFIL-002`) flagged | 3 · `LLM-006` |
 | **Capability** | Does this hook do more than intercepting *its* event plausibly requires? | hooks | 2 · `LLM-008` |
 | **MCP config** | Unpinned package, unknown publisher, remote endpoint, credentials in env? | MCP servers | 5 · `LLM-009` |
 | **Server source** | Do an MCP server's tools do more than their docstrings say — read credentials, send data out, run shell from a parameter? | `check <dir>` on an MCP server's source (kind `server`) | 10 · `LLM-010` |
-| **Triage** | Are the *static* findings likely-real or likely-benign noise (doc examples, pinned URLs, fixtures)? | any artifact that has static findings | `AdvisoryLabel` |
+| **Triage** | Are the *static* findings likely-real or likely-benign noise (doc examples, pinned URLs, fixtures)? | any artifact that has static findings (at most three per rule, 40 in all) | `AdvisoryLabel` |
 
-Two things about that table are deliberate:
+Three things about that table are deliberate:
 
 - **Injection is never gated on a static hit.** If every pass waited for the regexes to fire
   first, the judge could only ever re-examine what static already caught — losing exactly the
-  blind spot it exists for. The expensive whole-tree passes (intent, collusion) *are* gated,
-  because there a call costs real money and a static signal is a reasonable prior.
+  blind spot it exists for.
+- **A comparison is asked only when both sides exist.** Intent sets the description against the
+  skill's behaviour files, so it is asked of a skill that has one; with none, the model was shown
+  "(no readable behavior found)" and the only text it could quote was the description, which is not
+  evidence of a behaviour (P-054), so the question could not yield an `LLM-001` and is not asked
+  (P-104). The injection question shows the description to the model as well, and for such a skill a
+  description that addresses the analyzer grounds its `LLM-007` there, at `SKILL.md:1` as before; that
+  question's own verdict still grounds in the body alone. Neither intent nor any other pass waits for a
+  static finding of its own; collusion waits for the static cross-file screen (`EXFIL-002`), which is
+  what it compares.
 - **Hooks get no intent check.** A hook's event name declares *when* it runs, never what it
   ought to do, so "description vs. behavior" has nothing on the other side. The honest
   question is proportionality to the interception point — that's the capability pass.
@@ -69,7 +77,7 @@ Everything is **source-agnostic**: official or not, every artifact is judged on 
 
 **Plugins.** A plugin's skills, commands and agents — the ones Claude Code loads: `skills/<x>/SKILL.md`, `commands/**.md`,
 `agents/**.md`, and the paths its manifest adds — are artifacts of their own, in `scan` and in `check <plugin>`, so each
-gets the questions of its kind: a skill intent and injection (and explain or collusion when they trigger), a command or an
+gets the questions of its kind: a skill injection and result, intent when it has a behaviour file, and explain or collusion when they trigger, a command or an
 agent injection. A plugin's hooks and MCP servers get theirs in a scan. The plugin tree itself still has no pass of its own:
 its scripts outside the skill directories, its docs, its output styles and inline manifest commands are read by the static
 rules only. A finding a child repeats from the plugin tree is triaged once, on the plugin.
@@ -378,7 +386,12 @@ everything on your machine. That trade-off is yours.
 Triage labels (`likely-real` / `likely-benign`) render inline under the matching finding, in plain
 words in the terminal and markdown reports — `Judge's view (advice; the finding and the score stand):
 likely a false alarm — <reason> (one reading).` — and as the raw label in HTML; they are display-only.
-Triage is asked once, at temperature 0, so a label rests on one reading and carries no vote count. A label counts as `likely-benign` only when
+Triage is asked once, at temperature 0, so a label rests on one reading and carries no vote count. It
+carries at most three findings of each rule, in report order, and at most 40 in all (P-104): the model
+labels each rule once and the label joins every finding of that rule, so a rule's further findings add
+bytes and no label; `bas-guard llm preview` says how many went unsent and why. Its system message is
+the same trust rule every judge call carries, with triage's own label format and without the judge's
+verdict format. A label counts as `likely-benign` only when
 it starts with exactly that word and never says `likely-real`; anything else reads as
 `likely-real`. A label is kept only if its rule id is exactly one that was sent for triage, so
 every report attaches it to the same finding. The reason is redacted and capped at 256 bytes, and the human-read reports

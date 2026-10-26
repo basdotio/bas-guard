@@ -213,15 +213,15 @@ type Rule struct {
 | MCP 配置语义 | MCP | 结构前提:有 server 配置 | collect 的配置项 | 已实现(`LLM-009`,维度 5)。**本机 MCP 配置**只有启动命令,看不到工具说明,tool poisoning 在这一路不可达 |
 | 服务器源码 | `check` 目标为 MCP 服务器源码(种类 `server`:导入 `mcp`/`fastmcp` 且声明工具的 Python 文件) | 结构前提:有带 docstring 的工具 | 声明侧 = 工具名 + docstring 首行(模块注释不算);行为侧 = 代码,走 skill 脚本摘录器 | 已实现(`LLM-010`,维度 10;P-053)。语料里 127 个 cisco 样本正是这个形状,此前判官一个问题都不问 |
 | **injection(connector)** | Connector | **无条件** | collect 读到的桌面版缓存工具清单(§4) | 已实现:远程 connector 的工具说明就是模型会读并照做的文本,静态那半是 `MCP-001..004`(§5.1),判官跑同一份渲染(`detect.ConnectorText`),两边看不到不同的东西 |
-| **intent** | Skill | **静态先行**:有静态发现 或 信誉库未知 | detect + reputation | 已实现 |
+| **intent** | Skill | **结构前提**:有行为文件(脚本,或摘录器读的配置文件;`behaviorExcerpt` 非空) | 行为摘录,非 finding | 已实现。没有行为文件时**不问**(P-104):模型只看到「(no readable behavior found)」,能引的只有声明用途,而声明不是行为证据(P-054),这一问出不了 `LLM-001`。意图趟原是唯一把描述放进落地单元的一趟,所以这样的 skill 上注入趟把描述作为 `declaration` 单元带上:描述里冲着分析器的话照样在 `SKILL.md:1` 落地成 `LLM-007`,注入趟的判决仍只落在正文上。规格此前写的「静态先行:有静态发现或信誉库未知」**代码从未实现过**,按实现改 |
 | **result** | Skill | **无条件**(与 injection 同) | `SKILL.md` 正文 + 正文点名的文档(P-065 的伴随文档) | 已实现(`LLM-011`,维度 1;P-068)。问的是"必须的步骤是否改了用户拿到的结果",不是"有没有超出用途的指令";P-066 把它作为注入问题的一个从句,模型从未选用 |
 | **collusion** | Skill | **静态先行**:`EXFIL-002` 粗筛命中 | 静态跨文件粗筛(§5.1) | 已实现(`LLM-006`,只发能力摘要不发全文) |
-| triage | 任意有静态发现的 kind | **静态先行**(本质如此) | detect / permcheck 的 findings | 已实现(含 permission) |
+| triage | 任意有静态发现的 kind | **静态先行**(本质如此) | detect / permcheck 的 findings | 已实现(含 permission)。每次调用每条规则至多带 3 条发现(按表序)、合计至多 40 条:标签按规则 ID 挂到该规则的每一条发现上,重复的只多字节;系统消息是信任规则加 triage 自己的标签格式,**不带**判官各趟的 verdict 格式(P-104) |
 | **无** | Plugin / Directory / Quarantined | — | — | **没有任何一趟**(至多分诊,分诊标签到不了 `--fail-on-llm`)。插件的 skill、命令、子 agent 是各自的 artifact,按上面各自的种类问(P-044),所以插件**只有在没有任何可加载子项时**才算"什么都没问"。每次 `--llm` 一条 `LLM-000` 按种类计数点名(`judge.Unasked` 读 `judge.AsksNothingOf`,表由 `TestAsksNothingOf_FollowsPlanFor` 钉在 `planFor` 上;隔离区标成「已不再加载」);`check` 的目标是其中之一时 `--fail-on-llm` 退出 `4`(P-038)。目录该问什么仍见 `issues/023`。Permission 不在此列:它的风险由 permcheck 判,设计上没有要问判官的问题 |
 
 - **注入检测禁止静态门控**(本条是硬要求,不是偏好)。若所有 pass 都拿静态命中当触发条件,LLM 就只能对「静态已经发现的东西」发二次意见 —— **恰好丧失建它的目的**:静态看不见的注入永远不会被送去判。注入 pass 作用域是单文件、成本低,无条件跑得起。
-- **静态门控的那几路**(intent / collusion / triage)作用域是整棵树、贵,静态信号是合理先验。
-- **信誉库预筛**:known-good 只跳过静态门控的贵 pass(intent / collusion),**无条件的 injection 照跑** —— judge 排在抑制之后正是为了让可信工具也能出旁注(§0.5),不能顺手反转。
+- **对比类的趟两侧都在才问**:intent 要有行为文件(P-104),collusion 要有静态跨文件粗筛的命中 —— 那正是它要对比的东西;triage 要有静态发现。
+- **信誉库预筛**:known-good 的发现被压制后,静态先行的 collusion / triage 随之不问;intent 不看信誉库,**无条件的 injection 照跑** —— judge 排在抑制之后正是为了让可信工具也能出旁注(§0.5),不能顺手反转。
 
 > 规格修订说明:本节旧文写的是「仅对静态已标记可疑的 artifact 调用」,与「补静态盲区」的立项目的自相矛盾,**旧文错、实现对**,按上表重写。
 
@@ -255,7 +255,7 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
 - 判定输出走**结构化 schema**(强制 JSON):`{verdict: safe|suspicious|malicious, dimension, confidence, evidence_lines[], rationale}`。
 - 判定器**无工具、无网络访问被审目标、不执行任何内容**——纯文本推理。
 - **送给模型的摘录先压缩、再截两头**(2026-09-08):连续空行折成一行、注释行整行去掉(用和 A1 同一个分类器;注释是脚本里作者对读者说话的地方,正是攻击者会对判官说话的地方,解释器从不读注释,判官也不该读),字节上限内保留文件头 2/3 + 尾 1/3 并放一行 `N line(s) omitted` 标记。摘录不再与文件连续,所以每个 `sourceUnit` 带 `lineMap` 把摘录行映射回原文行号,证据落地仍引真实 `file:line`。触发它的是十万个空行把 payload 推到 2000 字节前缀之外、以及三段写给判官看的注释。intent 提示词多了一类**「披露了也要报」**:改包源、写 git hook / shell 启动文件 / 定时任务,描述老实写着「配置企业 npm 镜像」也不放行。`LLM-005` 带最多三条没落地的引文(截 120 字符、再过一次 Redact),用来分「模型在转述」和「摘录切掉了它引的行」;整段引文落不了地时按行拆开逐行找,每行仍要一字不差。**`N line(s) omitted` 标记是我们插进摘录的行,不在任何文件里:落在它上面的引用按落不了地处理**(P-006)。**行内垫料在任何封顶之前折掉**(P-020):一行里连续超过 128 字节的空白(`unicode.IsSpace`,换行除外)或不可见字符(`detect.Invisible`)换成落地读它的样子——一个空格,只有不可见字符时为空;从不跨 `\n`,所以 `lineMap` 不变,折后规范化文本与原文相同,落地、行号、P-006 的窗口都不受影响。位置在摘录构造器的唯一收口 `egress.redact`:Redact → 折叠 → (折过才)再 Redact → 换家目录。触发它的是一行垫几千字节空白的指令被换成省略标记或纯空白前缀、三个各在每文件上限内的垫料脚本花光合计上限;每 128 字节插一个可见字符的垫料仍算内容。
-- **判官自己的两个版本号**(P-031,2026-10-10):`judge.PromptVersion()` 是**算出来的** —— 客户端每一种请求形状(6 趟 × 两侧都有/声明为空/行为为空/都为空 × 温度 0 与 `samplingTemperature`,外加比上限多一条的 triage)的完整 JSON 请求体,被扫内容、模型名和 nonce 换成固定占位,逐个长度前缀后取 sha256 前 12 位;`TestPromptVersion_HashesWhatTheClientSends` 用真客户端经 httptest 逐字节核对每个请求体就是被哈希的那个,所以提示词、版式、回复格式、温度、请求字段一变,要么版本号变,要么测试红。`judge.ExcerptVersion`(`ground.go`)是**手动加一**的整数,管哪些 artifact 走哪几趟、每趟带什么文本(压缩、截两头与行号映射、声明用途/hook/MCP/connector 的渲染、解码上限、垫料折叠、家目录替换与脱敏顺序)和引文怎么落地;golden 测试把一个固定夹具的摘录与落地结果的摘要和这个整数**一起**钉死,只改一边就红,夹具没走到的改动仍靠人记得加。两者连同 `model`、`samples` 进 `judge` 摘要(§8),`bas-guard version` 在 `rules=` 后面印 `judge-prompt=`/`judge-excerpt=`。**不能说**「版本和模型相同 ⇒ 答案相同」(模型是采样的,厂商可以不改名就换模型),也**不能说**两个版本覆盖整个判官:共识、严重度钳制、只提示表都不在里面,只有 `tool_version` 标它们。判官仍不在 `rules_version` 里(§5.1)。
+- **判官自己的两个版本号**(P-031,2026-10-10):`judge.PromptVersion()` 是**算出来的** —— 客户端每一种请求形状(每一趟 × 两侧都有/声明为空/行为为空/都为空/重问 × 温度 0 与 `samplingTemperature`,外加越过两道上限(每条规则 3 条、合计 40 条,P-104)的 triage)的完整 JSON 请求体,被扫内容、模型名和 nonce 换成固定占位,逐个长度前缀后取 sha256 前 12 位;`TestPromptVersion_HashesWhatTheClientSends` 用真客户端经 httptest 逐字节核对每个请求体就是被哈希的那个,所以提示词、版式、回复格式、温度、请求字段一变,要么版本号变,要么测试红。`judge.ExcerptVersion`(`ground.go`)是**手动加一**的整数,管哪些 artifact 走哪几趟、每趟带什么文本(压缩、截两头与行号映射、声明用途/hook/MCP/connector 的渲染、解码上限、垫料折叠、家目录替换与脱敏顺序)和引文怎么落地;golden 测试把一个固定夹具的摘录与落地结果的摘要和这个整数**一起**钉死,只改一边就红,夹具没走到的改动仍靠人记得加。两者连同 `model`、`samples` 进 `judge` 摘要(§8),`bas-guard version` 在 `rules=` 后面印 `judge-prompt=`/`judge-excerpt=`。**不能说**「版本和模型相同 ⇒ 答案相同」(模型是采样的,厂商可以不改名就换模型),也**不能说**两个版本覆盖整个判官:共识、严重度钳制、只提示表都不在里面,只有 `tool_version` 标它们。判官仍不在 `rules_version` 里(§5.1)。
 
 ### 5.2.1 LLM 定位:对抗式分析层(铁律)
 

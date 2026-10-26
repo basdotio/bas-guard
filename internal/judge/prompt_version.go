@@ -55,7 +55,8 @@ type callShape struct {
 // callShapes is every request shape the client can send: each pass with both sides, with the
 // declared side empty, with the behavior empty and with both empty, and re-asked (P-069) (the placeholders the layout
 // fills in, and the injection pass's switch between one and two sides), at temperature 0 and at
-// samplingTemperature; and triage with one item more than it sends, so its cap is in the body.
+// samplingTemperature; and triage with more items than it sends, past both of its caps, so they are
+// in the body.
 func callShapes() []callShape {
 	var out []callShape
 	for _, m := range passModes {
@@ -81,30 +82,33 @@ func callShapes() []callShape {
 			})
 		}
 	}
-	items := make([]TriageItem, maxTriageItems+1)
-	for i := range items {
-		items[i] = TriageItem{RuleID: ruleStandIn, Evidence: evidenceStandIn}
+	// One rule more often than the per-rule cap, then enough other rules to pass the per-artifact cap
+	// once the repeats are dropped, so both caps are in the hashed body (P-104).
+	var items []TriageItem
+	for i := 0; i <= maxTriagePerRule; i++ {
+		items = append(items, TriageItem{RuleID: ruleStandIn, Evidence: evidenceStandIn})
+	}
+	for i := 0; i < maxTriageItems; i++ {
+		items = append(items, TriageItem{RuleID: fmt.Sprintf("%s %d", ruleStandIn, i), Evidence: evidenceStandIn})
 	}
 	return append(out, callShape{name: "triage", triage: items})
 }
 
 // messages renders a shape's system and user message and its temperature, as the client does. A
 // judge call goes through the client's own systemPrompt and userPrompt. Triage builds its messages
-// inline in Triage, so they are restated here — exactly, or the capture test fails.
+// inline in Triage, so they are restated here — exactly, or the capture test fails; the items it
+// carries are triageSent's, the selection the preview shows too (P-027).
 func (s callShape) messages() (system, user string, temperature float64) {
 	if s.triage == nil {
 		return systemPromptFor(s.req, nonceStandIn), userPrompt(s.req, nonceStandIn), s.req.Temperature
 	}
-	items := s.triage
-	if len(items) > maxTriageItems {
-		items = items[:maxTriageItems]
-	}
+	items, _, _ := triageSent(s.triage)
 	var b strings.Builder
 	for _, it := range items {
 		fmt.Fprintf(&b, "[%s] %s\n", it.RuleID, it.Evidence)
 	}
 	fence := "===AGUARD:" + nonceStandIn + "==="
-	return triageTask + " " + barrierRule(nonceStandIn), fmt.Sprintf("%s\n%s\n%s", fence, b.String(), fence), 0
+	return triageTask + " " + trustRule(nonceStandIn), fmt.Sprintf("%s\n%s\n%s", fence, b.String(), fence), 0
 }
 
 // shapeBodies renders each shape as the request body the client would send, encoded the way chat()
