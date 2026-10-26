@@ -130,7 +130,7 @@ benchmark fold) counts it as a gap.
 ## Done
 
 ```
-Merged: PR to be opened (find the sha with git log --grep P-103 after the merge)
+Merged: PR #128 (find the sha with git log --grep P-103 after the merge)
 Released: (fill in after the release)
 Evidence: TestSettle_OutcomeEqualsAskingAll (internal/judge/settle_test.go): samples 1–5, all 6^n answer sequences (9,330 in all), each driven through the real dispatch queue one call at a time and all at once; every question asked in full ends exactly as asking all n, every settled one sent only n−majority(n)+1 clean samples and asking all n escalates nothing. Mutations: stopping after one clean sample, and a clean() that ignores barrier and ungrounded answers, each fail it
 Evidence: TestSchedule_DispatchQueue, 16 cases (6 kept from P-080, the one where free workers took every sample now takes the needed ones): settle at samples 2/3/5, a needed sample that is not clean releases the rest, idle workers never take a conditional sample, a group the budget cut short settles nothing, questions settle independently. Mutation (every sample needed): it fails, with TestRun_FewQuestionsAreNotSerialized, TestPlan_BudgetAndSamplesMatchRun and TestRun_SettledCallsAreCounted
