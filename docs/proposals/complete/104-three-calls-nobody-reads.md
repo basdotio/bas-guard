@@ -36,22 +36,22 @@ as their rules say.
 
 ## Done criteria
 
-- [ ] `TestPlan_IntentNeedsABehaviourFile`, `TestRun_ScriptlessSkillAsksNoIntent`: no intent question without a behaviour
+- [x] `TestPlan_IntentNeedsABehaviourFile`, `TestRun_ScriptlessSkillAsksNoIntent`: no intent question without a behaviour
   file; the injection and result questions unchanged
-- [ ] `TestRun_ScriptlessSkillDescriptionStillGroundsABarrier`: on a skill with no behaviour file, a description that
+- [x] `TestRun_ScriptlessSkillDescriptionStillGroundsABarrier`: on a skill with no behaviour file, a description that
   addresses the analyzer still grounds an escalated `LLM-007` at `SKILL.md:1`; an `LLM-003` quoting only the description
   does not ground; a skill with a script keeps its injection units
-- [ ] `TestTriageSent_AtMostThreePerRule`, `TestRun_TriageLabelReachesEveryFindingOfItsRule`,
+- [x] `TestTriageSent_AtMostThreePerRule`, `TestRun_TriageLabelReachesEveryFindingOfItsRule`,
   `TestTriage_SystemMessageIsTheTrustRuleWithoutTheVerdictSchema`, `TestPlan_TriageShortenedSaysBoth`
-- [ ] `TestPromptVersion_EveryInputIsDecided`: the triage shape passes both of its caps;
+- [x] `TestPromptVersion_EveryInputIsDecided`: the triage shape passes both of its caps;
   `TestPromptVersion_HashesWhatTheClientSends` byte-exact
-- [ ] `TestExcerptVersion_IsPinnedWithItsGolden` with a script-less skill in the fixture; `ExcerptVersion` 9 → 11
-- [ ] `TestJudgefold_Golden` regenerated: calls and question counts only, no verdict changed
-- [ ] Reverse: `TestPlan_PayloadsAreWhatTheClientSends`, the zero-dial tests, the `--fail-on` tests,
+- [x] `TestExcerptVersion_IsPinnedWithItsGolden` with a script-less skill in the fixture; `ExcerptVersion` 9 → 11
+- [x] `TestJudgefold_Golden` regenerated: calls and question counts only, no verdict changed
+- [x] Reverse: `TestPlan_PayloadsAreWhatTheClientSends`, the zero-dial tests, the `--fail-on` tests,
   `TestMCPConfig_NeverCarriesWeight`, `TestConsensus_*` green; every judge-pass request body byte-identical to `main`
-- [ ] Measured: planned calls, script-less skills and triage bytes before and after, on the same sample list
-- [ ] Docs: `docs/llm-judge.md` / `.zh-CN.md`, `docs/architecture.md` / `.zh-CN.md`, spec §5.2, `.claude/rules/judge.md`
-- [ ] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
+- [x] Measured: planned calls, script-less skills and triage bytes before and after, on the same sample list
+- [x] Docs: `docs/llm-judge.md` / `.zh-CN.md`, `docs/architecture.md` / `.zh-CN.md`, spec §5.2, `.claude/rules/judge.md`
+- [x] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
 
 ## Out of scope
 
@@ -101,3 +101,18 @@ as their rules say.
 3. How many findings of one rule does triage keep? Recommended: three, in table order — enough to show a pattern, and the
    label covers the rest. The per-artifact cap of 40 applies after, so rules that fell past it before can now be labelled.
    **Decided (2026-10-26)**: as recommended.
+
+## Done
+
+```
+Merged: PR to be opened
+Released: (fill in after release)
+Evidence: llm preview --json, samples 3, no network, corpus 9d22d9ce, the 4,815 samples the adapter stages or routes to the server pass, main cf26ecb against this branch: planned calls 42,827 → 34,634 (−8,193, 19.1%); benign 38,001 → 30,408, malicious 4,685 → 4,091; benign skill samples 27,444 → 19,851
+Evidence: intent 9,849 → 1,656 calls (2,731 of 3,283 skill artifacts have no behaviour file: 2,531 of 2,879 benign skill samples, 191 of 393 malicious); mcp-config 1,176 either way; triage 1,379 calls either way, payload 484,681 → 359,879 bytes (25.7% fewer), items 4,387 → 3,315, fewer in 212 of 1,202 samples
+Evidence: committed runs, held-out runs (29) not read: on samples whose every skill has no behaviour file, 23 LLM-001 votes in 12,761 rows of the 19 runs before P-054, 0 in 2,063 rows of the 25 runs with it (880 on samples with a scripted skill)
+Evidence: open question 1, live (the maintainer, 2026-10-26; gpt-4.1-mini-2025-04-14, samples 3, corpus 850fc546), a build with this change against main cf26ecb: sg-ignore-previous-instructions, the one script-less malicious skill whose description carries a directive, LLM-007 at SKILL.md:1, 3 of 3, escalated, in 3 of 3 runs on both builds, calls 10 → 7; eight other script-less malicious skills whose descriptions carry directive-like words, one run each: every escalation the same on both builds except one LLM-011 (the result pass, untouched here) 2/3 → 1/3, sampling noise; calls 3 fewer each (the intent question)
+Evidence: bas-guard version, main → this branch: judge-prompt b851dfd5412b → 20799ea92626, judge-excerpt 9 → 11, rules 717ada4c680b both; the 80 judge-pass request shapes hash to ecf67659008f on main and here (every judge-pass body byte-identical; only the triage shape moved)
+Evidence: new tests TestPlan_IntentNeedsABehaviourFile, TestRun_ScriptlessSkillAsksNoIntent, TestRun_ScriptlessSkillDescriptionStillGroundsABarrier (intent_gate_test.go); TestTriageSent_AtMostThreePerRule, TestTriage_SystemMessageIsTheTrustRuleWithoutTheVerdictSchema, TestRun_TriageLabelReachesEveryFindingOfItsRule, TestPlan_TriageShortenedSaysBoth (triage_cap_test.go)
+Evidence: reverse — TestPlan_PayloadsAreWhatTheClientSends, TestPromptVersion_HashesWhatTheClientSends, TestZeroDial_*, TestFailGate*, TestMCPConfig_NeverCarriesWeight, TestConsensus_*, TestPlan_BudgetAndSamplesMatchRun green unchanged; changed for the new behaviour: captureServer (triage's trust rule), four fixtures given a script (reask ×3, plugin child), the judgefold golden regenerated (calls and question counts only)
+Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
+```
