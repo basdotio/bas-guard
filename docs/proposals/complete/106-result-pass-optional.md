@@ -88,7 +88,7 @@ without the difference being visible.
 
 ## Open questions
 
-1. Off or on by default? The maintainer asked for off (2026-10-26). The measurement above is the price of that default:
+1. Off or on by default? The maintainer asked for off (2026-10-26). The measurement above is what that default gives up:
    −12 of 120 SkillHarm and −19/−15 of ~240 P-089 malicious at the judge verdict, nothing on the held-out malicious
    skills, two fewer false positives on one held-out benign set, and about a third of a skill's calls.
    **Decided (2026-10-26)**: off, by the maintainer.
