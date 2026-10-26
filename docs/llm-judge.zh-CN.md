@@ -390,7 +390,7 @@ em 空格(U+2003)、不换行空格和 tab 一样折叠,所以用它们垫开的
 - **采样会提温。** 温度为 0 时同一个问题永远给同一个答案 —— 票数会按构造一致,"共识"什么也没测。只允许默认温度的模型(有些推理类模型会对这个字段回 400 并点名它)会收到同一次调用去掉该字段的重发,之后的调用都不带;多票运行就按模型默认温度采样,判官区块会写 `temperature_omitted: true`(P-052)。
   有方差才有意义。
 - **这份方差绝不会渗进 `overall`。** 两次跑可能给出不同的 LLM 发现,确定性分数逐位相同。
-- **成本如实翻倍:** `samples: 3` 就是三倍调用,所以默认关。triage(分诊)永远不采样 —— 它产出的是展示标签、
+- **成本如实翻倍:** `samples: 3` 就是最多三倍调用,所以默认关。triage(分诊)永远不采样 —— 它产出的是展示标签、
   不是 finding,没有什么可投票的。
 - **同一个问题的 k 次采样是同一个请求发 k 遍**(P-080)。它们共用一个 nonce(运行开始时生成),k 个请求逐字节相同,
   带提示词缓存的端点就能用第一次已经算过的前缀接住后面几次;接没接住看 `cached_prompt_tokens`。接不接是端点的事:
@@ -398,6 +398,14 @@ em 空格(U+2003)、不换行空格和 tab 一样折叠,所以用它们垫开的
   重复的采样只在还有别的调用可发时才等它那个问题的第一次;否则空着的 worker 直接拿走它,所以单个 skill 的 `check`
   照样一次把调用全发出去。重问另取自己的 nonce。在 20 个良性 skill 上用 gpt-4.1-mini、`samples: 3` 实测:
   44.5% 的提示词 token 由缓存提供(之前为 0),调用数相同,也没有变慢。
+- **剩下的采样改变不了结论时,这道题就停**(P-103)。一条发现要 `majority(n)` 票才升级,所以一道题前
+  `n − majority(n) + 1` 个回答都干净时 —— 没报、没有 barrier、没有引不出原文的说法 —— 剩下的采样合起来也够不着线,
+  就不发了。`samples: 3` 时第三次采样只在前两次有一次不干净时才发;`samples: 5` 时后两次只在前三次有一次不干净时才发。
+  调用失败、说法落不了地都算不干净,所以模型拿不准的题照样问满。对同样的前几个回答,每一条升级、两个分数、两道闸门都和问满
+  n 次一样;可能不同的只有一条只会由没发的采样产生的、没过线的发现(连带 LLM-005 的计数),所以从运行里数出来的单票数和
+  这之前的运行不能比。空着的 worker 不会去拿这种采样:单个 skill 的 `check` 里,需要第三次采样的题要多等一轮往返。
+  没发的调用在判官块里记为 `settled` —— 不算调用、不算跳过,也绝不是缺口:它们说什么都改变不了任何升级。
+  `bas-guard llm preview` 对多次采样的计划写"最多"(up to)。
 
 门槛是**推导**出来的(`多数 = n/2 + 1`),不是配置项,所以没法声明一个"1 票即共识"。
 
@@ -406,8 +414,10 @@ em 空格(U+2003)、不换行空格和 tab 一样折叠,所以用它们垫开的
 开了 `--llm`,摘要会多一行说判官自己 —— `LLM judge ran over N artifact(s) in M call(s) and had nothing
 to add`、`… and added K advisory leads`,或 `LLM judge did not run: <原因>` —— 并且 "LLM judge leads"
 那一节即使为空也会出现,里面就是这一行。有回复用到了"提前合上"的修补时,这一行在失败数旁边写出几个
-(`(0 failed, 0 skipped, 1 repaired, 2 re-asked)`);一个都没有时和以前一样。JSON 里对应 `judge` 字段(`ran`、`reason`、
-`artifacts`、`calls`、`failed`、`skipped`、`repaired`、`reasked`——和前两个一样总是出现——`findings`、`endpoint`(凭据已脱敏,见[配置](#配置)),端点拒收温度字段时还有 `temperature_omitted`),外加成本:`triage_calls`(`calls` 里属于 triage 的部分——
+(`(0 failed, 0 skipped, 1 repaired, 2 re-asked)`);一个都没有时和以前一样。有题提前停了(P-103)时,在发出的调用数后面写出
+它们省下的调用(`in 6 call(s), 3 more not needed (their questions' first answers were clean), and …`)。JSON 里对应 `judge` 字段(`ran`、`reason`、
+`artifacts`、`calls`、`failed`、`skipped`、`repaired`、`reasked`——和前两个一样总是出现——有题提前停了才有 `settled`
+(为 0 时不出现,这之前的报告也长这样)、`findings`、`endpoint`(凭据已脱敏,见[配置](#配置)),端点拒收温度字段时还有 `temperature_omitted`),外加成本:`triage_calls`(`calls` 里属于 triage 的部分——
 triage 只问一次,判官的题问 `samples` 次)、`retries`、`prompt_tokens` / `completion_tokens`——端点没报用量时
 后两个键不出现,而不是写一个看起来像测量值的 0——以及 `cached_prompt_tokens`:端点报告从它的提示词缓存里取的那部分
 `prompt_tokens`(是子集,永远不要加到 `prompt_tokens` 上;厂商按它自己的费率计)。端点一个都没报时这个键不出现,

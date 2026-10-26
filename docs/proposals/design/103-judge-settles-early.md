@@ -51,9 +51,10 @@ benchmark fold) counts it as a gap.
 - [ ] `TestRun_SettledCallsAreCounted` (real `NewHTTP` over `httptest`, `samples: 3`): clean replies → calls are
   two thirds of the plan, `Stats.Settled` the other third, `Skipped` and `Failed` 0, no LLM-000 note; replies that flag
   → every planned call is made and `Settled` is 0
-- [ ] The judge block carries `settled` (`internal/model`), the terminal summary names it, the usage log and the
-  Downloads totals carry it, and `judgeGap` (exit 4) does not read it: `TestFailOnLLM_*` unchanged and green, plus a case
-  where only settled calls are missing and the exit code stays 0/1
+- [ ] The judge block carries `settled` (`internal/model`, absent when 0), the terminal summary and the stderr usage
+  line name it, the usage log and the Downloads totals carry it, and `judgeGap` (exit 4) does not read it:
+  `TestFailOnLLM_*` unchanged and green (its "ran fully, found nothing" case now settles questions and still exits 0),
+  plus `TestE2E_SettledCallsAreNotAGap`
 - [ ] `baselines/judgefold` counts a settled call as asked when it derives `questions` (`(calls + settled − triage) /
   samples`); the ledger row and `judge_usage` sums carry `settled`
 - [ ] Reverse: `TestRun_ConcurrencyDoesNotChangeOutput`, `TestRun_DeadlineSkipsAreReported`, every `Concurrency: 1`
@@ -92,12 +93,11 @@ benchmark fold) counts it as a gap.
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
 | 1 | The proposal | `P-103: the proposal — a judge question is asked n times even when its first answers settle it` |
-| 2 | Tests first: the settle rule against asking all n, the queue's new cases, the run's counts | `P-103: tests — a question settles when its remaining samples cannot reach the consensus bar` |
-| 3 | The queue holds a question's conditional samples until a needed one disagrees, and drops them once the needed ones are clean | `P-103: a question stops when its remaining samples cannot change the outcome` |
-| 4 | `settled` in the judge block, the summary line, the usage log and the Downloads totals | `P-103: the judge block counts the calls a settled question did not need` |
-| 5 | The benchmark fold and ledger count settled calls as asked | `P-103: baselines — a settled call is asked, not missing` |
-| 6 | Documentation | `P-103: docs — a question settles when its remaining samples cannot change the outcome` |
-| 7 | Done | `P-103: done — evidence, and the proposal moves to complete` |
+| 2 | The queue holds a question's conditional samples until a needed one is not clean, and settles them once the needed ones are clean; tests written first in the same commit (the new tests do not compile without the new queue) | `P-103: a question stops when its remaining samples cannot change the outcome` |
+| 3 | `settled` in the judge block, the summary and usage lines, the usage log, the Downloads totals and the preview header | `P-103: the judge block counts the calls a settled question did not need` |
+| 4 | The benchmark fold and ledger count settled calls as asked | `P-103: baselines — a settled call is asked, not missing` |
+| 5 | Documentation | `P-103: docs — a question settles when its remaining samples cannot change the outcome` |
+| 6 | Done | `P-103: done — evidence, and the proposal moves to complete` |
 
 ## Open questions
 
@@ -112,10 +112,13 @@ benchmark fold) counts it as a gap.
    point here; P-080 refused an unconditional wait that saved nothing, while this one saves the call. A `check` of one
    skill still sends every needed sample at once.
    **Decided (2026-10-26)**: as recommended.
-4. How is a settled call reported? Recommended: `settled` in the judge block, always present like `reasked`, apart from
-   `skipped`; the terminal summary names it when it is not 0; the progress counter's total drops by the calls a question
-   settled, so a terminal counter ends at its total.
-   **Decided (2026-10-26)**: as recommended.
+4. How is a settled call reported? Recommended: `settled` in the judge block, apart from `skipped`, absent when 0. Absent
+   reads the same as a report from before the count (nothing settled), so no information is lost, and a `samples: 1`
+   block stays byte-identical. The terminal summary and the stderr usage line name it when it is not 0; the progress
+   counter's total drops by the calls a question settled, so a terminal counter ends at its total; `llm preview` says
+   "up to" for a sampled plan.
+   **Decided (2026-10-26)**: absent when 0 (first drafted as always present like `reasked`; changed during
+   implementation for the byte-identical `samples: 1` block).
 5. A setting to turn it off? Recommended: no. For the same first answers no escalation, score or gate can differ; what
    differs is a below-the-bar finding nobody weighs, and the judge block says how many calls were settled.
    **Decided (2026-10-26)**: as recommended.
