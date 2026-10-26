@@ -140,16 +140,19 @@ type JudgeUsage struct {
 	Basis string `json:"basis"`
 	// Model is the model the binary printed in its judge summary (P-031), so a row copied or folded
 	// out of its run still says which model answered (P-072). Absent when the binary printed none.
-	Model            string `json:"model,omitempty"`
-	Calls            int    `json:"calls"`
-	Failed           int    `json:"failed"`
-	Skipped          int    `json:"skipped"`
-	Repaired         int    `json:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
-	Reasked          int    `json:"reasked,omitempty"`  // calls whose first reply was unreadable and that were asked once more (P-069)
-	TriageCalls      int    `json:"triage_calls"`
-	Retries          *int   `json:"retries,omitempty"`
-	PromptTokens     *int   `json:"prompt_tokens,omitempty"`
-	CompletionTokens *int   `json:"completion_tokens,omitempty"`
+	Model string `json:"model,omitempty"`
+	// PassesOff names the optional questions the run did not ask, as the binary printed them (P-106):
+	// "result" when llm.result_pass was off. Absent when every pass was asked, or the binary predates it.
+	PassesOff        []string `json:"passes_off,omitempty"`
+	Calls            int      `json:"calls"`
+	Failed           int      `json:"failed"`
+	Skipped          int      `json:"skipped"`
+	Repaired         int      `json:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
+	Reasked          int      `json:"reasked,omitempty"`  // calls whose first reply was unreadable and that were asked once more (P-069)
+	TriageCalls      int      `json:"triage_calls"`
+	Retries          *int     `json:"retries,omitempty"`
+	PromptTokens     *int     `json:"prompt_tokens,omitempty"`
+	CompletionTokens *int     `json:"completion_tokens,omitempty"`
 	// CachedPromptTokens is the part of PromptTokens the endpoint reported serving from its prompt
 	// cache, which the vendor bills at its own rate (P-071): a subset, never added to it.
 	CachedPromptTokens int `json:"cached_prompt_tokens,omitempty"`

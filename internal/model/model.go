@@ -631,6 +631,11 @@ type JudgeSummary struct {
 	ExcerptVersion int    `json:"excerpt_version,omitempty"`
 	Model          string `json:"model,omitempty"`
 	Samples        int    `json:"samples,omitempty"`
+	// PassesOff names the optional questions the run did not ask, by the name `bas-guard llm preview`
+	// gives the pass: "result" unless llm.result_pass is true (P-106). Absent when every pass was asked,
+	// which is also how a report from before the option reads; set, like model and samples, only when
+	// the judge was configured to run.
+	PassesOff []string `json:"passes_off,omitempty"`
 }
 
 // PassUsage is what one pass of the judge used in a run (P-072): the calls it issued — a retry is the

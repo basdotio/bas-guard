@@ -19,6 +19,10 @@ func judgeIdentityLine(j *model.JudgeSummary) string {
 	if j == nil || !j.Ran || j.PromptVersion == "" {
 		return ""
 	}
-	return fmt.Sprintf("LLM judge: model %s · samples %d · prompt_version %s · excerpt_version %d",
+	line := fmt.Sprintf("LLM judge: model %s · samples %d · prompt_version %s · excerpt_version %d",
 		j.Model, j.Samples, j.PromptVersion, j.ExcerptVersion)
+	for _, p := range j.PassesOff { // P-106: a question the run did not ask is part of which judge it was
+		line += fmt.Sprintf(" · %s pass off", p)
+	}
+	return line
 }

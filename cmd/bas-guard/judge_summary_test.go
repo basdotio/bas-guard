@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -191,5 +192,45 @@ func TestRunVersion_JudgeVersionsComeAfterRules(t *testing.T) {
 	}
 	if f := strings.Fields(first); len(f) < 2 || f[1] != version {
 		t.Errorf("$2 of %q is not the version %q — release.yml's tag check reads it", first, version)
+	}
+}
+
+// TestE2E_ResultPassOffIsInTheBlock (P-106): a run configured with `result_pass: false` says so in its judge
+// block, identity and usage line, and asks one question fewer per skill; a run that leaves it on (the
+// default) carries no key; a judge that was not configured names no pass.
+func TestE2E_ResultPassOffIsInTheBlock(t *testing.T) {
+	root := buildTestRunnerSkill(t, false)
+	srv := usageServer(t, 100, 7)
+	on := writeJudgeConfigSamples(t, srv.URL, "advisory", 1)
+	off := filepath.Join(t.TempDir(), "config.yaml")
+	mustWriteFile(t, off, "llm:\n  enabled: true\n  provider: openai_compatible\n  base_url: "+srv.URL+"\n  model: fake\n  result_pass: false\n")
+	calls := map[string]int{}
+	for name, cfg := range map[string]string{"off": off, "on": on} {
+		out, err := scanEnv(root, scanOpts{cfgPath: cfg, llm: true, quiet: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		j := out.Judge
+		if j == nil || !j.Ran {
+			t.Fatalf("%s: the judge did not run: %+v", name, j)
+		}
+		calls[name] = j.Calls
+		block, raw := judgeBlock(t, out)
+		_, has := block["passes_off"]
+		if name == "off" && (!has || !reflect.DeepEqual(j.PassesOff, []string{"result"})) {
+			t.Errorf("off: passes_off %v, want [result]: %s", j.PassesOff, raw)
+		}
+		if name == "on" && has {
+			t.Errorf("on: the block names a pass off: %s", raw)
+		}
+		if line := usageLineFor("scan", "environment", out.ToolVersion, out.RulesVersion, "now", j); !reflect.DeepEqual(line.PassesOff, j.PassesOff) {
+			t.Errorf("%s: usage line passes_off %v, block %v", name, line.PassesOff, j.PassesOff)
+		}
+	}
+	if calls["off"] >= calls["on"] {
+		t.Errorf("calls with the result pass off %d, on %d: turning it off asks no fewer", calls["off"], calls["on"])
+	}
+	if nc := judgeNotConfigured(1, "x"); nc.PassesOff != nil {
+		t.Errorf("a judge that was not configured names passes off: %v", nc.PassesOff)
 	}
 }

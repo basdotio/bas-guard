@@ -36,6 +36,10 @@ type Options struct {
 	// and every grounded verdict counts. >1 asks N times and requires a MAJORITY before a
 	// finding may affect the effective score — it costs N times as much, so it is opt-in.
 	Samples int
+	// SkipResult leaves the result question (LLM-011, P-068) out of the plan: llm.result_pass: false
+	// (P-106). The zero value asks it, as every run did before the option existed; every other
+	// question is the same either way.
+	SkipResult bool
 	// Home is the scanned environment's home directory, replaced by `~` in what is sent (egress.go)
 	// IN ADDITION to the OS user's home, which Run always replaces: empty adds nothing, it does
 	// not turn the scrub off. A relative Home is resolved against the working directory.
@@ -443,6 +447,9 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 // Plan shows both — one function, so the preview cannot plan a run of its own (P-027).
 func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, notes []model.Finding) {
 	send = buildTasks(arts, opts.Samples, newEgress(userHome(), opts.Home))
+	if opts.SkipResult {
+		send = withoutResult(send)
+	}
 	if over := len(send) - opts.MaxCalls; opts.MaxCalls > 0 && over > 0 {
 		notes = append(notes, coverageNote(fmt.Sprintf(
 			"call budget (llm.max_calls=%d) reached: %d planned call(s) covering %s were NOT made",
@@ -459,6 +466,20 @@ func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, 
 		notes = append(notes, n)
 	}
 	return send, refused, notes
+}
+
+// withoutResult is the plan with every sample of the result question taken out (P-106). Filtered after
+// buildTasks rather than inside planFor, so planFor keeps listing every question an artifact can be
+// asked and the tests of the result pass itself read it directly. tasks is not modified.
+func withoutResult(tasks []task) []task {
+	out := make([]task, 0, len(tasks))
+	for _, t := range tasks {
+		if t.kind == taskJudge && t.req.Mode == ModeSteering {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }
 
 // userHome is the OS user's home directory, or "" when the environment does not say — in which

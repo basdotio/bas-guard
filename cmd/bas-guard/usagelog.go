@@ -54,27 +54,28 @@ const (
 // read next to a report without a mapping; the token totals are omitted when the endpoint reported
 // none, for the same reason the block omits them (a 0 would read as a measurement).
 type usageLine struct {
-	Time               string `json:"time"`
-	Command            string `json:"command"`
-	Section            string `json:"section,omitempty"`
-	ToolVersion        string `json:"tool_version"`
-	RulesVersion       string `json:"rules_version"`
-	PromptVersion      string `json:"prompt_version,omitempty"`
-	ExcerptVersion     int    `json:"excerpt_version,omitempty"`
-	Model              string `json:"model,omitempty"`
-	Endpoint           string `json:"endpoint,omitempty"`
-	Samples            int    `json:"samples,omitempty"`
-	Calls              int    `json:"calls"`
-	Failed             int    `json:"failed"`
-	Skipped            int    `json:"skipped"`
-	Retries            int    `json:"retries"`
-	TriageCalls        int    `json:"triage_calls"`
-	Repaired           int    `json:"repaired"`
-	Reasked            int    `json:"reasked"`
-	TemperatureOmitted bool   `json:"temperature_omitted,omitempty"`
-	PromptTokens       int    `json:"prompt_tokens,omitempty"`
-	CompletionTokens   int    `json:"completion_tokens,omitempty"`
-	CachedPromptTokens int    `json:"cached_prompt_tokens,omitempty"` // P-071: part of PromptTokens
+	Time               string   `json:"time"`
+	Command            string   `json:"command"`
+	Section            string   `json:"section,omitempty"`
+	ToolVersion        string   `json:"tool_version"`
+	RulesVersion       string   `json:"rules_version"`
+	PromptVersion      string   `json:"prompt_version,omitempty"`
+	ExcerptVersion     int      `json:"excerpt_version,omitempty"`
+	Model              string   `json:"model,omitempty"`
+	Endpoint           string   `json:"endpoint,omitempty"`
+	Samples            int      `json:"samples,omitempty"`
+	PassesOff          []string `json:"passes_off,omitempty"` // P-106: optional questions the run did not ask
+	Calls              int      `json:"calls"`
+	Failed             int      `json:"failed"`
+	Skipped            int      `json:"skipped"`
+	Retries            int      `json:"retries"`
+	TriageCalls        int      `json:"triage_calls"`
+	Repaired           int      `json:"repaired"`
+	Reasked            int      `json:"reasked"`
+	TemperatureOmitted bool     `json:"temperature_omitted,omitempty"`
+	PromptTokens       int      `json:"prompt_tokens,omitempty"`
+	CompletionTokens   int      `json:"completion_tokens,omitempty"`
+	CachedPromptTokens int      `json:"cached_prompt_tokens,omitempty"` // P-071: part of PromptTokens
 	// UsageByPass is the block's breakdown by pass (P-072), copied as it is; absent on `llm test`,
 	// whose one call is a connectivity check and no pass of the judge's.
 	UsageByPass map[string]model.PassUsage `json:"usage_by_pass,omitempty"`
@@ -123,7 +124,7 @@ func usageLineFor(command, section, toolVersion, rulesVersion, now string, j *mo
 		Time: now, Command: command, Section: section,
 		ToolVersion: toolVersion, RulesVersion: rulesVersion,
 		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion,
-		Model: j.Model, Endpoint: endpointOrigin(j.Endpoint), Samples: j.Samples,
+		Model: j.Model, Endpoint: endpointOrigin(j.Endpoint), Samples: j.Samples, PassesOff: j.PassesOff,
 		Calls: j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries,
 		TriageCalls: j.TriageCalls, Repaired: j.Repaired, Reasked: j.Reasked,
 		TemperatureOmitted: j.TemperatureOmitted,

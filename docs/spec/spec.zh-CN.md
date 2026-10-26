@@ -214,7 +214,7 @@ type Rule struct {
 | 服务器源码 | `check` 目标为 MCP 服务器源码(种类 `server`:导入 `mcp`/`fastmcp` 且声明工具的 Python 文件) | 结构前提:有带 docstring 的工具 | 声明侧 = 工具名 + docstring 首行(模块注释不算);行为侧 = 代码,走 skill 脚本摘录器 | 已实现(`LLM-010`,维度 10;P-053)。语料里 127 个 cisco 样本正是这个形状,此前判官一个问题都不问 |
 | **injection(connector)** | Connector | **无条件** | collect 读到的桌面版缓存工具清单(§4) | 已实现:远程 connector 的工具说明就是模型会读并照做的文本,静态那半是 `MCP-001..004`(§5.1),判官跑同一份渲染(`detect.ConnectorText`),两边看不到不同的东西 |
 | **intent** | Skill | **静态先行**:有静态发现 或 信誉库未知 | detect + reputation | 已实现 |
-| **result** | Skill | **无条件**(与 injection 同) | `SKILL.md` 正文 + 正文点名的文档(P-065 的伴随文档) | 已实现(`LLM-011`,维度 1;P-068)。问的是"必须的步骤是否改了用户拿到的结果",不是"有没有超出用途的指令";P-066 把它作为注入问题的一个从句,模型从未选用 |
+| **result** | Skill | **无条件**,除非 `llm.result_pass: false`(默认开,P-106;关掉时判官块 `passes_off: ["result"]` 写明没问) | `SKILL.md` 正文 + 正文点名的文档(P-065 的伴随文档) | 已实现(`LLM-011`,维度 1;P-068)。问的是"必须的步骤是否改了用户拿到的结果",不是"有没有超出用途的指令";P-066 把它作为注入问题的一个从句,模型从未选用 |
 | **collusion** | Skill | **静态先行**:`EXFIL-002` 粗筛命中 | 静态跨文件粗筛(§5.1) | 已实现(`LLM-006`,只发能力摘要不发全文) |
 | triage | 任意有静态发现的 kind | **静态先行**(本质如此) | detect / permcheck 的 findings | 已实现(含 permission) |
 | **无** | Plugin / Directory / Quarantined | — | — | **没有任何一趟**(至多分诊,分诊标签到不了 `--fail-on-llm`)。插件的 skill、命令、子 agent 是各自的 artifact,按上面各自的种类问(P-044),所以插件**只有在没有任何可加载子项时**才算"什么都没问"。每次 `--llm` 一条 `LLM-000` 按种类计数点名(`judge.Unasked` 读 `judge.AsksNothingOf`,表由 `TestAsksNothingOf_FollowsPlanFor` 钉在 `planFor` 上;隔离区标成「已不再加载」);`check` 的目标是其中之一时 `--fail-on-llm` 退出 `4`(P-038)。目录该问什么仍见 `issues/023`。Permission 不在此列:它的风险由 permcheck 判,设计上没有要问判官的问题 |
@@ -411,7 +411,7 @@ type ScanResult struct {
     OverallEffective int  // 含合格 LLM 发现;恒 ≤ Overall;不开 --llm 时二者相等
     ToolVersion string
     RulesVersion string // 规则表版本(§5.1),json:"rules_version",总是出现:tool_version 标的是提交,不是规则;只覆盖确定性检测(Overall 的来源),判官不在内,由 `judge` 摘要的 prompt_version/excerpt_version 标识(P-031);两份报告的它不同 = 规则变了,相同 = 规则表相同(不等于检测逻辑相同,见 §5.1 的 epoch 纪律)
-    Judge     *JudgeSummary `json:",omitempty"` // --llm 时必填:跑没跑、判了几个、几次调用(其中 triage 几次、重试几次;回复靠"提前合上"的修补才读出来的几次,`repaired`,P-034)、端点自报的 token(没报则缺省;其中端点自报从提示词缓存取的那部分另记 `cached_prompt_tokens`,是 `prompt_tokens` 的子集、不另加,厂商按自己的费率计,为 0 或端点不报时缺省,P-071)、按趟分的用量(`usage_by_pass`,P-072:键是 `bas-guard llm preview` 给这一趟的名字 `intent` `injection` `result` `deobfuscation` `collusion` `capability` `mcp-config` `server` `triage`,每项 `calls`、`reasked` 加端点报的三个 token 数;重试和重问都记在发出它的那一趟里,各项相加**恰好**等于块上的 `calls`、`reasked` 和三个 token 总数;一次调用都没发就没有这个键;只是 token 数,不是费用)、补了几条、没跑的原因(§16.8 用在判官自己身上:「跑了没发现」和「没跑」以前在报告上一模一样)、是哪个判官(`prompt_version`/`excerpt_version` 每个块都有,`model`/`samples` 配好判官才有,都取实际生效的值;端点拒收 `temperature` 字段、客户端去掉它重发之后 `temperature_omitted: true`,P-052;密钥、请求头、`authority` 不记;P-031,§5.2)
+    Judge     *JudgeSummary `json:",omitempty"` // --llm 时必填:跑没跑、判了几个、几次调用(其中 triage 几次、重试几次;回复靠"提前合上"的修补才读出来的几次,`repaired`,P-034)、端点自报的 token(没报则缺省;其中端点自报从提示词缓存取的那部分另记 `cached_prompt_tokens`,是 `prompt_tokens` 的子集、不另加,厂商按自己的费率计,为 0 或端点不报时缺省,P-071)、按趟分的用量(`usage_by_pass`,P-072:键是 `bas-guard llm preview` 给这一趟的名字 `intent` `injection` `result` `deobfuscation` `collusion` `capability` `mcp-config` `server` `triage`,每项 `calls`、`reasked` 加端点报的三个 token 数;重试和重问都记在发出它的那一趟里,各项相加**恰好**等于块上的 `calls`、`reasked` 和三个 token 总数;一次调用都没发就没有这个键;只是 token 数,不是费用)、补了几条、没跑的原因(§16.8 用在判官自己身上:「跑了没发现」和「没跑」以前在报告上一模一样)、是哪个判官(`prompt_version`/`excerpt_version` 每个块都有,`model`/`samples` 配好判官才有,都取实际生效的值;没问的可选题记在 `passes_off`(P-106:`llm.result_pass: false` 时是 `["result"]`,都问了则缺省);端点拒收 `temperature` 字段、客户端去掉它重发之后 `temperature_omitted: true`,P-052;密钥、请求头、`authority` 不记;P-031,§5.2)
     Inbox     *InboxReport  `json:",omitempty"` // 下载目录那条流水线的结果(§4.1),永不进 Overall
     Locations []Location    `json:",omitempty"` // 扫了哪里,各标 read/absent/off(§4.3);check 不填
     Sandbox   *SandboxInfo  `json:",omitempty"` // 在云端沙箱里跑时的判断依据(§4.2);nil = 本机
@@ -487,6 +487,7 @@ llm:
   max_retries: 2                  # 429/5xx 退避重试(遵守 Retry-After);重试不计入 max_calls
   authority: advisory             # advisory | escalate —— 是否允许 --fail-on-llm 生效(§5.2.1 前提③)
   samples: 1                      # k-of-n 采样数(1=不采样);>1 时取多数,调用量按 N 倍计
+  result_pass: true               # 结果趟(LLM-011)默认问;false 时不问(P-106),约省 skill 三分之一的调用,代价是输出操纵
 ```
 - **默认 provider = OpenAI 兼容协议**:一套代码兼容本地小模型(Ollama 等)与云 API,满足"独立模型"要求且不锁死;**config 的零值仍指向本地**(`localhost:11434`)。**但用户实际走到的路是在线的**(2026-09-04 决定「先只考虑在线模型」):`bas-guard llm setup --list` 给的预设是 `deepseek` / `openai` / `qwen` 三个在线端点加 `openai_compatible` 自填;`provider` 可以是预设名,只填 base_url 和默认 model,用户写的一律优先,不认识的名字是加载错误而不是悄悄退回 localhost。所以 §16.4「托管端点必须是用户显式选择」靠 setup 让用户**选 provider** 这一步满足,而不是靠默认值。
 - **配置文件默认位置是 `$XDG_CONFIG_HOME/bas-guard/config.yaml`,否则 `~/.config/bas-guard/config.yaml`**(改名前的 `aguard` 目录在只有它存在时照旧读取,两个都在时用新的、`llm status` 注明旧的被忽略,P-082),在扫描 root **之外**:放进 `~/.claude` 会被当成无人认领的散落文件每次披露。
