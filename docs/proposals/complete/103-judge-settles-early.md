@@ -40,31 +40,31 @@ benchmark fold) counts it as a gap.
 
 ## Done criteria
 
-- [ ] `TestSettle_OutcomeEqualsAskingAll` (`internal/judge`, table-driven over every answer sequence): for `samples`
+- [x] `TestSettle_OutcomeEqualsAskingAll` (`internal/judge`, table-driven over every answer sequence): for `samples`
   1–5 and every sequence of answers drawn from {clean, grounded flag, ungrounded flag, barrier, flag and barrier, failed},
   the verdict finding and the LLM-007 finding of a ballot cast only from the answers the queue would have sent have the
   same `Escalates`, rule, severity and `[k of n samples agreed]` text as a ballot cast from all n, or are both absent;
   the only difference allowed is a finding below the consensus bar that only an unsent sample would have produced
-- [ ] `TestSchedule_DispatchQueue` gains cases: a conditional sample is never taken by an idle worker; it is released by
+- [x] `TestSchedule_DispatchQueue` gains cases: a conditional sample is never taken by an idle worker; it is released by
   a needed sample that came back not clean (failed included); it is never taken once its question settled;
   `samples: 2` needs one sample, `samples: 5` three; triage and `samples: 1` are unchanged
-- [ ] `TestRun_SettledCallsAreCounted` (real `NewHTTP` over `httptest`, `samples: 3`): clean replies → calls are
+- [x] `TestRun_SettledCallsAreCounted` (real `NewHTTP` over `httptest`, `samples: 3`): clean replies → calls are
   two thirds of the plan, `Stats.Settled` the other third, `Skipped` and `Failed` 0, no LLM-000 note; replies that flag
   → every planned call is made and `Settled` is 0
-- [ ] The judge block carries `settled` (`internal/model`, absent when 0), the terminal summary and the stderr usage
+- [x] The judge block carries `settled` (`internal/model`, absent when 0), the terminal summary and the stderr usage
   line name it, the usage log and the Downloads totals carry it, and `judgeGap` (exit 4) does not read it:
   `TestFailOnLLM_*` unchanged and green (its "ran fully, found nothing" case now settles questions and still exits 0),
   plus `TestE2E_SettledCallsAreNotAGap`
-- [ ] `baselines/judgefold` counts a settled call as asked when it derives `questions` (`(calls + settled − triage) /
+- [x] `baselines/judgefold` counts a settled call as asked when it derives `questions` (`(calls + settled − triage) /
   samples`); the ledger row and `judge_usage` sums carry `settled`
-- [ ] Reverse: `TestRun_ConcurrencyDoesNotChangeOutput`, `TestRun_DeadlineSkipsAreReported`, every `Concurrency: 1`
+- [x] Reverse: `TestRun_ConcurrencyDoesNotChangeOutput`, `TestRun_DeadlineSkipsAreReported`, every `Concurrency: 1`
   scripted test and every consensus test whose replies flag pass unchanged; `bas-guard llm preview --json` on a fixed
   fixture is byte-identical before and after; `judge-prompt=` and `judge-excerpt=` in `bas-guard version` do not move
-- [ ] Measured: the same benign and malicious skill lists at `samples: 3`, main and this branch side by side: calls,
+- [x] Measured: the same benign and malicious skill lists at `samples: 3`, main and this branch side by side: calls,
   settled, tokens, findings at 2 of 3, and the median wall time of one `check`
-- [ ] Docs: spec §5.2.1 ②, §8, §16.8; `docs/llm-judge.md` / `.zh-CN.md`; `docs/architecture.md` / `.zh-CN.md` where they
+- [x] Docs: spec §5.2.1 ②, §8, §16.8; `docs/llm-judge.md` / `.zh-CN.md`; `docs/architecture.md` / `.zh-CN.md` where they
   describe the queue; `.claude/rules/judge.md`; `baselines/README.md` where it derives questions from calls
-- [ ] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
+- [x] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
 
 ## Out of scope
 
@@ -132,5 +132,12 @@ benchmark fold) counts it as a gap.
 ```
 Merged: PR to be opened (find the sha with git log --grep P-103 after the merge)
 Released: (fill in after the release)
-Evidence: (filled in by W7)
+Evidence: TestSettle_OutcomeEqualsAskingAll (internal/judge/settle_test.go): samples 1–5, all 6^n answer sequences (9,330 in all), each driven through the real dispatch queue one call at a time and all at once; every question asked in full ends exactly as asking all n, every settled one sent only n−majority(n)+1 clean samples and asking all n escalates nothing. Mutations: stopping after one clean sample, and a clean() that ignores barrier and ungrounded answers, each fail it
+Evidence: TestSchedule_DispatchQueue, 16 cases (6 kept from P-080, the one where free workers took every sample now takes the needed ones): settle at samples 2/3/5, a needed sample that is not clean releases the rest, idle workers never take a conditional sample, a group the budget cut short settles nothing, questions settle independently. Mutation (every sample needed): it fails, with TestRun_FewQuestionsAreNotSerialized, TestPlan_BudgetAndSamplesMatchRun and TestRun_SettledCallsAreCounted
+Evidence: TestRun_SettledCallsAreCounted (real NewHTTP over httptest): clean replies → calls 2/3 of the plan, settled 1/3, skipped/failed 0, no LLM-000, progress ends at its total; replies that flag → every planned call, settled 0. TestE2E_SettledCallsAreNotAGap: samples 3 → settled > 0, judgeGap empty, the usage line carries it; samples 1 → no settled key
+Evidence: reverse — TestFailOnLLM_ExitCodesWhenTheJudgeIsBlind unchanged and green (its "ran fully, found nothing" case now settles questions and still exits 0); TestRun_ConcurrencyDoesNotChangeOutput, TestRun_DeadlineSkipsAreReported, every Concurrency: 1 scripted test and every consensus test unchanged; TestPlan_BudgetAndSamplesMatchRun and TestRun_UsageByPass keep their exact assertions with replies that are not clean, and the plan test adds: with clean ones, calls + skipped + settled = planned. judge-prompt=b851dfd5412b and judge-excerpt=9 on both builds
+Evidence: baselines — TestJudgefold_Golden regenerated, the only change: four skill samples whose intent question the scripted endpoint answers clean make 8 calls with 1 settled instead of 9; questions, votes, escalated rules and verdicts identical; the header gains "settled 4". go test -race -count=3 ./internal/judge green
+Evidence: measured, corpus 850fc546, 100 benign + 100 malicious skills drawn by seed 20261026, gpt-4.1-mini-2025-04-14, samples 3, concurrency 8, main (cf26ecb) and this branch interleaved, every check complete on both. Benign: calls 955 → 650 (305 settled), prompt tokens 1,691,009 → 1,133,664, completion tokens 446,186 → 294,836; 9 samples at the judge verdict on both, none different. Malicious: calls 1,060 → 824 (236 settled), prompt tokens 1,725,379 → 1,324,332, completion tokens 380,328 → 277,798; judge verdicts 76 → 74, 10 samples different (6 lost, 4 gained). A second run of the branch on the same 100: 829 calls (231 settled), 78 verdicts, 6 samples different from its first run and 8 from main — run-to-run variance of the model, in both directions, not the stop (3 of the 6 lost had the deciding question asked in full on the branch, 1 of 3 votes where main had 3 of 3)
+Evidence: one check at a time on 5 benign + 5 malicious of the same skills, main and branch alternating: median wall time 7.5 s (main) → 8.2 s (benign 12.9 → 12.6 s, malicious 6.2 → 6.7 s)
+Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
