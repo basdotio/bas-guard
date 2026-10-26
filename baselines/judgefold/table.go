@@ -137,8 +137,12 @@ func header(b *strings.Builder, answers []Answer, m Meta) {
 	fmt.Fprintf(b, "# work list %d · complete %d · %d incomplete (in no row below; listed in incomplete.jsonl)\n",
 		m.WorkList, complete, len(answers)-complete)
 	if u := m.Usage; u != nil {
-		fmt.Fprintf(b, "# judge usage (run.SumJudgeUsage over the selected rows): calls %d · failed %d · skipped %d · triage_calls %d · basis %s\n",
-			u.Calls, u.Failed, u.Skipped, u.TriageCalls, u.Basis)
+		settled := ""
+		if u.Settled > 0 { // P-103: absent when none settled, so an older fold's header reads as it did
+			settled = fmt.Sprintf(" · settled %d", u.Settled)
+		}
+		fmt.Fprintf(b, "# judge usage (run.SumJudgeUsage over the selected rows): calls %d · failed %d · skipped %d%s · triage_calls %d · basis %s\n",
+			u.Calls, u.Failed, u.Skipped, settled, u.TriageCalls, u.Basis)
 	}
 	thr := string(m.Threshold)
 	for _, l := range []string{

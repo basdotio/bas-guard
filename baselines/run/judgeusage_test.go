@@ -297,3 +297,23 @@ func TestSumJudgeUsage_UsageByPassIsSummed(t *testing.T) {
 		t.Errorf("a run that made no call carries usage_by_pass:\n%s", static)
 	}
 }
+
+// TestSumJudgeUsage_SettledIsSummed (P-103): run.yaml sums the calls settled questions did not need,
+// and writes no key when none settled.
+func TestSumJudgeUsage_SettledIsSummed(t *testing.T) {
+	got := SumJudgeUsage([]ledger.Row{
+		judged("a", ledger.JudgeUsage{Basis: ledger.UsageReported, Calls: 7, Settled: 3, TriageCalls: 1, Retries: intp(0)}),
+		judged("b", ledger.JudgeUsage{Basis: ledger.UsageReported, Calls: 9, TriageCalls: 0, Retries: intp(0)}),
+	})
+	if got == nil || got.Settled != 3 || got.Calls != 16 {
+		t.Fatalf("totals %+v; want settled 3 beside calls 16", got)
+	}
+	none := SumJudgeUsage([]ledger.Row{judged("a", ledger.JudgeUsage{Basis: ledger.UsageReported, Calls: 7, Retries: intp(0)})})
+	out, err := yaml.Marshal(none)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "\nsettled:") {
+		t.Errorf("run.yaml block carries settled although nothing settled:\n%s", out)
+	}
+}

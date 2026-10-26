@@ -14,7 +14,8 @@ import (
 // nil when they carry no judge summary.
 //
 // The committed judge runs folded this by hand, and inferred two of its numbers: triage_calls as
-// "one per artifact with a static finding", and questions = (calls − triage) / samples from it.
+// "one per artifact with a static finding", and questions = (calls − triage) / samples from it
+// (calls + settled − triage since P-103).
 // The binary counts triage calls and retries itself now, and the inference is exact only when no
 // call was skipped: a max_calls budget cuts the tail of the plan, which is where each artifact's
 // triage sits, and the inferred count then includes calls that were never made — measured, two
@@ -46,7 +47,7 @@ func judgeUsage(out []byte, res model.ScanResult) *ledger.JudgeUsage {
 	}
 
 	u := &ledger.JudgeUsage{
-		Basis: ledger.UsageReported, Calls: j.Calls, Failed: j.Failed, Skipped: j.Skipped, Repaired: j.Repaired, Reasked: j.Reasked,
+		Basis: ledger.UsageReported, Calls: j.Calls, Failed: j.Failed, Skipped: j.Skipped, Repaired: j.Repaired, Reasked: j.Reasked, Settled: j.Settled,
 		TriageCalls:      j.TriageCalls,
 		Retries:          reported("retries", j.Retries),
 		PromptTokens:     reported("prompt_tokens", j.PromptTokens),
