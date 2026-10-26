@@ -189,7 +189,11 @@ llm:
 
 Other vendors name it differently (`reasoning_effort`, `enable_thinking`, …); the tool passes what you write and knows no
 vendor's members. Run `bas-guard llm test` first: an endpoint that does not take a member answers with an error there,
-before a scan. The options are part of which judge produced a report — the judge block, the identity line and the usage
+before a scan. Measured with `glm-5.3-flash` on 40 benign + 40 malicious corpus skills at `samples: 3` (P-107): thinking
+off cut the completion tokens by about nine tenths (benign −89%, malicious −92%) and one `check` from 110 s to 15 s; at
+the judge verdict benign stayed at 4 of 40 and malicious went from 33 to 32 of 40. That is one model on a small set — a
+thinking model may need its thinking for what you scan, so measure on your own before you gate on it. The options are
+part of which judge produced a report — the judge block, the identity line and the usage
 log record them — so a reading with thinking off is never compared with one that thought without it showing.
 
 ## Privacy
