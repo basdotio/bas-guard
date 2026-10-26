@@ -286,6 +286,85 @@ func emptyRootNote(root string) model.Finding {
 	}
 }
 
+// ProjectDirNoteTitle is projectDirNote's title, exported for the same reason as EmptyRootNoteTitle:
+// the report and the --fail-on gate read the decision through the producer's constant (P-105).
+const ProjectDirNoteTitle = "A .claude directory under this root was not read"
+
+// projectDirName is the directory a project keeps its agent files in, next to its .mcp.json and
+// CLAUDE.md. Under a root it is a top-level directory like any other, and those are never read
+// (unowned.go) — but this one is no user's cache: it is the root the scan should have been given.
+const projectDirName = ".claude"
+
+// projectDirNote is raised when a root that is not a config root of its own holds a .claude directory
+// (P-105). A root one level above a project's .claude — the top level of a repository, the shape
+// hack/github-action.yml used to scan — reads none of the project's skills, hooks or permission
+// grants, and it used to say so only as one more name in the unowned note, a deliberate skip: "looks
+// safe", and a --fail-on gate that exited 0 on every push. Its own note is not a deliberate skip, so
+// the headline hedges, and the gate reads it (UnauditedRoot). The scan does not descend by itself:
+// --root means what was typed (P-012). leaves keeps what the unowned list used to say about a .claude
+// linked out of the root.
+func projectDirNote(path string, leaves bool) model.Finding {
+	why := "This root holds a .claude directory, which is where a project keeps its skills, settings.json " +
+		"(hooks and permission grants), subagents and commands. Nothing under it was read: it is a root of its " +
+		"own, one level below this one. Scan it as the root instead (--root .claude from the project's top " +
+		"level); the project's .mcp.json and CLAUDE.md next to it are read from there too."
+	snippet := "not read"
+	if leaves {
+		why += " It is a symlink that leaves this root, so that scan reads wherever it points."
+		snippet = "not read (symlink leaves the root)"
+	}
+	return model.Finding{
+		RuleID: "COV-000", Dimension: 0, Severity: model.SevLow, Source: model.SrcStatic,
+		Title:    ProjectDirNoteTitle,
+		Why:      why,
+		Evidence: []model.Evidence{{File: path, Line: 0, Snippet: snippet}},
+	}
+}
+
+// configRootLayout reports whether root is laid out as a config root of its own, so a .claude under
+// it is not the root the scan should have been given (P-105). Claude Code writes <cwd>/.claude/
+// settings.local.json when it runs from inside ~/.claude, and a project's .claude can hold one the same
+// way: a .claude inside a root named .claude is that, never a project above. A root with its own
+// settings.json, skills/ or plugin registry (a CLAUDE_CONFIG_DIR with another name, a repository of
+// skills) is read by its own layout; the .claude next to that stays an unowned entry, as it was.
+func configRootLayout(root string) bool {
+	if filepath.Base(AnchorRoot(root)) == projectDirName {
+		return true
+	}
+	for _, f := range []string{"settings.json", "settings.local.json", filepath.Join("plugins", "installed_plugins.json")} {
+		if fi, err := os.Stat(filepath.Join(root, f)); err == nil && !fi.IsDir() {
+			return true
+		}
+	}
+	fi, err := os.Stat(filepath.Join(root, "skills"))
+	return err == nil && fi.IsDir()
+}
+
+// UnauditedRoot returns the note that says what this root holds was not audited at all: a .claude
+// directory under it that was not read, or nothing collected. A gate cannot pass or fail on content
+// it never read, so --fail-on exits 4 on either (failGate, P-105). The project-dir note comes first,
+// because it names the fix; a root holding nothing but an unread .claude raises both.
+func UnauditedRoot(notes []model.Finding) (model.Finding, bool) {
+	var empty *model.Finding
+	for i, n := range notes {
+		if n.RuleID != "COV-000" {
+			continue
+		}
+		switch n.Title {
+		case ProjectDirNoteTitle:
+			return n, true
+		case EmptyRootNoteTitle:
+			if empty == nil {
+				empty = &notes[i]
+			}
+		}
+	}
+	if empty != nil {
+		return *empty, true
+	}
+	return model.Finding{}, false
+}
+
 // AnchorRoot is the one spelling of a root that anything deriving home from it, or judging it by
 // its name, may use: the absolute, cleaned path. filepath.Dir and filepath.Base answer about the
 // STRING. Clean alone fixed `--root ~/.claude/` (shell completion adds the slash), which left
@@ -568,7 +647,7 @@ var rootMCPFiles = []string{".claude.json", ".mcp.json"}
 // of rootMCPFiles that is there and is not the very file home's copy is (a symlink to it, or a root
 // with no parent). One that exists but cannot be stat'ed is returned too, so mcpServersFrom says so.
 //
-// A repository scanned as its own root — the CI template's `bas-guard scan --root .` — keeps its project
+// A repository scanned as its own root — `bas-guard scan --root .`, what the CI template runs in a repository of skills — keeps its project
 // .mcp.json exactly there. Before the root was anchored, `.` read it only because home WAS the root;
 // the absolute spelling never read it, and unowned.go counts both names as owned, so not even a note
 // said so: a curl-into-shell server in a repository's own .mcp.json failed the gate under `.` and
