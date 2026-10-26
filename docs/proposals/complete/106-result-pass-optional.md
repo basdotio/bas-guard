@@ -45,19 +45,19 @@ without the difference being visible.
 
 ## Done criteria
 
-- [ ] `TestPlan_ResultPassIsOptIn` (`internal/judge`): with default options no skill is asked the result question; with
+- [x] `TestPlan_ResultPassIsOptIn` (`internal/judge`): with default options no skill is asked the result question; with
   `ResultPass` the plan is the plan before this change, payload for payload
-- [ ] `config`: `result_pass` defaults to false and reads `true` from YAML; `judgePlanOptions` carries it, so
+- [x] `config`: `result_pass` defaults to false and reads `true` from YAML; `judgePlanOptions` carries it, so
   `llm preview` and the run plan the same questions (`TestLLMPreview_MatchesWhatScanAndCheckSend` green)
-- [ ] The judge block carries `passes_off: ["result"]` when the question is off and no key when it is on; the identity
+- [x] The judge block carries `passes_off: ["result"]` when the question is off and no key when it is on; the identity
   line names it; the usage log copies it; a block from a run without the judge configured carries neither
-- [ ] `ExcerptVersion` moves with its golden (`excerpt_version_test.go`): which passes run by default changed
-- [ ] Reverse: with `ResultPass` on, `TestRun_UsageByPass`, the preview fixture, `TestJudgefold_Golden` (its config
+- [x] `ExcerptVersion` moves with its golden (`excerpt_version_test.go`): which passes run by default changed
+- [x] Reverse: with `ResultPass` on, `TestRun_UsageByPass`, the preview fixture, `TestJudgefold_Golden` (its config
   turns the pass on) and the steering tests are unchanged; `PromptVersion` does not move (no request byte changes)
-- [ ] Measured: the counterfactual above, and a live run of this build against main on the same skills
-- [ ] Docs: `docs/llm-judge.md` / `.zh-CN.md`, spec §5.2 and the config block, `config.example.yaml`,
+- [x] Measured: the counterfactual above, and a live run of this build against main on the same skills
+- [x] Docs: `docs/llm-judge.md` / `.zh-CN.md`, spec §5.2 and the config block, `config.example.yaml`,
   `docs/architecture.md` / `.zh-CN.md` where they list the passes, `.claude/rules/judge.md`
-- [ ] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
+- [x] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
 
 ## Out of scope
 
@@ -108,5 +108,10 @@ without the difference being visible.
 ```
 Merged: PR to be opened (find the sha with git log --grep P-106 after the merge)
 Released: (fill in after the release)
-Evidence: (filled in by W5)
+Evidence: TestPlan_ResultPassIsOptIn (internal/judge/result_pass_test.go): default options plan planFor's menu without the result question, payload for payload; ResultPass plans the full menu. TestLoad_ResultPassIsOptIn: default false, `result_pass: true` read. TestE2E_ResultPassOffIsInTheBlock: off → passes_off ["result"] in the block and the usage line; on → no key and more calls; a judge not configured names no pass. TestJudgeIdentityLine_NamesAPassOff; TestJudgeUsage_PassesOffReachTheRow (ledger row)
+Evidence: reverse — with ResultPass on, TestRun_UsageByPass, the re-ask, budget, slow-call, grounding and steering tests keep their assertions; TestJudgefold_Golden unchanged (its config turns the pass on); TestE2E_UncachedEndpointBlockUnchanged with passes_off set aside like usage_by_pass. judge-prompt=b851dfd5412b on main and here; ExcerptVersion 9 → 12 with the fixture digest 9b48519aaa7b6b16 → cbb3db8b81b93515
+Evidence: counterfactual on the committed runs on this judge prompt (the table under Problem): SkillHarm 81 → 69 of 120, p089-main 174 → 155 of 240, p089-branch 171 → 156 of 239, held-out malicious 68 → 68 of 122, held-out benign 8 → 6 of 215, fresh held-out benign 11 → 11, no verdict change in the 2,630 samples of every other run
+Evidence: counterfactual on 100 benign + 100 malicious corpus skills (corpus 850fc546, seed 20261026, gpt-4.1-mini-2025-04-14, samples 3), three runs of the same skills: benign false positives 9 → 8 (two runs); malicious at the judge verdict 76 → 71, 74 → 72, 78 → 76, every loss among the SkillHarm-derived `sh-` samples
+Evidence: live, this build (result_pass unset) against main on the same skills, 199 complete on both (one sample was no longer in the corpus checkout when this build ran; the other 199 trees are byte-identical between the two runs): benign calls 955 → 655, prompt tokens 1,691,009 → 1,043,515, completion tokens 446,186 → 279,998, false positives 9 → 8; malicious calls 1,050 → 756, prompt tokens 1,705,757 → 1,153,070, completion tokens 374,182 → 276,739, at the judge verdict 75 → 72; LLM-011 in 0 of this build's reports (39 findings in main's), passes_off ["result"] on all 199
+Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
