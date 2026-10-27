@@ -85,7 +85,7 @@ the short form so the model still answers the barrier question on every call.
 ## Done
 
 ```
-Merged: PR to be opened (find the sha with git log --grep P-110 after the merge)
+Merged: PR #135 (find the sha with git log --grep P-110 after the merge)
 Released: (fill in after the release)
 Evidence: TestBarrierRule_ShortReplies (internal/judge/short_reply_test.go): every judge question's system message ends with the barrier rule then shortReplyRule, a re-ask keeps it before its format rule, and triage's (triageSystem) does not carry it; TestParseVerdict_ShortForm: {"flagged": false, "barrier_evidence": ""} reads as not flagged, no barrier
 Evidence: reverse — every other internal/judge test, the preview tests (captureServer reads the new ending) and TestPromptVersion_HashesWhatTheClientSends green; judge-prompt b851dfd5412b → d0993aef9a4d (computed); judge-excerpt=9; rules=717ada4c680b on both builds
