@@ -17,7 +17,25 @@ rate copied into prose goes stale on the next rule. `git tag` and the Releases p
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.32.0
+## v0.2.0 – v0.33.0
+
+**v0.33.0 (2026-10-27) — a CI gate pointed at a project's top level no longer passes without reading `.claude/`.**
+
+One exit code gains a cause; no flag or JSON field changed. `rules` (`717ada4c680b`), `judge-prompt` (`b851dfd5412b`) and
+`judge-excerpt` (9) are the same as in v0.32.0.
+
+- **`--fail-on` exits `4` when the root held nothing it could gate on** (P-105): when nothing was collected under it, or
+  when it holds a project's `.claude` directory that was not read — the top level of a repository, one level above the
+  project's skills, hooks and permission grants. The reason is on stderr and names the fix (`--root .claude` from the
+  project's top level). `4` now means "a gate you asked for could not be evaluated", for `--fail-on` as already for
+  `--fail-on-llm`; a gate that fired still exits `1`, and without `--fail-on` the exit code does not change.
+- **A `.claude` directory under the root gets its own coverage note**, so the summary says coverage is incomplete instead
+  of "looks safe". A `.claude` inside a config root of its own — `~/.claude/.claude/`, which Claude Code writes when it runs
+  from inside `~/.claude`, or a repository of skills that also commits one — stays an unowned entry, as before.
+- **The CI template picks its root:** the repository when it keeps `skills/` at its top level or has no `.claude`, the
+  project's `.claude` otherwise.
+- **Upgrading a CI job:** a job that runs `scan --root . --fail-on …` from a project's top level now fails with `4`. It never
+  read the project's skills; point `--root` at `.claude`, or copy the new template.
 
 **v0.32.0 (2026-10-23) — fewer false alarms on MCP server source: the judge no longer calls a server reading its own
 configuration a credential theft, and a URL parser is not a network client.**
