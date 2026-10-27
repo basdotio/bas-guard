@@ -42,20 +42,20 @@ high or above; keep its triage call (one call, and it is the explanation of exac
 
 ## Done criteria
 
-- [ ] `TestPlan_DecidedArtifactsAreNotAsked` (`internal/judge`): with `SkipDecided`, an artifact with a deterministic high
+- [x] `TestPlan_DecidedArtifactsAreNotAsked` (`internal/judge`): with `SkipDecided`, an artifact with a deterministic high
   or critical finding gets no judge question and keeps its triage call; one with medium, with only an LLM finding, or
   with a high note (dimension 0) is asked as before; without `SkipDecided` the plan is unchanged
-- [ ] `config`: `judge_decided` defaults to false and reads `true`; `judgePlanOptions` carries it, so `llm preview` and the
+- [x] `config`: `judge_decided` defaults to false and reads `true`; `judgePlanOptions` carries it, so `llm preview` and the
   run plan the same calls
-- [ ] The judge block carries `decided` (absent when 0), the summary line names it, the usage log copies it; `--fail-on`
+- [x] The judge block carries `decided` (absent when 0), the summary line names it, the usage log copies it; `--fail-on`
   and `--fail-on-llm` exit codes unchanged on a decided artifact (`TestE2E_DecidedArtifactIsNotAGap`)
-- [ ] Reverse: every `internal/judge` test uses the zero `Options` and is unchanged (one call site takes `schedule`'s
+- [x] Reverse: every `internal/judge` test uses the zero `Options` and is unchanged (one call site takes `schedule`'s
   new count); the two cmd tests whose fixtures are already high set `judge_decided: true` and keep their assertions; `judge-prompt=` and `judge-excerpt=`
   do not move (no request changes; which artifacts are asked is configuration, recorded in `decided`)
-- [ ] Measured: the counterfactual above, and the calls `llm preview` plans before and after on the corpus
-- [ ] Docs: `docs/llm-judge.md` / `.zh-CN.md`, spec §5.2 and §8, `config.example.yaml`, `.claude/rules/judge.md`,
+- [x] Measured: the counterfactual above, and the calls `llm preview` plans before and after on the corpus
+- [x] Docs: `docs/llm-judge.md` / `.zh-CN.md`, spec §5.2 and §8, `config.example.yaml`, `.claude/rules/judge.md`,
   `baselines/README.md` (a reading of per-rule judge rates sets `judge_decided: true`)
-- [ ] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
+- [x] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
 
 ## Out of scope
 
@@ -95,5 +95,10 @@ high or above; keep its triage call (one call, and it is the explanation of exac
 ```
 Merged: PR to be opened (find the sha with git log --grep P-109 after the merge)
 Released: (fill in after the release)
-Evidence: (filled in by W5)
+Evidence: TestPlan_DecidedArtifactsAreNotAsked (internal/judge/decided_test.go): with SkipDecided the static-high and static-critical skills plan [triage] only; static-medium, an LLM high and a high note (dimension 0) plan what they did; without it every plan is unchanged; DecidedArtifacts counts 2
+Evidence: TestLoad_JudgeDecided: default false, `judge_decided: true` read. TestE2E_DecidedArtifactIsNotAGap: a skill whose script pipes a download into a shell (EXEC-001 high) gets only its triage call by default, decided 1 in the block and the usage line, judgeGap empty; with judge_decided: true it is asked every question and nothing is counted; `check --fail-on high` and `--fail-on-llm high` exit 1 under both. TestJudgeLine (report): "2 already high not asked (llm.judge_decided)"; TestJudgeUsage_DecidedReachesTheRow
+Evidence: reverse — every internal/judge test runs on the zero Options and is unchanged apart from one call site that takes schedule's new count; TestE2E_JudgeBodiesCarryNoHomeOrKeylessSecret and TestScanInbox_RepairedAddsUp set judge_decided: true (their fixtures are high; their subject is the judge) and keep their assertions; judge-prompt=b851dfd5412b and judge-excerpt=9 unchanged
+Evidence: counterfactual on the committed runs (the table under Problem): 2.7–4.1% of the judge's calls on the benign skill readings, 9.1% on SkillHarm, 6.8–15.1% on server readings, 51.6% on the held-out malicious skills — no verdict at the high threshold can change by construction
+Evidence: llm preview --json (no network), samples 3, the 100 benign + 99 malicious corpus skills P-103 measured, main a6e138f against this branch: planned calls benign 955 → 895 (−6.3%), malicious 1,050 → 753 (−28.3%); triage calls 19 and 48 on both
+Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
