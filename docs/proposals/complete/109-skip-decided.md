@@ -93,7 +93,7 @@ high or above; keep its triage call (one call, and it is the explanation of exac
 ## Done
 
 ```
-Merged: PR to be opened (find the sha with git log --grep P-109 after the merge)
+Merged: PR #134 (find the sha with git log --grep P-109 after the merge)
 Released: (fill in after the release)
 Evidence: TestPlan_DecidedArtifactsAreNotAsked (internal/judge/decided_test.go): with SkipDecided the static-high and static-critical skills plan [triage] only; static-medium, an LLM high and a high note (dimension 0) plan what they did; without it every plan is unchanged; DecidedArtifacts counts 2
 Evidence: TestLoad_JudgeDecided: default false, `judge_decided: true` read. TestE2E_DecidedArtifactIsNotAGap: a skill whose script pipes a download into a shell (EXEC-001 high) gets only its triage call by default, decided 1 in the block and the usage line, judgeGap empty; with judge_decided: true it is asked every question and nothing is counted; `check --fail-on high` and `--fail-on-llm high` exit 1 under both. TestJudgeLine (report): "2 already high not asked (llm.judge_decided)"; TestJudgeUsage_DecidedReachesTheRow
