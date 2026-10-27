@@ -49,7 +49,7 @@ type Source struct {
 // send anything.
 func Plan(arts []model.ArtifactReport, opts Options) []PlannedCall {
 	opts = opts.defaults()
-	send, refused, _ := schedule(arts, opts)
+	send, refused, _, _ := schedule(arts, opts)
 	all := append(append([]task(nil), send...), refused...)
 	var out []PlannedCall
 	for i, t := range all {

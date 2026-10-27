@@ -74,6 +74,10 @@ type LLMConfig struct {
 	// the effective score. 1 (default) asks once. N costs N times as much, so it is opt-in —
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
+	// JudgeDecided asks the judge about an artifact whose deterministic findings already reach high (P-109). Off by
+	// default: no answer can change such an artifact's verdict at the high threshold or a gate's exit code, so its
+	// judge questions are left out and only its triage call is made; the judge block counts it (`decided`).
+	JudgeDecided bool `yaml:"judge_decided"`
 	// Authority decides whether this endpoint's opinion may have CONSEQUENCES: "advisory"
 	// (default) means the judge can only inform, "escalate" additionally permits the
 	// --fail-on-llm gate. It does not change what the effective score says — that number must

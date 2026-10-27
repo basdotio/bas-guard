@@ -36,6 +36,10 @@ type Options struct {
 	// and every grounded verdict counts. >1 asks N times and requires a MAJORITY before a
 	// finding may affect the effective score — it costs N times as much, so it is opt-in.
 	Samples int
+	// SkipDecided leaves out every judge question of an artifact whose deterministic findings already reach high
+	// (Decided, P-109): no answer can change its verdict at the high threshold or a gate's exit code. Its triage
+	// call stays. llm.judge_decided: true turns it off; the zero value asks every artifact, as before.
+	SkipDecided bool
 	// Home is the scanned environment's home directory, replaced by `~` in what is sent (egress.go)
 	// IN ADDITION to the OS user's home, which Run always replaces: empty adds nothing, it does
 	// not turn the scrub off. A relative Home is resolved against the working directory.
@@ -76,6 +80,9 @@ type Stats struct {
 	Retries int // retry attempts across all calls
 	Failed  int // calls that ended in an error after retries
 	Skipped int // calls never issued: budget exhausted or run deadline hit
+	// Decided is the artifacts whose judge questions SkipDecided left out (P-109): their deterministic findings
+	// already reached high. Not a gap: no answer could have changed a verdict or a gate.
+	Decided int
 	// Repaired is the part of the answered judge calls whose reply closed its object one member
 	// early and was read by dropping that brace (parseVerdict, P-034). They are answers, not
 	// failures; counted so the repair is never silent.
@@ -322,8 +329,8 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 	// snapshots each artifact's static findings before advisory ones are appended (triage must
 	// judge the deterministic findings, not the judge's own output), and it makes the budget
 	// cut deterministic — a counter raced by workers would drop a different set each run.
-	tasks, refused, notes := schedule(arts, opts)
-	stats := Stats{Skipped: len(refused)}
+	tasks, refused, notes, decided := schedule(arts, opts)
+	stats := Stats{Skipped: len(refused), Decided: decided}
 	if len(tasks) == 0 {
 		return notes, stats
 	}
@@ -441,8 +448,12 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 // schedule is a run's plan: the calls it will make, in order, and the calls the budget
 // (llm.max_calls) refuses, with the notes that say what will not be seen. Run makes the first;
 // Plan shows both — one function, so the preview cannot plan a run of its own (P-027).
-func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, notes []model.Finding) {
+func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, notes []model.Finding, decided int) {
 	send = buildTasks(arts, opts.Samples, newEgress(userHome(), opts.Home))
+	if opts.SkipDecided {
+		// Before the budget cut: a question nobody will ask must not take a call the budget had for one that is.
+		send, decided = withoutDecided(send, arts)
+	}
 	if over := len(send) - opts.MaxCalls; opts.MaxCalls > 0 && over > 0 {
 		notes = append(notes, coverageNote(fmt.Sprintf(
 			"call budget (llm.max_calls=%d) reached: %d planned call(s) covering %s were NOT made",
@@ -458,7 +469,46 @@ func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, 
 	if n, ok := unaskedNote(arts); ok {
 		notes = append(notes, n)
 	}
-	return send, refused, notes
+	return send, refused, notes, decided
+}
+
+// Decided reports whether an artifact's deterministic findings already reach high (P-109). A judge finding is
+// clamped at high, so once a deterministic one is there no answer can raise the artifact's highest severity: its
+// verdict at the high threshold and every gate's exit code are fixed. LLM findings and dimension-0 notes do not
+// count — the first are the judge's own, the second are not findings about the artifact's behaviour.
+func Decided(a model.ArtifactReport) bool {
+	for _, f := range staticFindings(a.Findings) {
+		if f.Severity.Rank() >= model.SevHigh.Rank() {
+			return true
+		}
+	}
+	return false
+}
+
+// DecidedArtifacts counts the artifacts Decided reports.
+func DecidedArtifacts(arts []model.ArtifactReport) int {
+	n := 0
+	for _, a := range arts {
+		if Decided(a) {
+			n++
+		}
+	}
+	return n
+}
+
+// withoutDecided is the plan with every judge question of a decided artifact taken out, triage kept, and how many
+// artifacts lost a question that way. tasks is not modified.
+func withoutDecided(tasks []task, arts []model.ArtifactReport) ([]task, int) {
+	out := make([]task, 0, len(tasks))
+	dropped := map[int]bool{}
+	for _, t := range tasks {
+		if t.kind == taskJudge && Decided(arts[t.artifact]) {
+			dropped[t.artifact] = true
+			continue
+		}
+		out = append(out, t)
+	}
+	return out, len(dropped)
 }
 
 // userHome is the OS user's home directory, or "" when the environment does not say — in which

@@ -71,6 +71,7 @@ type usageLine struct {
 	TriageCalls        int    `json:"triage_calls"`
 	Repaired           int    `json:"repaired"`
 	Reasked            int    `json:"reasked"`
+	Decided            int    `json:"decided,omitempty"` // P-109: artifacts asked only triage, already high
 	TemperatureOmitted bool   `json:"temperature_omitted,omitempty"`
 	PromptTokens       int    `json:"prompt_tokens,omitempty"`
 	CompletionTokens   int    `json:"completion_tokens,omitempty"`
@@ -125,7 +126,7 @@ func usageLineFor(command, section, toolVersion, rulesVersion, now string, j *mo
 		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion,
 		Model: j.Model, Endpoint: endpointOrigin(j.Endpoint), Samples: j.Samples,
 		Calls: j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries,
-		TriageCalls: j.TriageCalls, Repaired: j.Repaired, Reasked: j.Reasked,
+		TriageCalls: j.TriageCalls, Repaired: j.Repaired, Reasked: j.Reasked, Decided: j.Decided,
 		TemperatureOmitted: j.TemperatureOmitted,
 		PromptTokens:       j.PromptTokens, CompletionTokens: j.CompletionTokens,
 		CachedPromptTokens: j.CachedPromptTokens,

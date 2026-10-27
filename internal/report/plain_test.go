@@ -142,6 +142,9 @@ func TestJudgeLine_RepairedOnlyWhenAny(t *testing.T) {
 			"LLM judge ran over 2 artifact(s) in 5 call(s) (1 failed, 0 skipped, 2 repaired) and added 1 advisory lead."},
 		{model.JudgeSummary{Ran: true, Artifacts: 2, Calls: 5, Skipped: 1},
 			"LLM judge ran over 2 artifact(s) in 5 call(s) (0 failed, 1 skipped) and had nothing to add."},
+		// P-109: decided artifacts are named, not counted as failures or skips.
+		{model.JudgeSummary{Ran: true, Artifacts: 3, Calls: 4, Decided: 2},
+			"LLM judge ran over 3 artifact(s) in 4 call(s), 2 already high not asked (llm.judge_decided), and had nothing to add."},
 	}
 	for _, c := range cases {
 		j := c.j

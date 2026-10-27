@@ -638,7 +638,7 @@ func TestE2E_JudgeBodiesCarryNoHomeOrKeylessSecret(t *testing.T) {
 		"#!/bin/sh\ncat "+home+"/notes/today.md\necho "+blob+" | base64 -d | sh\n")
 
 	url, bodies := capturingJudge(t)
-	out, err := scanEnv(root, scanOpts{cfgPath: writeJudgeConfig(t, url, "advisory"), llm: true, quiet: true})
+	out, err := scanEnv(root, scanOpts{cfgPath: askingDecided(t, writeJudgeConfig(t, url, "advisory")), llm: true, quiet: true})
 	if err != nil {
 		t.Fatal(err)
 	}

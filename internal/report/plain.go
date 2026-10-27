@@ -616,6 +616,10 @@ func judgeLine(j *model.JudgeSummary) string {
 	case j.Failed > 0 || j.Skipped > 0:
 		s += fmt.Sprintf(" (%d failed, %d skipped)", j.Failed, j.Skipped)
 	}
+	if j.Decided > 0 {
+		// Not a gap, so not in the parenthesis with the failures (P-109): their verdicts were already decided.
+		s += fmt.Sprintf(", %d already high not asked (llm.judge_decided),", j.Decided)
+	}
 	switch j.Findings {
 	case 0:
 		s += " and had nothing to add."

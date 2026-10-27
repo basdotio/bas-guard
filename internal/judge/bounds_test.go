@@ -182,7 +182,7 @@ func TestPlan_ExplainAndDigestFitTheExcerpt(t *testing.T) {
 			if !strings.Contains(p.Shortened, c.words) || !strings.Contains(p.Shortened, "not sent") {
 				t.Errorf("shortened = %q, want it to say how many %s(s) were not sent", p.Shortened, c.words)
 			}
-			_, _, notes := schedule([]model.ArtifactReport{c.art}, Options{}.defaults())
+			_, _, notes, _ := schedule([]model.ArtifactReport{c.art}, Options{}.defaults())
 			disclosed := false
 			for _, n := range notes {
 				disclosed = disclosed || n.RuleID == "LLM-000" && strings.Contains(n.Why, "skill:"+c.art.Name) &&

@@ -278,3 +278,18 @@ func TestJudgeUsage_ModelAndUsageByPassReachTheRow(t *testing.T) {
 		t.Errorf("a summary without model or usage_by_pass folds into a row that carries them: %s", old)
 	}
 }
+
+// TestJudgeUsage_DecidedReachesTheRow (P-109): the artifacts a run left out of the judge because their
+// deterministic findings were already high reach the row as printed; no key when there were none.
+func TestJudgeUsage_DecidedReachesTheRow(t *testing.T) {
+	doc := strings.Replace(budgetCut, `"completion_tokens":310}`, `"completion_tokens":310,"decided":1}`, 1)
+	if doc == budgetCut {
+		t.Fatal("fixture: the replacement did not apply")
+	}
+	if got := foldDoc(t, doc); got.Decided != 1 {
+		t.Errorf("decided = %d; want 1, as printed", got.Decided)
+	}
+	if row := show(foldDoc(t, budgetCut)); strings.Contains(row, "decided") {
+		t.Errorf("judge_usage %s carries decided; want no key when the binary printed none", row)
+	}
+}

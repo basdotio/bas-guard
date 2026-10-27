@@ -49,7 +49,8 @@ high or above; keep its triage call (one call, and it is the explanation of exac
   run plan the same calls
 - [ ] The judge block carries `decided` (absent when 0), the summary line names it, the usage log copies it; `--fail-on`
   and `--fail-on-llm` exit codes unchanged on a decided artifact (`TestE2E_DecidedArtifactIsNotAGap`)
-- [ ] Reverse: every `internal/judge` test uses the zero `Options` and is unchanged; `judge-prompt=` and `judge-excerpt=`
+- [ ] Reverse: every `internal/judge` test uses the zero `Options` and is unchanged (one call site takes `schedule`'s
+  new count); the two cmd tests whose fixtures are already high set `judge_decided: true` and keep their assertions; `judge-prompt=` and `judge-excerpt=`
   do not move (no request changes; which artifacts are asked is configuration, recorded in `decided`)
 - [ ] Measured: the counterfactual above, and the calls `llm preview` plans before and after on the corpus
 - [ ] Docs: `docs/llm-judge.md` / `.zh-CN.md`, spec §5.2 and §8, `config.example.yaml`, `.claude/rules/judge.md`,
@@ -75,10 +76,9 @@ high or above; keep its triage call (one call, and it is the explanation of exac
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
 | 1 | The proposal | `P-109: the proposal — an artifact already high is asked every judge question` |
-| 2 | `llm.judge_decided`, `Options.SkipDecided`; the plan leaves out a decided artifact's judge questions | `P-109: an artifact whose deterministic findings reach high is not asked the judge's questions` |
-| 3 | `decided` in the judge block, summary line, usage log and ledger row | `P-109: the judge block counts the decided artifacts it did not ask` |
-| 4 | Documentation | `P-109: docs — decided artifacts are not judged unless llm.judge_decided` |
-| 5 | Done | `P-109: done — evidence, and the proposal moves to complete` |
+| 2 | `llm.judge_decided`, `Options.SkipDecided`; the plan leaves out a decided artifact's judge questions, and `decided` is counted in the judge block, summary line, usage log and ledger row (one commit: the two tests whose fixtures are already high and whose subject is the judge set `judge_decided: true`, which needs both halves) | `P-109: an artifact whose deterministic findings reach high is not asked the judge's questions, and the judge block counts it` |
+| 3 | Documentation | `P-109: docs — decided artifacts are not judged unless llm.judge_decided` |
+| 4 | Done | `P-109: done — evidence, and the proposal moves to complete` |
 
 ## Open questions
 

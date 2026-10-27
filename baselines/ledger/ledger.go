@@ -146,6 +146,7 @@ type JudgeUsage struct {
 	Skipped          int    `json:"skipped"`
 	Repaired         int    `json:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
 	Reasked          int    `json:"reasked,omitempty"`  // calls whose first reply was unreadable and that were asked once more (P-069)
+	Decided          int    `json:"decided,omitempty"`  // artifacts asked only triage, already high (P-109)
 	TriageCalls      int    `json:"triage_calls"`
 	Retries          *int   `json:"retries,omitempty"`
 	PromptTokens     *int   `json:"prompt_tokens,omitempty"`

@@ -596,6 +596,9 @@ type JudgeSummary struct {
 	Skipped   int    `json:"skipped"`          // calls never issued: budget or deadline
 	Repaired  int    `json:"repaired"`         // answered calls read only by the closed-early repair (P-034)
 	Reasked   int    `json:"reasked"`          // calls whose first reply was unreadable and that were asked once more (P-069)
+	// Decided is the artifacts the judge asked nothing but triage because their deterministic findings already reached
+	// high (P-109, llm.judge_decided off): no answer could have changed a verdict or a gate. Not a gap. Absent when 0.
+	Decided int `json:"decided,omitempty"`
 	// TemperatureOmitted: the endpoint refused the temperature member (a model that allows only its
 	// default) and the calls went without it, so a consensus run sampled at that default (P-052).
 	TemperatureOmitted bool   `json:"temperature_omitted,omitempty"`

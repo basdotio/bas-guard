@@ -251,3 +251,18 @@ func TestLLMConfig_GateReady(t *testing.T) {
 		t.Errorf("MinSamplesToEscalate = %d; the measurements behind it were taken at 3 (P-041), change them before this", MinSamplesToEscalate)
 	}
 }
+
+// TestLoad_JudgeDecided (P-109): artifacts already high are left out of the judge unless the config says
+// `judge_decided: true`.
+func TestLoad_JudgeDecided(t *testing.T) {
+	if Default().LLM.JudgeDecided {
+		t.Fatal("the default asks the judge about artifacts already high")
+	}
+	p := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(p, []byte("llm:\n  judge_decided: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, err := Load(p); err != nil || !cfg.LLM.JudgeDecided {
+		t.Fatalf("judge_decided: true read as %v (%v)", cfg.LLM.JudgeDecided, err)
+	}
+}
