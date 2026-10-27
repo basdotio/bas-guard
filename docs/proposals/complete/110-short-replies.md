@@ -33,17 +33,17 @@ the short form so the model still answers the barrier question on every call.
 
 ## Done criteria
 
-- [ ] `TestBarrierRule_ShortReplies` (`internal/judge`): the rule every judge question carries asks for the short form when
+- [x] `TestBarrierRule_ShortReplies` (`internal/judge`): the rule every judge question carries asks for the short form when
   nothing is flagged and for one line of evidence; triage's rule is unchanged
-- [ ] A reply in the short form parses as not flagged with no barrier; a flagged reply with a one-line quote grounds as
+- [x] A reply in the short form parses as not flagged with no barrier; a flagged reply with a one-line quote grounds as
   before (`TestRun_*` grounding tests green)
-- [ ] `PromptVersion` moves (computed); `TestPromptVersion_HashesWhatTheClientSends` byte-exact; `ExcerptVersion` does
+- [x] `PromptVersion` moves (computed); `TestPromptVersion_HashesWhatTheClientSends` byte-exact; `ExcerptVersion` does
   not move
-- [ ] Measured on the corpus skills P-103 compared (gpt-4.1-mini, `samples: 3`), against the three runs of main's prompt
+- [x] Measured on the corpus skills P-103 compared (gpt-4.1-mini, `samples: 3`), against the three runs of main's prompt
   already on record: completion tokens, calls, the judge verdicts on benign and malicious skills, and `LLM-007` and
   `LLM-005` counts
-- [ ] Docs: `docs/llm-judge.md` / `.zh-CN.md` where they describe the reply, `.claude/rules/judge.md`
-- [ ] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
+- [x] Docs: `docs/llm-judge.md` / `.zh-CN.md` where they describe the reply, `.claude/rules/judge.md`
+- [x] `make verify` green with `go version` go1.23.5 and no toolchain switch; `head -3 go.mod` line 3 `go 1.23.5`
 
 ## Out of scope
 
@@ -69,6 +69,12 @@ the short form so the model still answers the barrier question on every call.
 
 ## Open questions
 
+0. Watch: `LLM-007`. On the measured skills the barrier finding moved in both directions — one sample that main's
+   prompt escalated in 4 of 6 runs (`sg-soul-identity-hijack`; its verdict rests on `LLM-003` at 3 of 3 either way) did
+   not escalate in 4 runs of this prompt, and one that main's prompt left at 1 of 3 in three runs
+   (`sg-indirect-resource-injection`) escalated at 3 of 3. No verdict changed. Too few samples to call; a reading with
+   more barrier cases before a release decides it.
+
 1. Keep `barrier_evidence` in the short form? Recommended: yes. The barrier question is independent of `flagged`, and a
    short form without it invites the model to skip it.
    **Decided (2026-10-27)**: as recommended.
@@ -81,5 +87,9 @@ the short form so the model still answers the barrier question on every call.
 ```
 Merged: PR to be opened (find the sha with git log --grep P-110 after the merge)
 Released: (fill in after the release)
-Evidence: (filled in by W4)
+Evidence: TestBarrierRule_ShortReplies (internal/judge/short_reply_test.go): every judge question's system message ends with the barrier rule then shortReplyRule, a re-ask keeps it before its format rule, and triage's (triageSystem) does not carry it; TestParseVerdict_ShortForm: {"flagged": false, "barrier_evidence": ""} reads as not flagged, no barrier
+Evidence: reverse — every other internal/judge test, the preview tests (captureServer reads the new ending) and TestPromptVersion_HashesWhatTheClientSends green; judge-prompt b851dfd5412b → d0993aef9a4d (computed); judge-excerpt=9; rules=717ada4c680b on both builds
+Evidence: live, gpt-4.1-mini-2025-04-14, samples 3, the 100 benign + 99 malicious corpus skills (corpus 850fc546, seed 20261026) P-103 measured, against main's run of the same skills: benign completion tokens 446,186 → 36,119 (−91.9%), prompt 1,691,009 → 1,750,034 (+3.5%, the rule itself), false positives 9 → 9 with no sample changed; malicious completion 374,182 → 73,987 (−80.2%), prompt +4.8%, at the judge verdict 75 → 75 (3 lost, 3 gained — two runs of main's prompt on these skills differ by 6 to 10); calls equal (955 and 1,050). Repaired replies 39 → 7 and re-asks 10 → 2: shorter replies are malformed less often. Five malicious checks first failed on the network (EOF after retries) and were run again
+Evidence: LLM-007 on the malicious skills: main's prompt 4, 3 and 3 findings in three runs, this prompt 2 (see open question 0)
+Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
