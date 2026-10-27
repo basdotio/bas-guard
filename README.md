@@ -10,29 +10,6 @@
 >
 > `scan` and `check` are strictly read-only. `clean` is the only command that writes, and it only ever MOVES things inside your config root — it never deletes.
 
-## Renamed from AgentGuard
-
-This tool was called **AgentGuard** (command `aguard`, plugin `aguard@AgentGuard`, repository `basdotio/AgentGuard`)
-through v0.29. Other projects use those names, including an unscoped npm package `aguard` that installs a different
-program, so it is now **BAS Guard**. What you set up keeps working, except a `go install` of the old path (last item):
-
-- The `aguard` command still works: the npm package installs it next to `bas-guard`, and an `aguard` binary you
-  installed by hand keeps working. A gate registered as `aguard hook` keeps firing; `bas-guard hook status` says how to
-  switch it.
-- `~/.config/aguard/` is still read when it is the only config directory, and every `AGUARD_*` variable still works
-  (`BAS_GUARD_*` wins when both are set).
-- Approvals (`.aguard-approvals.json`), baselines (`.aguardignore`) and quarantined skills (`.aguard-trash`) keep their
-  names.
-- The plugin is now `basguard@bas-guard`. The marketplace no longer lists `aguard`, so an `aguard@AgentGuard` install
-  stops loading when its marketplace refreshes ("Plugin aguard not found in marketplace AgentGuard"); the load-time gate
-  is not part of the plugin and keeps running. `bas-guard version` prints the exact commands to switch.
-- `npx bas-guard` runs the same package as `npx @bas.io/guard`. Install one of the two globally, not both: they
-  provide the same `bas-guard` command.
-- `go install github.com/basdotio/AgentGuard/cmd/aguard@latest` (the old CI template) **fails** from v0.30.0 on, with
-  `module declares its path as: github.com/basdotio/bas-guard`. Use
-  `go install github.com/basdotio/bas-guard/cmd/bas-guard@latest`, whose command is `bas-guard`, or pin `@v0.29.0` to
-  keep the old build.
-
 ## What it is
 
 AI coding agents **auto-load** a lot of external things — skills, MCP servers, hooks, subagents, instruction files (CLAUDE.md) — each handed your real tools and permissions, and any of them can hide a malicious directive. BAS Guard statically scans those artifacts on your machine and produces a risk report + cleanup suggestions.
