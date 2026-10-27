@@ -37,7 +37,7 @@ the release lists `bas-guard-*`, `aguard-*` and `SHA256SUMS.txt`.
 ## Done
 
 ```
-Merged: PR #<n> (2026-10-27; find the sha with git log --grep P-112)
+Merged: PR #137 (2026-10-27; find the sha with git log --grep P-112)
 Released: v0.33.1
 Evidence: make verify: all gates passed on the branch
 Evidence: bas-guard version on main before this branch: rules=717ada4c680b judge-prompt=b851dfd5412b judge-excerpt=9
