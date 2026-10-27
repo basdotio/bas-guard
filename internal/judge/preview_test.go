@@ -56,7 +56,11 @@ func captureServer(t *testing.T) (*httptest.Server, func() []capturedCall) {
 			return
 		}
 		nonce := strings.TrimSuffix(strings.TrimPrefix(fence, "===AGUARD:"), "===")
-		instruction, ok := strings.CutSuffix(body.Messages[0].Content, " "+barrierRule(nonce))
+		// A judge question ends with the barrier rule and the short-reply rule (P-110); triage with the barrier rule.
+		instruction, ok := strings.CutSuffix(body.Messages[0].Content, " "+barrierRule(nonce)+" "+shortReplyRule)
+		if !ok {
+			instruction, ok = strings.CutSuffix(body.Messages[0].Content, " "+barrierRule(nonce))
+		}
 		if !ok {
 			t.Errorf("system message does not end with the barrier rule for this call's nonce:\n%s", body.Messages[0].Content)
 		}
