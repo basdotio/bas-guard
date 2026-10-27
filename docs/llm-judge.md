@@ -391,6 +391,12 @@ A model can produce a fluent, confident, entirely invented finding, and nothing 
 can tell it from a real one. So every flagged verdict must **quote** what triggered it, and
 that quote is checked against the text the model was actually sent:
 
+(The quote only has to locate one line, so every judge question asks for the single line that shows it best, two at
+most, and a reply that flags nothing — with nothing in the data addressing the analyzer — is
+`{"flagged": false, "barrier_evidence": ""}` and nothing else (P-110). Before that a "not flagged" reply still wrote a
+summary and copied whole paragraphs into `evidence`: one benign skill's injection question took 1,573 completion
+tokens to say no.)
+
 - **Found** → the finding is kept and gains a real `file:line` (it used to say line 0, i.e.
   "somewhere in this artifact — go look yourself"). What the report shows as its evidence is
   **the line it landed on, as it was sent** (redacted, at most 512 bytes) — not the model's quote.
