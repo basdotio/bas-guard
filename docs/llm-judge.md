@@ -136,6 +136,7 @@ llm:
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
+| `judge_decided` | `true` asks the judge about an artifact whose deterministic findings already reach high; default `false` (P-109): such an artifact gets only its triage call, since no answer can change its verdict at the high threshold or a gate's exit code. The judge block counts the artifacts left out (`decided`). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 Every run prints one line to stderr — `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed
@@ -171,6 +172,16 @@ bas-guard scan --llm --config config.yaml
 
 Bigger models (gpt-4o, Qwen2.5-72B) judge semantic tasks more accurately; local keeps
 everything on your machine. That trade-off is yours.
+
+### Artifacts the rules already rated high
+
+An artifact whose deterministic findings already include one at high or critical is not asked the judge's questions
+by default (P-109); its triage call is still made. A judge finding is clamped at high, so nothing it says can raise such
+an artifact's highest severity: `--fail-on`, `--fail-on-llm` and the verdict at the high threshold are what they would
+have been. What you do not get on it is an LLM lead, an `LLM-007`, and the lower `overall_effective` an escalation can
+bring. On the committed readings these artifacts took 3–4% of the judge's calls on benign skills, 9% on SkillHarm, 7–15%
+on MCP servers and half on the held-out malicious skills. `judge_decided: true` asks them as before; the judge block
+says how many were left out (`decided`) and the summary line names them.
 
 ## Privacy
 

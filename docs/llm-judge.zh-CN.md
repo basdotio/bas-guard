@@ -117,6 +117,7 @@ llm:
 | `max_calls` | 单次扫描的调用上限;`0`(默认)= 不限。超预算的调用会被跳过**并报出**,且点名哪些 artifact 没查。这是给你自己的时间和账单用的**礼貌性自限** —— 它是客户端配置,所以不是花费管控手段。 |
 | `max_retries` | `429`/`5xx` 的重试次数,遵守 `Retry-After`(默认 `2`)。重试是同一个问题重发,**不计入** `max_calls`;`4xx`(密钥错、模型名错)是真实答复,永不重试。 |
 | `samples` | 每个问题问几遍(默认 `1`)。`>1` 时一条发现必须过**多数**才能影响 effective 分 —— 见[共识采样](#共识采样-samples)。调用量按这个数翻倍。 |
+| `judge_decided` | `true` 时静态已经到 high 的 artifact 也问判官;默认 `false`(P-109):这类 artifact 只做 triage,因为什么回答都改变不了它在 high 门槛上的判定,也改变不了闸门的退出码。判官块会数出没问的 artifact(`decided`)。 |
 | `authority` | `advisory`(默认)或 `escalate`。这个端点的意见能不能卡构建 —— 见[用判官卡闸门](#用判官卡闸门-fail-on-llm)。卡闸门还要 `samples: 3` 或更多。 |
 
 每次跑完会往 stderr 打一行 —— `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed ·
@@ -148,6 +149,14 @@ bas-guard scan --llm --config config.yaml
 ```
 
 大模型(gpt-4o、Qwen2.5-72B)语义判得更准;本地把一切留在本机。这个权衡由你定。
+
+### 规则已经判为高危的 artifact
+
+确定性发现里已经有 high 或 critical 的 artifact,默认不再问判官的题(P-109),triage 照做。判官的发现封顶 high,所以它说什么都
+抬不高这类 artifact 的最高严重度:`--fail-on`、`--fail-on-llm` 和 high 门槛上的判定都和以前一样。少掉的是这个 artifact 上的
+LLM 线索、`LLM-007`,以及升级可能带来的更低的 `overall_effective`。在已提交的读数上,这类 artifact 占判官调用的比例:良性 skill
+3–4%,SkillHarm 9%,MCP 服务器 7–15%,held-out 恶意 skill 一半。`judge_decided: true` 恢复照问;判官块写出没问的个数
+(`decided`),摘要行也会点名。
 
 ## 隐私
 

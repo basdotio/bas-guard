@@ -220,6 +220,9 @@ per pass, keyed by the pass names `aguard llm preview` prints, summing to the ro
 over the samples under `judge_usage: usage_by_pass:`, only when every sample that made calls carried a breakdown, and
 the per-pass token counts only beside the run's token totals. They are token counts, not a cost, and two models'
 counts for one pass are not comparable. Rows committed before P-072 carry neither key and are read as before.
+A reading that measures the judge's own rates (per-rule FP and recall, the any-vote columns) runs with
+`judge_decided: true` (P-109): without it an artifact the rules already rated high is asked nothing but triage, and
+leaves those denominators. The judge verdict (static ≥ high, or an escalated LLM finding ≥ high) is the same either way.
 Questions asked are
 `(calls − triage_calls) / samples`, with `samples` from the judge config (the summary does not
 carry it), exact only when `skipped` is 0; a `judge.jsonl` folded from a new run takes

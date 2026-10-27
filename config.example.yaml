@@ -66,6 +66,12 @@ llm:
   # returns the same answer 3 times and the "agreement" would measure nothing.
   samples: 1
 
+  # Ask the judge about an artifact whose deterministic findings already reach high? Off by
+  # default: no answer can change such an artifact's verdict at the high threshold or a
+  # gate's exit code, so it gets only its triage call. The judge block counts the artifacts
+  # left out (decided). true asks them every question, as before.
+  judge_decided: false
+
   # Whether this endpoint's opinion may have CONSEQUENCES.
   #   advisory (default) — the judge informs; no gate can act on it
   #   escalate           — additionally permits the --fail-on-llm gate
