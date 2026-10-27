@@ -17,7 +17,17 @@ rate copied into prose goes stale on the next rule. `git tag` and the Releases p
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.33.0
+## v0.2.0 – v0.33.1
+
+**v0.33.1 (2026-10-27) — the README pair no longer opens with the rename from AgentGuard.**
+
+Documentation only: no code, flag, exit code or JSON field changed. `rules` (`717ada4c680b`), `judge-prompt`
+(`b851dfd5412b`) and `judge-excerpt` (9) are the same as in v0.33.0.
+
+- **The "Renamed from AgentGuard" section is gone** from `README.md` and its Chinese counterpart (P-111). What it
+  described is unchanged: the `aguard` command, `~/.config/aguard/`, `AGUARD_*` and the `.aguard-*` file names keep
+  working, the README's note for plugin installs from before v0.30.0 stays, and the v0.30.0 entry below keeps the
+  switch steps.
 
 **v0.33.0 (2026-10-27) — a CI gate pointed at a project's top level no longer passes without reading `.claude/`.**
 

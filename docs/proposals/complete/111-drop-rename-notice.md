@@ -49,4 +49,8 @@ None.
 
 ## Done
 
-Shipped 2026-10-27 in one commit; `make verify` green.
+```
+Merged: PR #136 (2026-10-27; find the sha with git log --grep P-111)
+Released: v0.33.1
+Evidence: make verify: all gates passed on the branch
+```
