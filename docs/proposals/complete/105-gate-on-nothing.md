@@ -140,8 +140,8 @@ All were asked on 2026-10-26 and answered the same day; see Decisions above (6 c
 ## Done
 
 ```
-Merged: PR #131 (opened 2026-10-26; find the sha with git log --grep P-105 after the merge)
-Released: (fill in after the release)
+Merged: PR #131 (2026-10-27; find the sha with git log --grep P-105)
+Released: v0.33.0
 Evidence: TestFailGate_NothingToGate (cmd/bas-guard/gate_on_nothing_test.go); typical project, `--root .`,
   `--fail-on high`: exit 0 → 4; the reverse rows (`--root .claude` → 1, skills repository → 0, no --fail-on → 0,
   plain empty check → 0) in the same table
