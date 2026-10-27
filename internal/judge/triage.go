@@ -46,7 +46,7 @@ func (c *HTTPClient) Triage(ctx context.Context, artifact string, items []Triage
 	}
 	// Temperature 0: triage produces display labels, never a finding, so there is nothing
 	// to take a vote on and no reason to pay for variance.
-	content, err := c.chat(ctx, triageTask+" "+barrierRule(nonce), fenced(triagePayload(items), nonce), 0)
+	content, err := c.chat(ctx, triageSystem(nonce), fenced(triagePayload(items), nonce), 0)
 	if err != nil {
 		return nil, err
 	}

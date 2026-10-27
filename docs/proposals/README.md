@@ -143,3 +143,4 @@ always drift. A state change is one `git mv`; the file name stays the same, and 
 | [101](complete/101-release-0.32.0.md) | Release record v0.32.0: P-098, P-099 | The maintainer said "发" (2026-10-23) | PR #127; v0.32.0 |
 | [105](complete/105-gate-on-nothing.md) | A CI gate pointed at a project's top level never reads `.claude/`, and passes | New finding (2026-10-26) while running published usage examples against v0.32.0: the template's `scan --root .` exits 0 on a project whose skills it never read | PR #131; v0.33.0 |
 | [108](complete/108-release-0.33.0.md) | Release record v0.33.0: P-105 | The maintainer said "发 v0.33.0" (2026-10-27) | PR #133; v0.33.0 |
+| [110](complete/110-short-replies.md) | A judge reply that flags nothing still fills every field, and copies whole paragraphs of the scanned text into `evidence` | The maintainer, 2026-10-27 (how many calls the judge makes) | PR #135; pending release |

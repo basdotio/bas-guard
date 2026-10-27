@@ -104,7 +104,7 @@ func (s callShape) messages() (system, user string, temperature float64) {
 		fmt.Fprintf(&b, "[%s] %s\n", it.RuleID, it.Evidence)
 	}
 	fence := "===AGUARD:" + nonceStandIn + "==="
-	return triageTask + " " + barrierRule(nonceStandIn), fmt.Sprintf("%s\n%s\n%s", fence, b.String(), fence), 0
+	return triageSystem(nonceStandIn), fmt.Sprintf("%s\n%s\n%s", fence, b.String(), fence), 0
 }
 
 // shapeBodies renders each shape as the request body the client would send, encoded the way chat()
