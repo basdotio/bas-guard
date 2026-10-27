@@ -192,16 +192,19 @@ bas-guard version
 `--verbose` 另外给出扫描看了哪些地方、清单、判官的版本号和卫生项列表。
 挂在单个条目上的说明也在其中,比如一个解析不了的 `settings.json`:摘要会点名它"没检查全",读不了的文件同样点名。
 当 Claude Code 加载的东西没读全 —— 有文件读不了或解析不了、某个条目带着自己的覆盖度说明、skill 里有打不开的目录、
-文件超过大小上限、hook 调的脚本跟不进去 —— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
+文件超过大小上限、hook 调的脚本跟不进去、根目录下有个项目的 `.claude`(根目录高了一层:把 `--root` 指向那个 `.claude`)
+—— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
 东西(配置目录顶层你自己的会话记录、插件的 `node_modules/`)照样列出,但不改这句话。清单里没有可数的东西时 ——
 `bas-guard check` 一个单独的文件或普通文件夹 —— 摘要说它检查了什么("Checked 1 file."),而不是说什么都没找到。
-覆盖度说明从不改变分数;退出码只有一种情况会变:开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答时,退出码 `4`(见下)。
+覆盖度说明从不改变分数;退出码只有两种情况会变,都是 `4`(见下):开了 `--fail-on` 而根目录下什么都没收集到,或有个项目的
+`.claude` 没读到;开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答。
 两种模式下发现都不会被折叠;`--json` / `--html` / `--md` 始终包含全部内容,所以 CI 看到的东西不会因为
 某个人加没加这个参数而变。
 
 **退出码**:`0` 未达阈值 · `1` 发现 ≥ `--fail-on` 级别 · `2` 运行错误
-(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;**仅 `--fail-on-llm` 有的** `4` = 闸门无法评估 ——
-判官没跑,或有调用失败、没发出去,或(`check` 时)判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件 —— 原因印在 stderr;`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
+(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;`4` = 闸门无法评估,原因印在 stderr:开了 `--fail-on` 时,
+根目录下什么都没收集到,或有个项目的 `.claude` 没读到;开了 `--fail-on-llm` 时,判官没跑,或有调用失败、没发出去,或(`check` 时)
+判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件。`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
 被信号中断的运行以 `128 + 信号号` 结束 —— Ctrl-C 是 `130`,输出管道被关闭是 `141` ——
 经 npm launcher 和直接跑二进制完全一致。
 `scan` 默认不因发现而非零退出(信息模式);`check` 默认 `--fail-on high`(闸门模式)。
@@ -413,10 +416,15 @@ bas-guard hash ./some-skill     # 打印 canonical hash,加进信誉名单
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
 # CI(GitHub Actions)
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
 两者见 [`hack/`](hack/)。单个 skill:`bas-guard check ./some-skill`(默认 `--fail-on high`)。
+
+这个 workflow 的第一行负责选 `--root`:仓库顶层有 `skills/` 或者没有 `.claude` 时扫仓库本身(`.`),否则扫项目的 `.claude` ——
+放 skill、`settings.json` 和 agent 的那个根目录(项目顶层挨着它的 `.mcp.json` 和 `CLAUDE.md` 也从这里读)。想固定根目录就把这行换掉。
+如果指高了一层 —— 指到项目顶层 —— 开了 `--fail-on` 的闸门会以 `4` 退出,并提示去扫那个没读到的 `.claude`,而不是在没人读过的
+skill 上照样通过;根目录下什么都没有时也一样。
 
 ## 报告
 

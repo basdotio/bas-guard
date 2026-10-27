@@ -78,8 +78,10 @@ line; `--json` and `--html` always carry everything, so nothing you triage depen
 flag was passed.
 
 Exit codes: `0` below threshold · `1` a finding at or above `--fail-on` · `2` runtime error ·
-`4` (only with `--fail-on-llm`) the deep check could not answer for everything — it did not run, or
-some of its calls failed — and the reason is on stderr. A `4` is not a pass either.
+`4` a gate could not be evaluated, and the reason is on stderr: with `--fail-on`, the root held
+nothing to check, or held a project's `.claude` it did not read (point `--root` at that `.claude`);
+with `--fail-on-llm`, the deep check could not answer for everything — it did not run, or some of its
+calls failed. A `4` is not a pass either.
 `scan` is informational by default and sets no threshold. **Exit code 2 means the scan did not
 happen** — a bad `--root`, an unreadable path. Never read a `2` as "clean"; say the scan failed
 and fix the invocation.
