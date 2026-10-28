@@ -504,7 +504,7 @@ func tripwireSamples(list []corpus.Sample) []tripwire.Sample {
 	return out
 }
 
-// verdicts derives the corpus's four-field records from the ledger. Only scored rows produce
+// verdicts derives the corpus's verdict records from the ledger. Only scored rows produce
 // one: a no-verdict row must stay absent from this file so the scorer reports it as uncovered
 // rather than counting silence as a benign call.
 func verdicts(rows []ledger.Row) []corpus.Verdict {
@@ -515,6 +515,7 @@ func verdicts(rows []ledger.Row) []corpus.Verdict {
 		}
 		out = append(out, corpus.Verdict{
 			Sample: r.Sample, Verdict: r.Verdict, Severity: r.Severity, Dimensions: r.Dimensions,
+			Files: r.Files,
 		})
 	}
 	return out

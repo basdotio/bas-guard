@@ -27,8 +27,11 @@ import (
 )
 
 // StagedRoot is a sample laid out where aguard looks: Root is the config root to scan and Home its
-// parent, which scopes the project MCP config and the desktop session cache.
-type StagedRoot struct{ Home, Root string }
+// parent, which scopes the project MCP config and the desktop session cache. Loose is the name
+// of the one instruction file the sample consisted of when it was staged as Root/CLAUDE.md, and
+// "" otherwise: aguard then reports every finding against `CLAUDE.md`, a name the sample tree
+// does not contain, and the corpus's location score needs the file the label can name.
+type StagedRoot struct{ Home, Root, Loose string }
 
 // NotPlaceable says a sample tree has no shape aguard loads. It is a distinct type so the caller
 // can tell "we chose not to scan this" from an I/O failure — the two go into different tallies.
@@ -125,7 +128,7 @@ func Stage(src, id, work string) (StagedRoot, error) {
 		if err := copyFile(filepath.Join(src, loose[0]), filepath.Join(root, "CLAUDE.md")); err != nil {
 			return StagedRoot{}, err
 		}
-		return StagedRoot{Home: home, Root: root}, nil
+		return StagedRoot{Home: home, Root: root, Loose: loose[0]}, nil
 	case len(loose) > 1:
 		return StagedRoot{}, NotPlaceable{Reason: "several loose instruction files; no single load path"}
 	}
