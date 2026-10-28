@@ -53,6 +53,9 @@ func fold(o opts) (*folded, error) {
 	// execute the binary.
 	ad := &aguardadapter.Adapter{Threshold: model.Severity(o.threshold), Work: work}
 	opt := judgefold.Options{Threshold: model.Severity(o.threshold), Samples: o.judgeSamples, CheckJudged: o.checkLLM}
+	opt.Locate = func(s corpus.Sample) aguardadapter.Locator {
+		return aguardadapter.LocatorFor(filepath.Join(o.corpus, filepath.FromSlash(s.Path)), s.Sample)
+	}
 
 	f := &folded{list: list}
 	for _, d := range o.dirs {
