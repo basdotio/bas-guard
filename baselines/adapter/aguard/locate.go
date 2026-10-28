@@ -107,6 +107,13 @@ func (l Locator) SampleFile(artPath, evFile string) string {
 	if i := strings.Index(a, ".claude/"); i >= 0 {
 		q := a[i:]
 		if q != p && !strings.HasSuffix(q, "/"+p) {
+			// A hook or permission artifact IS a file (`.claude/settings.json`), and the
+			// script it references is reported relative to the config root, so the join
+			// starts from the file's directory — the first bench run named
+			// `.claude/settings.json/hooks/docs.py`. A skill artifact is a directory.
+			if base := path.Base(q); strings.HasSuffix(base, ".json") || strings.HasSuffix(base, ".md") {
+				q = path.Dir(q)
+			}
 			q = path.Join(q, p)
 		}
 		if out, ok := l.invert(q); ok {

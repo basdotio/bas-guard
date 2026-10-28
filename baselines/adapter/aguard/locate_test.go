@@ -35,6 +35,8 @@ func TestLocator_InvertsEveryPlacement(t *testing.T) {
 			"<work>/ben-hook/home/.claude/settings.json", ".claude/settings.json", ".claude/settings.json"},
 		{"permission: evidence is the artifact's own file name",
 			"<work>/ben-hook/home/.claude/settings.json", "settings.json", ".claude/settings.json"},
+		{"hook: the referenced script is relative to the config root, not to settings.json",
+			"<work>/mal-hook/home/.claude/settings.json", "hooks/docs.py", ".claude/hooks/docs.py"},
 		{"connector: the staged session file is the sample's tools.json",
 			"<work>/ben-mcp/home/Library/Application Support/Claude/claude-code-sessions/corpus/sample/local_0.json",
 			"sample/local_0.json", "tools.json"},
