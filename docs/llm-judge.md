@@ -258,7 +258,7 @@ everything on your machine. That trade-off is yours.
 - **A declared purpose is capped at 1,000 bytes** (a description, a hook's interception point),
   cut on a character boundary.
 - **Every field a request carries is bounded, valid UTF-8 and redacted as a whole.** Behavior is at
-  most 6,000 bytes on every pass (the server pass, 6,000 plus its 2,000 of anchor windows): the deobfuscation pass sends whole decoded payloads and the collusion
+  most 6,000 bytes on every pass: the deobfuscation pass sends whole decoded payloads and the collusion
   pass whole digest lines, from the first, while they fit, and the rest are named in the preview's
   `shortened` and in an `LLM-000` note (eight payloads of 800 bytes used to make 6,435 bytes, and the
   digest had no cap). Each static finding's evidence — a triage item, a digest line — is at most 1,000
@@ -276,13 +276,8 @@ everything on your machine. That trade-off is yours.
   interpreter never reads them, and a paragraph written for the reviewer is exactly where an
   attacker would address the reviewer), and files over the cap kept as head + tail with an
   "N line(s) omitted" marker rather than a prefix — payloads go at the end of files because
-  that is where every casual read stops. An MCP server's source (`LLM-010`) also gets up to four
-  windows of a few lines around each line the static rules flagged at medium or above, under a
-  2,000-byte budget of their own and with a neutral `# <file> (lines a-b)` header, so a payload
-  spliced into the middle of a large file reaches the model when a rule already points at it; the
-  walk-order excerpt is unchanged, and a server with no such finding is sent exactly what it was
-  before (P-114). Windows that do not fit are named in an `LLM-000` note. Findings still cite real
-  `file:line`: the excerpt carries a line map back to the original. Padding goes before any cap, on every kind: inside a
+  that is where every casual read stops. Findings still cite real `file:line`: the excerpt
+  carries a line map back to the original. Padding goes before any cap, on every kind: inside a
   line, a run of more than 128 bytes of whitespace or invisible characters (Unicode spaces and the
   zero-width characters `INJ-004` reports) is sent as one space — nothing, if it held only invisible
   characters — which is how grounding already reads it. Without that, one line padded with a few

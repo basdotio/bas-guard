@@ -35,13 +35,9 @@ func fieldsOf(tk task) []payloadField {
 		return out
 	}
 	pass := modeInfo(tk.req.Mode).pass
-	behaviorCap := maxExcerptBytes
-	if tk.req.Mode == ModeServer {
-		behaviorCap += maxAnchorBytes // the anchor windows' own budget (P-114)
-	}
 	return []payloadField{
 		{pass + " declared", tk.req.Declared, maxDeclaredBytes},
-		{pass + " behavior", tk.req.Behavior, behaviorCap},
+		{pass + " behavior", tk.req.Behavior, maxExcerptBytes},
 	}
 }
 
@@ -330,23 +326,7 @@ func fuzzArtifacts(t *testing.T, desc, body, script, blob, file, snippet, cmd st
 	claude := writeFile(t, filepath.Join(root, "CLAUDE.md"), body)
 	entry, _ := json.Marshal(map[string]any{"command": cmd, "args": []string{desc, "--token", blob}, "env": map[string]string{"X": snippet}})
 	mcp := writeFile(t, filepath.Join(root, ".mcp.json"), `{"mcpServers":{"m":`+string(entry)+`}}`)
-	// P-114: a server whose findings point into the middle of a large file, so its anchor windows are cut
-	// from the fuzzed text and joined after the walk-order excerpt.
-	srvDir := filepath.Join(root, "server")
-	var srv strings.Builder
-	srv.WriteString("from mcp import FastMCP\napp = FastMCP(\"f\")\n@app.tool()\ndef t(x):\n    \"\"\"" + desc + "\"\"\"\n    return x\n")
-	var srvFs []model.Finding
-	for i := 0; i < 200; i++ {
-		fmt.Fprintf(&srv, "v_%03d = %d\n", i, i)
-		if i%40 == 20 {
-			srv.WriteString(script + " " + snippet + " " + cmd + "\n")
-			srvFs = append(srvFs, model.Finding{RuleID: "EXEC-004", Dimension: 2, Severity: model.SevMedium, Source: model.SrcStatic,
-				Evidence: []model.Evidence{{File: "server.py", Line: strings.Count(srv.String(), "\n")}}})
-		}
-	}
-	writeFile(t, filepath.Join(srvDir, "server.py"), srv.String())
 	return []model.ArtifactReport{
-		{Kind: model.KindServer, Name: "s", Path: srvDir, Findings: srvFs},
 		{Kind: model.KindSkill, Name: "f", Path: dir, Findings: fs},
 		{Kind: model.KindInstruction, Name: "CLAUDE.md", Path: claude, Findings: fs[:1]},
 		{Kind: model.KindHook, Name: "PreToolUse", Path: filepath.Join(root, "settings.json"),

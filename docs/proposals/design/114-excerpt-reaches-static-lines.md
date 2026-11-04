@@ -144,5 +144,3 @@ All asked at once. Each has a recommended answer.
    benign line after the fact is not one of the options.
 6. **Measurement cost.** The branch run on about 800 server trees, est. **US$8–10** at gpt-4.1-mini. Main's reading is
    reused from the full-corpus run, so it costs nothing new. Recommended: go.
-
-**Decided (2026-11-04)**: all six as recommended (the maintainer: "as recommended"). Accepted; implementation follows.
