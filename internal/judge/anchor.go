@@ -83,8 +83,6 @@ func anchorsOf(dir string, findings []model.Finding) []anchorLine {
 // anchorWindow is one window before it is fitted: condensed lines [from, to) of a file.
 type anchorWindow struct {
 	a        anchorLine
-	text     []string
-	lm       []int
 	from, to int
 }
 
