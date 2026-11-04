@@ -4,7 +4,10 @@
 - **Source**: the maintainer, 2026-11-04 ("yes" to the order: excerpt first, then the server categories, then TypeScript
   servers), after the full-corpus comparison of the same day (corpus `c314e4d9`, 5,272 samples)
 - **Depends on**: none
-- **Branch**: `p/114-excerpt-reaches-static-lines`
+- **Branch**: `p/114-excerpt-reaches-static-lines` (the code is reverted in the same branch; the measurement and this record stay)
+- **Rejected**: 2026-11-05 — by the acceptance line decided in advance (open question 5). Recall cleared it: `mcp-variants` 32 → 42 of the
+  52 server-kind trees. The benign side did not: escalating `LLM-010` on benign servers went 60 → 96 of about 620, against a line of 66.
+  The rise is the windows, not the rerun: on the trees whose payload did not change it was 33 → 30. See Measured.
 
 ## Problem
 
@@ -48,7 +51,8 @@ development denominator of P-059 plus the 2026-10-21 re-harvest). Watch the beni
 
 ## Done criteria
 
-Code (judge package, server pass only):
+Code (judge package, server pass only). Every item below was done and green (`make verify`), then reverted when the
+measurement failed:
 
 - [ ] `TestServerExcerpt_FlaggedLineReachesTheModel` pins the main case. The fixture is a server tree whose one 40 KB file
   holds a payload line in the middle, with a medium static finding on it. The payload line is in `Request.Behavior`, and a
@@ -144,3 +148,58 @@ All asked at once. Each has a recommended answer.
    benign line after the fact is not one of the options.
 6. **Measurement cost.** The branch run on about 800 server trees, est. **US$8–10** at gpt-4.1-mini. Main's reading is
    reused from the full-corpus run, so it costs nothing new. Recommended: go.
+
+## Measured
+
+Live, gpt-4.1-mini, `samples: 3`, corpus `c314e4d9`, 2026-11-04. The work list is every tree the server pass asks: 802
+trees, 623 benign, 127 Cisco and 52 `mcp-variants` (five more `mcp-variants` trees are not server-kind, so this change
+cannot affect them).
+
+- Main: the full-corpus run of the same day (`v0.33.1-3-g5a18a6db`, `judge-excerpt=9`), folded again over the 802.
+- Branch: `v0.33.1-9-g4aa11245`, `judge-excerpt=10`, with the same `rules` and `judge-prompt` hashes.
+- Directories: `baselines/results/aguard/2026-11-04-llm-gpt-4.1-mini-p114-servers-{main,branch}-s3/`. Main's `run.yaml` is
+  the full run's.
+- Raw archive: `aguard-judge-raw-2026-11-p114.tar.gz`, 700,207 bytes, sha256 `316449b3…7647c`, both runs' `raw/` over
+  the 802; it goes on the next release.
+
+| | n | main | branch | line |
+|---|---:|---:|---:|---|
+| `mcp-variants`, static + judge | 52 | 32 | **42** | ≥ main + 5 ✅ |
+| Cisco, static + judge | 127 | 102 | 104 | ≥ 98 ✅ |
+| benign, escalating `LLM-010` ≥ high | ~620 | 60 | **96** | ≤ 66 ❌ |
+| judge calls | 802 | 2,834 | 2,834 | equal ✅ |
+| prompt tokens | 802 | 5.26 M | 5.46 M | windows only ✅ |
+
+**The windows, not the rerun.** `bas-guard llm preview --json` was run with both binaries on every tree and the payloads
+compared. The list is in the branch directory's `payload-changed.txt`. 235 trees' payloads changed and 567 were
+byte-identical:
+
+| | trees | benign `LLM-010` ≥ high, main → branch | malicious flagged, main → branch |
+|---|---:|---:|---:|
+| payload changed | 189 benign · 46 malicious | **28 → 69** (47 new, 6 gone) | 32 → 44 |
+| payload identical | 434 benign · 133 malicious | 33 → 30 (4 new, 7 gone) | 102 → 102 |
+
+On identical payloads the run band is a few trees either way. On changed ones the benign side rose by 41.
+
+**By anchoring rule.** Counting the medium-or-above rules present on each changed tree; a tree can carry several:
+
+| rule | benign trees with a window from it | new benign escalations among them | malicious gained among them |
+|---|---:|---:|---:|
+| `EXEC-004` | 108 | 28 | 11 |
+| `EXFIL-001` | 67 | 16 | 0 |
+| `EXFIL-004` | 27 | 8 | 1 |
+| `OBF-001` | 46 | 8 | 1 |
+
+The new benign escalations name `credential-read` (20, alone) and `remote-execution` (16, alone). Even a window from
+`EXEC-004` alone, the rule on every recovered `mcp-variants` payload (`subprocess.run(command, shell=True, …)`), costs about
+28 benign for 11 malicious. A benign server's `subprocess.run` shown to the model reads to it as remote execution. That is
+`issues/028`'s observation from the other side: the judge cannot tell a tool that runs commands by design from a spliced
+one by looking at the call.
+
+**What this leaves.** The visibility problem the draft described is real, and the windows fix it: 11 of the 12 anchored
+`mcp-variants` misses were recovered. What the model does with a `subprocess` line is the limit. Any later attempt needs a way
+to separate the two on the benign side first, such as whether the command comes from a tool parameter. It should not
+change what the model is shown. Not proposed here.
+
+Cost of the branch run: 5.46 M prompt tokens (1.37 M cached), 0.96 M completion, about US$3.30 at gpt-4.1-mini list price.
+
