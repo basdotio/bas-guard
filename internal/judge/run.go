@@ -636,10 +636,13 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 	case model.KindServer:
 		// An MCP server's source (P-053): the tools' docstrings are the only description a client
 		// sees, the code is what runs. The intent question, with the skill passes' walker and caps.
+		// P-114: then a few lines around each line the rules flagged at medium or above, under a budget of
+		// their own (anchor.go), so a payload spliced into the middle of a large file is in front of the model.
 		declared, declaredUnits := serverDeclared(a.Path, eg)
-		behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
+		behavior, behaviorUnits, shortened := serverBehavior(a.Path, a.Findings, eg)
 		if behavior != "" {
 			ask(Request{Mode: ModeServer, Declared: declared, Behavior: behavior}, append(declaredUnits, behaviorUnits...))
+			out[len(out)-1].shortened = shortened
 		}
 
 	case model.KindHook:
