@@ -76,8 +76,7 @@ const (
 	// sub-layouts and therefore reported a bare directory of scripts as clean.
 	KindDirectory ArtifactKind = "directory"
 	// KindServer is a directory that is an MCP server's SOURCE — a Python file importing mcp or
-	// fastmcp and declaring tools (P-053), or a TypeScript/JavaScript file importing the SDK or
-	// fastmcp and building a server or declaring a tool (P-116) — produced only by `check <dir>`. It is scanned as a
+	// fastmcp and declaring tools — produced only by `check <dir>` (P-053). It is scanned as a
 	// whole tree like a directory, and unlike a directory the judge has a question for it: do the
 	// tools do more than their docstrings say? The 127 synthetic servers in the corpus's largest
 	// malicious source are this shape, and until this kind existed `check <server> --llm` asked
