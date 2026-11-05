@@ -183,3 +183,40 @@ All asked at once. Each has a recommended answer.
    **Decided (2026-11-05)**: as recommended, about US$1–2 approved.
 5. **(Asked after the correction to 1, before the run.) The recall line, now that ten misses are reachable, not six.**
    **Decided (2026-11-05)**: at least 7 of 10, the decided line's proportion (4 of 6) on the new denominator.
+
+## Readings
+
+Main: the full-corpus run of 2026-11-04 refolded on the 237 TS/JS server trees, static only
+(`baselines/results/aguard/2026-11-04-llm-gpt-4.1-mini-p116-main-s3/`). Branch: the plain P-116 binary
+(`…/2026-11-05-llm-gpt-4.1-mini-p116-branch-s3/`; `compare.txt` there lists every miss with its votes and every new
+benign flag with the model's sentence). About US$1.1. 237 scored, 0 errors, 5 incomplete on the branch.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| the 10 misses caught | 0 | **5** | ≥ 7 ✗ |
+| the 7 caught on main still caught | 7 | 7 | ✓ |
+| benign escalating `LLM-010` at high, of 220 | — | **42** | ≤ 20 ✗ |
+| benign flagged overall, static + judge | 62 | **94** | ≤ 81 ✗ |
+
+**Malicious.** Caught: `fixthis-exchange-exfil` and `todo-wallet-exfil` (in the wild, both `exfiltration`), and three
+of the four synthetic servers (arbitrary file write, cloud metadata probe, dynamic execution). Not caught: `iflow`
+(its excerpt fills with `.eslintrc.cjs`, workflows and `bin/` before `src/`), `knowledge-graph-workflow-exfil`,
+`redhat-kessel-mcp-worm`, `squawk-mcp-router-worm` (no escalating vote) and the synthetic resource-exhaustion server,
+which the server table has no row for on `main` (P-115 adds one).
+
+**Benign.** 42 of 220 escalate (19%; the Python servers on the same run: 61 of 623, 9.8%). By category:
+`credential-read` 20, `remote-execution` 13, `exfiltration` 5, `software-source` 3, `persistence` 1. The P-062/P-098
+credential checks do work on TypeScript: of 56 `credential-read` votes on these servers, 35 were lowered to medium
+(63%; Python 80 of 109, 73%). The excess is upstream of them: the model casts more `credential-read` votes per TS server
+(56 in 220 against 109 in 623), and reads `execFileSync`/`spawn` in a terminal, Bazel or Taskwarrior server as
+`remote-execution`. Four of the 42 rest on a `.github/workflows/*.yml` file read as server source.
+
+## Done (2026-11-05)
+
+Rejected: every line failed, and the benign line decides. The recogniser, the declared side, their tests, excerpt
+version 10 and the docs were reverted on the branch; `main` asks the server pass of Python servers only, as before.
+`.claude/rules/judge.md` records why, so the next attempt starts from the benign half: either the model's reading of a
+TS server's own credential and subprocess use, or a narrower set of TS servers to ask. The reading of what was built
+stays useful: `dist/` is read, all 17 malicious TS/JS trees were recognised, and every one had a declared side.
+
+The raw archive goes on the next release with P-114's and P-115's.

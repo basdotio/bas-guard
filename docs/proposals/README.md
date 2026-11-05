@@ -145,3 +145,4 @@ always drift. A state change is one `git mv`; the file name stays the same, and 
 | [108](complete/108-release-0.33.0.md) | Release record v0.33.0: P-105 | The maintainer said "发 v0.33.0" (2026-10-27) | PR #133; v0.33.0 |
 | [111](complete/111-drop-rename-notice.md) | The README pair no longer opens with the rename from AgentGuard | The maintainer, 2026-10-27 | PR #136; v0.33.1 |
 | [112](complete/112-release-0.33.1.md) | Release record v0.33.1: P-111 | The maintainer said "发版" (2026-10-27) | PR #137; v0.33.1 |
+| [116](rejected/116-typescript-servers.md) | A TypeScript or JavaScript MCP server is a plain directory: the judge asks it nothing | The maintainer, 2026-11-04 (the full-corpus comparison) | PR #142 — **rejected**: on 237 TS/JS server trees 5 of 10 misses caught (line 7), benign escalating `LLM-010` 42 of 220 (line 20), benign flagged 62 → 94 (line 81) |
