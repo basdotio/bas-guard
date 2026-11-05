@@ -165,10 +165,14 @@ All asked at once. Each has a recommended answer.
    `dist/` rekeys: reputation entries and users' approvals for such plugins and skills, and the static rules start
    running over build output everywhere, not only on servers. Recommended: **out of P-116**, as its own proposal with its
    own measurement (benign static over all surfaces, the rekey count).
+   **Decided (2026-11-05)**: out, as its own proposal.
 2. **The recogniser's shape.** Recommended: both halves in one file, as above (`new McpServer(`/`new Server(`/
    `new FastMCP(` or one of the four tool forms, plus the SDK or fastmcp import), `.d.ts` excluded, the same probe
    bounds as Python.
+   **Decided (2026-11-05)**: as recommended.
 3. **Acceptance lines.** Recommended: as written — at least 4 of the 6 reachable misses; benign at most 20 escalating
    and at most 81 flagged overall. If the benign line fails, the proposal goes to `rejected/` with its readings.
+   **Decided (2026-11-05)**: as written.
 4. **Measurement.** Recommended: plain branch binary on the 236 trees (about US$1–2), plus the free `llm preview`
    two-binary check on the 802 Python server trees.
+   **Decided (2026-11-05)**: as recommended, about US$1–2 approved.
