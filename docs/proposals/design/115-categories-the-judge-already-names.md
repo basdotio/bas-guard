@@ -194,11 +194,13 @@ All asked at once. Each has a recommended answer.
    to `persistence`. The data: it would recover 1 miss, the injection table has no `persistence` row to extend, and 214
    benign skills name those files. Recommended: **out**, and record it in `ROADMAP.md`. If it is ever done, it needs its
    own measurement on the self-improving skills.
+   **Decided (2026-11-05)**: out, recorded in `ROADMAP.md`.
 2. **The `covert-transmission` boundary.** Recommended wording: *the user's data, conversation, files or credentials
    sent, copied or shared to a recipient the user's task never named (a URL, webhook, telemetry or registry endpoint, an
    extra mail recipient, an access grant), which the user cannot see happened; NOT sending the result where the user
    asked, or where the skill's description says it sends it*. The `NOT` clause is what keeps a Slack notifier
    medium-or-unflagged. Taking it out moves more malicious samples but exposes every notifier skill.
+   **Decided (2026-11-05)**: the recommended wording, `NOT` clause included.
 3. **Server row wording, and does the disclosure step apply?** Recommended:
    - `resource-exhaustion` = *a tool call starts unbounded processes, threads, memory, disk, file descriptors or
      recursion (a fork bomb, a decompression bomb, a loop that allocates without end); NOT a long-running server loop, a
@@ -208,8 +210,10 @@ All asked at once. Each has a recommended answer.
    
    Both get the ordinary server disclosure step: a load-testing server that says it exhausts resources weighs medium,
    like every other disclosed row.
+   **Decided (2026-11-05)**: the recommended wording; both rows take the ordinary disclosure step.
 4. **Ride the disclosure annotation along?** One line in `Why` (`[disclosed: one step lower]`). It changes report text
    only, never a severity. Recommended: **yes**, as its own commit, so it can be dropped without touching the tables.
+   **Decided (2026-11-05)**: yes, its own commit.
 5. **Measurement method and cost.** Only the server and result prompts change, so every other pass's request is
    byte-identical to main's.
    - **(A), recommended:** a measurement-only build, a local patch kept in `agent-guard-work/` and never committed, that
@@ -217,5 +221,7 @@ All asked at once. Each has a recommended answer.
      `LLM-010`/`LLM-011`. Est. **US$15–20**. It also keeps rerun noise from passes that did not change out of the reading,
      and the result directory says so.
    - **(B):** the plain branch binary on the same trees, every pass rerun. Est. **US$40**, with the extra noise.
+   **Decided (2026-11-05)**: (A).
 6. **Acceptance lines**, as written in Done criteria. Recommended: **as written**. The benign side decides. Attribution is
    by the new rows' names, so rerun noise in the old categories does not count against them.
+   **Decided (2026-11-05)**: as written.
