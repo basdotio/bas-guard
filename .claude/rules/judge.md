@@ -54,7 +54,7 @@ userinfo 整段、每个 query 值、fragment 换成 `<REDACTED>`,再过 `Secret
 **趟数按 artifact 种类选**(`judge/run.go` 里的 mode 表,不是固定四趟):injection(`LLM-003`,
 维度 1,跑 skill/CLAUDE.md/subagent/command/hook)、intent(`LLM-001`,维度 10,仅 skill)、
 deobfuscation(`LLM-004`,维度 6,**只解码、绝不执行**)、collusion(`LLM-006`,维度 3)、
-hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
+hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;**P-117:`detect.CredentialSentElsewhere` 只把发请求的行当目的地**(`networkActionRE` 加判官专用的 `requestLineRE`,再加同文件一层解析),**别改回"每个 URL 字面量都是目的地"**——命名空间、许可证、OAuth scope 曾把 44 张良性高票顶在 high,而恶意那边它只撑着 6 张、全是"答对了理由说错了"的;`requestLineRE` 漏认一个客户端会把那个文件读成"什么都没发",所以只许加不许删;它挂在 `chain.requestLine` 上,规则自己的链不设它,静态发现因此不动(1,438 棵树核过)。服务器趟的摘录跳过 `.github/`(`serverSkipDirs`),skill 的不跳;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
 因为 500 个良性配置上它是唯一升级过的判官规则,P-019)、triage(仅展示用的标签)。
 `LLM-007`(artifact 试图指挥分析器,维度 1)的严重度由工具定死。**其余各趟的严重度自 P-041 也由工具定**:`severity.go` 的
 `categoryTables` 按 (趟, 类别) 查,模型只能从提示词列出的封闭名单里选 `category`,不认识的名字一律 medium;意图趟多一个 `disclosed`,
