@@ -209,40 +209,13 @@ var (
 	serverTool   = regexp.MustCompile(`(?m)^\s*@\w+(?:\.\w+)*\.(?:tool\b|call_tool\(|list_tools\()|\b(?:FastMCP|Server)\(|\.add_tool\(|\bTool\(\s*(?:\n\s*)?name\s*=`)
 )
 
-// tsServerImport and tsServerTool are the same two halves for a TypeScript or JavaScript server
-// (P-116): an import of the SDK or of TypeScript fastmcp — an `import … from`, a bare `import`,
-// or a `require`/dynamic `import` assigned at the top of a line — AND, in the same file, a server
-// built (`new McpServer(`, `new Server(`, `new FastMCP(`) or a tool declared in one of the four
-// forms the corpus's 236 TS/JS servers use: `server.tool("name", …)`, `registerTool(`, the
-// low-level `setRequestHandler(CallToolRequestSchema`, fastmcp's `addTool(`. The specifier list
-// of an import holds no quote, so the import half cannot reach across a string to a later line.
-// A client (`new Client(`) or a file that only imports types and declares nothing is not a server.
-var (
-	tsServerImport = regexp.MustCompile(`(?m)^\s*(?:import\s*(?:type\s+)?[\w\s{},*$]*?\s*from\s*|import\s*|(?:export\s+)?(?:const|let|var)\s+[\w\s{},:$]+=\s*(?:await\s+)?(?:require|import)\s*\(\s*)['"](?:@modelcontextprotocol/sdk(?:/[^'"\n]*)?|fastmcp)['"]`)
-	tsServerTool   = regexp.MustCompile("\\bnew\\s+(?:McpServer|Server|FastMCP)\\s*\\(|\\.tool\\s*\\(\\s*['\"`]|\\.registerTool\\s*\\(|\\.setRequestHandler\\s*\\(\\s*CallToolRequestSchema\\b|\\.addTool\\s*\\(")
-)
-
-// TSSourceFile reports whether a file name is TypeScript or JavaScript source the probe (and the
-// judge's declared side, P-116) reads: a declaration file (`.d.ts`) describes types and runs
-// nothing, so it is not.
-func TSSourceFile(name string) bool {
-	l := strings.ToLower(name)
-	switch filepath.Ext(l) {
-	case ".ts", ".mts", ".cts":
-		return !strings.HasSuffix(l, ".d.ts") && !strings.HasSuffix(l, ".d.mts") && !strings.HasSuffix(l, ".d.cts")
-	case ".js", ".mjs", ".cjs":
-		return true
-	}
-	return false
-}
-
 const (
 	serverProbeBytes = 64 << 10
 	serverProbeDepth = 3
 )
 
-// LooksLikeServerSource reports whether dir holds an MCP server's source: some Python, TypeScript
-// or JavaScript file under it, within the probe bounds, imports the SDK and declares a tool.
+// LooksLikeServerSource reports whether dir holds an MCP server's source: some Python file under
+// it, within the probe bounds, imports the SDK and declares a tool.
 func LooksLikeServerSource(dir string) bool {
 	found := false
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -255,15 +228,8 @@ func LooksLikeServerSource(dir string) bool {
 			}
 			return nil
 		}
-		if d.Type()&fs.ModeSymlink != 0 {
+		if d.Type()&fs.ModeSymlink != 0 || !strings.EqualFold(filepath.Ext(p), ".py") {
 			return nil
-		}
-		imp, tool := serverImport, serverTool
-		if !strings.EqualFold(filepath.Ext(p), ".py") {
-			if !TSSourceFile(d.Name()) {
-				return nil
-			}
-			imp, tool = tsServerImport, tsServerTool
 		}
 		f, err := os.Open(p)
 		if err != nil {
@@ -273,7 +239,7 @@ func LooksLikeServerSource(dir string) bool {
 		n, _ := io.ReadFull(f, buf)
 		_ = f.Close()
 		head := buf[:n]
-		if imp.Match(head) && tool.Match(head) {
+		if serverImport.Match(head) && serverTool.Match(head) {
 			found = true
 			return filepath.SkipAll
 		}
