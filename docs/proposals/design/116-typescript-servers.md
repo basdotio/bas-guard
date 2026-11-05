@@ -61,25 +61,28 @@ for this read (`agent-guard-work/p116/find-ts-servers.py`: a `.ts`/`.js`/`.mjs`/
 `directory`). It reads text only and never runs anything.
 
 - **The population is 236 trees, not 252**: 17 malicious, 219 benign. The draft's count used a looser match.
-- **Of the 17 malicious, 6 are caught by the static rules already and 11 are not**, matching the draft. Ten of the 11
-  are listed below; the eleventh is a tree this recogniser does not count.
-- **Four of the misses keep their server code only under `dist/`** (`knowledge-graph-workflow-exfil`,
-  `redhat-kessel-mcp-worm`, `squawk-mcp-router-worm`, `todo-wallet-exfil`), all four in DataDog's in-the-wild set. A fifth
-  `dist/`-only tree (`postman-mcp-shai-hulud`) is caught statically through another file. `dist` is in
-  `collect.ExcludeFromScan`, so **neither the rules nor the judge read a byte of those servers today**, and teaching the
-  recogniser TypeScript does not change that: the recogniser skips the excluded directories, as the rules and the judge
-  do. A published npm package often ships only its build output, so this is not a corner case for in-the-wild servers.
-- **The other 6 misses have their server code in readable places**: two in-the-wild packages (`fixthis-exchange-exfil`,
-  `iflow-watercrawl-hidden-eval`, the payload in `src/` as well as in `dist/`) and the four synthetic servers. These are
-  what this proposal can reach.
+- **Of the 17 malicious, 7 are caught by the static rules already and 10 are not.** The draft's eleventh miss is the
+  draft's eighteenth tree, which this recogniser does not count as a TS server.
+- **All 10 misses have their server code where the rules and the judge read.** Seven trees keep a server file under
+  `dist/`, four of the misses only there (`knowledge-graph-workflow-exfil`, `redhat-kessel-mcp-worm`,
+  `squawk-mcp-router-worm`, `todo-wallet-exfil`). `dist/` is left out of the HASH (`collect.ExcludeFromHash`, frozen) but
+  READ by the rules and the judge (`collect.ExcludeFromScan` is the smaller list, by design, ROADMAP "Evasions"), and the
+  recogniser walks the scan list. *The first version of this read used the hash list by mistake and said the four were
+  unreadable; open question 1 was asked on that wrong premise (see the correction under it).*
+- **Checked with the branch binary, not only the script**: `check` on every tree main collected as `directory` (301)
+  reads 233 as `server` — all 17 malicious, 216 benign. Four benign trees the script counts keep the import and the
+  tool in different files; one benign tree the script missed is recognised. `llm preview` on the 233: every one has a
+  non-empty declared side. Two excerpts to read the results against: `iflow`'s 6,000 bytes fill with `.eslintrc.cjs`,
+  `.github/` workflows and `bin/` before `src/` (the walker's order, the same for Python), and `kessel`'s spend part of
+  the budget on `.d.ts` files. Neither is changed here (excerpt caps and order are out of scope).
 - **Four declaration forms cover every readable tree but three benign ones**: `server.tool("name", …)` (6 malicious, 63
   benign), `registerTool(` (73 benign), the low-level `setRequestHandler(CallToolRequestSchema` with a
   `ListToolsRequestSchema` handler returning `[{ name, description, inputSchema }]` (5 malicious, 84 benign), and
   TypeScript fastmcp's `addTool(` (`iflow`, one benign). A tool's description is the second string argument of
   `server.tool`, the `description` member of `registerTool`'s second argument, and the `description` member of each tool
   object in the other two.
-- **No readable server file in the 236 is a minified bundle** (average line length over 500 bytes: none). The draft's
-  bundled-output question is the `dist/` question above.
+- **No server file in the 236, `dist/` included, is a minified bundle** (average line length over 500 bytes: none), so
+  the draft's bundled-output question needs no answer here.
 - **The benign side starts high already**: 61 of the 219 benign TS servers are flagged by the static rules on main (28%).
   The judge's flags land on top of that.
 - **P-100's 227 held-out TypeScript/JavaScript servers are the same population**: 203 of the 219 benign here are in that
@@ -119,7 +122,7 @@ Measurement (live, gpt-4.1-mini, `samples: 3`, corpus `c314e4d9`), on the 236 tr
 2026-11-04 refolded on them (static only: the judge asked them nothing). The branch is the plain branch binary: for these
 trees the only judge question it adds is the server pass. Lines set before the run, not raised after it:
 
-- [ ] Malicious: of the **6** misses with readable server code, at least **4** caught. The 6 caught on main stay caught.
+- [ ] Malicious: of the **10** misses, at least **7** caught (open question 5). The 7 caught on main stay caught.
 - [ ] Benign (219): at most **20** escalate `LLM-010` at high (9%, the rate the Python servers show: 53–61 of 623).
   Benign flagged overall (static + judge) **61 → at most 81**.
 - [ ] Each new benign escalation listed with its category and the model's sentence.
@@ -128,22 +131,22 @@ trees the only judge question it adds is the server pass. Lines set before the r
 
 Docs:
 
-- [ ] `docs/llm-judge.md` / `.zh-CN.md`: `LLM-010`'s row says TypeScript/JavaScript servers are asked, how they are
-  recognised, and that code under `dist/` is not read. `docs/architecture.md` pair if it names the recogniser.
+- [ ] `docs/llm-judge.md` / `.zh-CN.md`: `LLM-010`'s row says TypeScript/JavaScript servers are asked and how they are
+  recognised. `docs/architecture.md` pair if it names the recogniser.
 - [ ] `.claude/rules/judge.md`: the recogniser needs both halves in one file; do not widen it to "any file that mentions
-  the SDK"; do not make it look inside `dist/` on its own (that is the hash's boundary, open question 1).
+  the SDK"; it walks the scan list, not the hash list.
 
 ## Out of scope
 
-- **Reading `dist/` or any other excluded directory** (open question 1).
+- **What the scan or the hash leaves out** (`node_modules/`; `dist/` in the hash): unchanged.
 - **The server pass's prompt and tables** (P-115 just changed them), the excerpt caps, the credential checks.
 - **SkillFortifyBench's `mcp.json` trees and OpenClaw's `.claw/skill.yaml` skills**, as the draft says.
 - **The static rules** (no `rulesEpoch` change).
 
 ## Must not claim
 
-- Not "BAS Guard now judges npm MCP packages". It judges a TS/JS server's readable source; a package that ships only
-  `dist/` is read by neither the rules nor the judge, and four of the in-the-wild misses are exactly that.
+- Not "BAS Guard now judges npm MCP packages" in general: it judges a TS/JS server whose import and tool declaration
+  sit in one readable file; a minified bundle, or a server split across files that way, is still a directory.
 - The 4 synthetic servers and the benign 219 have been read for this proposal; do not quote either as a held-out rate.
 
 ## Work items
@@ -165,7 +168,9 @@ All asked at once. Each has a recommended answer.
    `dist/` rekeys: reputation entries and users' approvals for such plugins and skills, and the static rules start
    running over build output everywhere, not only on servers. Recommended: **out of P-116**, as its own proposal with its
    own measurement (benign static over all surfaces, the rekey count).
-   **Decided (2026-11-05)**: out, as its own proposal.
+   **Decided (2026-11-05)**: out, as its own proposal. **Corrected the same day**: the premise was wrong — `dist/` is
+   read by the rules and the judge already; only the hash leaves it out, which ROADMAP records as intended. P-116
+   reaches all ten misses, and there is no separate `dist/` proposal to open.
 2. **The recogniser's shape.** Recommended: both halves in one file, as above (`new McpServer(`/`new Server(`/
    `new FastMCP(` or one of the four tool forms, plus the SDK or fastmcp import), `.d.ts` excluded, the same probe
    bounds as Python.
@@ -176,3 +181,5 @@ All asked at once. Each has a recommended answer.
 4. **Measurement.** Recommended: plain branch binary on the 236 trees (about US$1–2), plus the free `llm preview`
    two-binary check on the 802 Python server trees.
    **Decided (2026-11-05)**: as recommended, about US$1–2 approved.
+5. **(Asked after the correction to 1, before the run.) The recall line, now that ten misses are reachable, not six.**
+   **Decided (2026-11-05)**: at least 7 of 10, the decided line's proportion (4 of 6) on the new denominator.
