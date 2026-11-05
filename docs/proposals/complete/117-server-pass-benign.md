@@ -193,3 +193,49 @@ All asked at once. Each has a recommended answer.
    It would change what a false positive is in the middle of this comparison; if wanted, it is a corpus change read
    on its own, before the next proposal measures.
    **Decided (2026-11-05)**: not now.
+7. **(Asked after the run.) A Cisco sample lost on the vote count, not on severity.** The line says a Cisco loss
+   fails, without saying whether a loss to rerun noise counts. `mal-mcp-ci-filesystem_mount_information_access`: on
+   the branch its vote is still severity high (the change only lowers a severity), and it fell because 1 of 3 samples
+   agreed where main had 3 of 3; the same run newly flagged seven other Cisco samples.
+   **Decided (2026-11-05)**: rerun noise, not a loss to the change; the line is met.
+
+## Readings
+
+Python: the full-corpus run of 2026-11-04 refolded on the 802 server trees
+(`baselines/results/aguard/2026-11-04-llm-gpt-4.1-mini-p117-py-main-s3/`) against the plain P-117 binary
+(`…/2026-11-05-llm-gpt-4.1-mini-p117-py-branch-s3/`, `compare.txt` lists every sample that changed with the model's
+sentence). About US$3.4.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| benign servers flagged, of 623 | 143 | **133** | ≤ 135 ✓ |
+| malicious servers flagged, of 179 | 134 | **138** | ≥ 130 ✓ |
+| malicious lost: only the own-key kind, no Cisco or in-the-wild | — | 4 own-key + 1 Cisco on the vote count | ✓ (open question 7) |
+
+Benign escalating `LLM-010` at high: **61 → 40**; `credential-read` among them 29 → 8. Of the 22 benign samples no
+longer flagged, 11 are the change (10 `credential-read` votes the old check held, 1 `.github/` workflow) — the offline
+simulation said 11; the other 11, and the 12 newly flagged, are `remote-execution`, `exfiltration` and
+`software-source` votes the change does not touch, moving with the rerun.
+
+TS/JS, read and not gated: a measurement-only build of P-117 plus P-116's reverted recogniser on the 237 trees
+(`…/2026-11-05-llm-gpt-4.1-mini-p117-ts-measure-s3/`), against P-116's own run. About US$1.1. The first attempt at this
+run asked the judge nothing — the benchmark driver is built from the checkout, and this branch's driver does not
+recognise TS servers — and was discarded (no calls were made); the run kept was driven from the same tree as the
+binary.
+
+| P-116's lines | P-116 alone | P-116 + P-117 | |
+|---|---:|---:|---|
+| misses caught, of 10 | 5 | **6** | ≥ 7 |
+| benign escalating at high, of 220 | 42 | **23** | ≤ 20 |
+| benign flagged overall | 94 | **78** | ≤ 81 ✓ |
+
+`credential-read` on TS benign went 19 → 4; what is left is mostly `remote-execution` (14), direction 2's ground. P-116
+is closer and still short on two lines, so it is not measured again yet.
+
+## Done (2026-11-05)
+
+Shipped: `CredentialSentElsewhere` counts request lines only (with `requestLineRE` for the clients the rules' verb list
+does not name), and the server pass leaves out `.github/`. Excerpt version 10. Static findings unchanged on 1,438 corpus
+trees. Next, as decided in open question 4: a separate proposal for direction 2 (the question separating a fixed
+program from arbitrary execution), measured on Cisco's 127 first; after it, P-116 can be measured again against its
+own lines as written. The raw archive goes on the next release with P-114's, P-115's and P-116's.

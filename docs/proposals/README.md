@@ -145,3 +145,4 @@ always drift. A state change is one `git mv`; the file name stays the same, and 
 | [108](complete/108-release-0.33.0.md) | Release record v0.33.0: P-105 | The maintainer said "发 v0.33.0" (2026-10-27) | PR #133; v0.33.0 |
 | [111](complete/111-drop-rename-notice.md) | The README pair no longer opens with the rename from AgentGuard | The maintainer, 2026-10-27 | PR #136; v0.33.1 |
 | [112](complete/112-release-0.33.1.md) | Release record v0.33.1: P-111 | The maintainer said "发版" (2026-10-27) | PR #137; v0.33.1 |
+| [117](complete/117-server-pass-benign.md) | The server pass reads a server's own key and its own subprocess as an attack | The maintainer, 2026-11-05 (after P-114 and P-116 failed on benign servers) | PR #143 — Python benign servers flagged 143 → 133, benign escalating `LLM-010` 61 → 40, malicious 134 → 138 |
