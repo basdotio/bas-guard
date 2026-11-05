@@ -105,53 +105,59 @@ ones) before writing what follows:
 
 Code (judge package, two tables):
 
-- [ ] `TestSeverityFor_NewRows` pins: on the server pass `resource-exhaustion` and `result-tampering` are high, and
+- [x] `TestSeverityFor_NewRows` pins: on the server pass `resource-exhaustion` and `result-tampering` are high, and
   one step lower when `disclosed`; on the result pass `covert-transmission` is high. `other` and `unrequested-artifact`
-  stay medium, and an unknown name is still medium.
-- [ ] `TestCategoryTables_ServerIsIntentPlusTwo` pins that the server table is exactly the intent table's rows plus the
+  stay medium, and an unknown name is still medium. *After the split: `covert-transmission` is an unknown name on the
+  result pass, so medium, and the test says so.*
+- [x] `TestCategoryTables_ServerIsIntentPlusTwo` pins that the server table is exactly the intent table's rows plus the
   two new ones, in a stated order, so the two tables cannot drift apart by accident.
-- [ ] Reverse assertion, `TestCategoryPrompt_OtherPassesUnchanged`: `categoryPrompt` for injection, intent,
+- [x] Reverse assertion, `TestCategoryPrompt_OtherPassesUnchanged`: `categoryPrompt` for injection, intent,
   capability, explain, collusion and the MCP config pass is byte-identical to `main`'s (pinned as constants or digests
-  in the test). Only the server and result prompts move.
-- [ ] `unrequested-artifact`'s line names its neighbour: data, files or the conversation sent to an outside
+  in the test). Only the server and result prompts move. *After the split the result prompt is pinned too: only the
+  server prompt moves.*
+- [x] `unrequested-artifact`'s line names its neighbour: data, files or the conversation sent to an outside
   recipient is `covert-transmission`, not this. The server `other` line names its two neighbours in the same way.
-  `TestCategoryPrompt_CatchAllsPointAway` checks the three pointers are in the rendered prompt.
-- [ ] `PromptVersion` moves on its own; `TestPromptVersion_*` green without editing the test. `ExcerptVersion` does
+  `TestCategoryPrompt_CatchAllsPointAway` checks the three pointers are in the rendered prompt. *Measured with all
+  three; after the split only the server `other` line's two remain, and the test checks those.*
+- [x] `PromptVersion` moves on its own; `TestPromptVersion_*` green without editing the test. `ExcerptVersion` does
   not move.
-- [ ] If open question 4 is accepted: a server or intent finding lowered for disclosure carries
+- [x] If open question 4 is accepted: a server or intent finding lowered for disclosure carries
   `[disclosed: one step lower]` in its `Why`, as the other downgrades already do; a finding not lowered carries
   nothing new (`TestDisclosedLowering_IsAnnotated`, both directions).
-- [ ] `go test -count=1 ./baselines/cmd/judgefold/` green; goldens regenerated only if they really move, and the diff is
+- [x] `go test -count=1 ./baselines/cmd/judgefold/` green; goldens regenerated only if they really move, and the diff is
   read line by line.
-- [ ] `make verify` green, read from its own exit code, not through a pipe.
+- [x] `make verify` green, read from its own exit code, not through a pipe.
 
 Measurement (live, gpt-4.1-mini, `samples: 3`, corpus `c314e4d9`). Main's reading is the full-corpus run of 2026-11-04
 (`v0.33.1-3-g5a18a6db`). The branch reading is on the 802 server trees and the 3,370 skill trees the result pass asks.
 The lines below were set before the run. If recall clears and benign does not, the proposal goes to `rejected/` with
 its readings. Raising a line afterwards is not an option.
 
-- [ ] Server, malicious: of the **14** servers whose majority category was `other`, at least **8** now escalate at high.
-  Cisco static + judge no lower than 98 (102 minus the rerun band P-100 saw).
-- [ ] Server, benign (623 asked): at most **3** benign servers escalate at high through a new row. Escalating `LLM-010`
-  at high in all **60 → at most 66** (the line P-114 used).
+- [x] Server, malicious: of the **14** servers whose majority category was `other`, at least **8** now escalate at high.
+  Cisco static + judge no lower than 98 (102 minus the rerun band P-100 saw). **10 of 14; Cisco 118.**
+- [x] Server, benign (623 asked): at most **3** benign servers escalate at high through a new row. Escalating `LLM-010`
+  at high in all **60 → at most 66** (the line P-114 used). **0 through a new row; 61 → 53** (main counts 61 on the
+  4,172-tree refold, not the 60 written here; the absolute line 66 was kept).
 - [ ] Result, malicious: of the **9** result-pass misses, at least **4** are now caught. Malicious skills flagged overall
-  no lower than main's minus 3.
-- [ ] Result, benign (2,894 asked): at most **6** benign skills escalate at high through `covert-transmission`, and at
+  no lower than main's minus 3. **Not met: 2 of 9.** Overall 352 → 357, which clears its half.
+- [x] Result, benign (2,894 asked): at most **6** benign skills escalate at high through `covert-transmission`, and at
   most **2** of them in ClawHub's fresh 216 (where P-068's first wording went from 6 to 26). Benign skills flagged
-  overall (static + judge) up by at most 8.
-- [ ] Each new benign escalation is listed with its category and the model's sentence, so the reading can be checked
+  overall (static + judge) up by at most 8. **3, 1 of them in the fresh 216; 214 → 216.**
+- [x] Each new benign escalation is listed with its category and the model's sentence, so the reading can be checked
   by eye, not just counted.
-- [ ] Result directories under `baselines/results/aguard/2026-11-NN-llm-gpt-4.1-mini-p115-*`, with what the branch run
+- [x] Result directories under `baselines/results/aguard/2026-11-NN-llm-gpt-4.1-mini-p115-*`, with what the branch run
   did and did not ask written into the directory (open question 5). Raw archive goes on the next release, together with
   P-114's.
 
 Docs:
 
-- [ ] `docs/llm-judge.md` and `docs/llm-judge.zh-CN.md` (the pair): the category table gains the three rows, and the
-  server row no longer reads "the intent table".
-- [ ] `.claude/rules/judge.md`: one paragraph on what not to change. Keep the catch-alls' pointers (P-066's lesson). Do
+- [x] `docs/llm-judge.md` and `docs/llm-judge.zh-CN.md` (the pair): the category table gains the three rows, and the
+  server row no longer reads "the intent table". *After the split: the server row's two, and a paragraph on the
+  withdrawn result row.*
+- [x] `.claude/rules/judge.md`: one paragraph on what not to change. Keep the catch-alls' pointers (P-066's lesson). Do
   not merge the server table back into the intent table. Do not widen `covert-transmission` to "any message the task did
-  not ask for", because that is `unrequested-artifact`, which is medium by design.
+  not ask for", because that is `unrequested-artifact`, which is medium by design. *After the split: the last point
+  became "tried and withdrawn; a pointer is necessary, not sufficient; do not raise `unrequested-artifact` to high".*
 
 ## Out of scope
 
@@ -225,3 +231,71 @@ All asked at once. Each has a recommended answer.
 6. **Acceptance lines**, as written in Done criteria. Recommended: **as written**. The benign side decides. Attribution is
    by the new rows' names, so rerun noise in the old categories does not count against them.
    **Decided (2026-11-05)**: as written.
+7. **(Asked after the run.) One recall line missed and every benign line cleared — what then?** The rule above covers
+   only the opposite case. Options put: split (ship the server half, withdraw `covert-transmission`), keep all of it and
+   say the line was missed, or rework the wording and measure the result pass again (about US$12).
+   **Decided (2026-11-05)**: split.
+
+## Readings
+
+Main: the full-corpus run of 2026-11-04 refolded on the 4,172 trees the server or result pass asked
+(`baselines/results/aguard/2026-11-04-llm-gpt-4.1-mini-p115-main-s3/`). Branch: the measurement-only build of open
+question 5 (A) (`…/2026-11-05-llm-gpt-4.1-mini-p115-branch-s3/`; `compare.txt` there has every reading below, the
+composed verdict, and each new benign escalation with the model's sentence). Composed from main's own votes, main agrees
+with its folded verdict on all 4,172. Cost about US$17.4.
+
+The first build dropped the other passes' questions inside `planFor` and panicked on the 520 trees whose `SKILL.md` names
+companion documents (the companion question's `out[len(out)-1]` with nothing appended). It was caught by the 520 errors
+in the ledger before any reading was taken; a second build dropped them in `buildTasks` instead and asked those 520 again.
+On every other tree the two builds ask the same questions. Read with the 520 missing, the result half looked worse
+than it is (malicious skills 346, not 357): the merged reading is the one reported.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| the 14 `other` servers escalating at high | 0 | **10** | ≥ 8 ✓ |
+| Cisco flagged, static + judge, of 127 | 102 | **118** | ≥ 98 ✓ |
+| benign servers at high through a new row, of 623 | — | **0** | ≤ 3 ✓ |
+| benign servers escalating `LLM-010` at high | 61 | **53** | ≤ 66 ✓ |
+| the 9 result-pass misses caught | 0 | **2** | ≥ 4 ✗ |
+| malicious skills flagged overall, of 472 | 352 | **357** | ≥ 349 ✓ |
+| benign skills at high through `covert-transmission`, of 2,894 | — | **3** (1 in the fresh 216) | ≤ 6, ≤ 2 ✓ |
+| benign skills flagged overall | 214 | **216** | ≤ +8 ✓ |
+
+**Server half.** All eight resource-exhaustion servers now vote `resource-exhaustion`, and the results-poisoning one
+votes `result-tampering`. The redirect one moved to `exfiltration`. The four
+that did not escalate: cache poisoning, hidden logging and workflow tampering still vote `other`, and the NoSQL query
+votes `credential-read`, which escalates at medium only. No benign server's escalating vote names either new row. The benign `LLM-010` count
+fell 61 → 53, all of it in old categories (`credential-read` 29 → 24, `exfiltration` 9 → 6): rerun noise in categories
+P-115 did not touch, not a gain to claim.
+
+**Result half.** The two caught are the API-key upload (`msb-asb04_000952`) and the telemetry endpoints
+(`sc-T10-mcp-hijack-medium`), both unanimous `covert-transmission`. The hidden BCC (`sg-bcc-exfil`) voted
+`unrequested-artifact, unrequested-artifact, covert-transmission`, and the `full_access` grant (`feishu-cli-create`)
+voted `unrequested-artifact` three times — the two cases the row's own wording names ("an extra mail recipient, an
+access grant"), with `unrequested-artifact`'s line pointing at it. The memory-file write and the self-registering
+config were out of scope by decision; the three SkillHarm stamps stayed `unrequested-artifact`, as intended. The row
+did take 75 malicious skills to high, but 72 of them were flagged on main already; the three new are the two above
+and one SkillFortify sample (overall 352 → 357, the rest is rerun noise). The three
+benign: a research skill that posts to a fixed Telegram chat (static rules already flag it), a skill whose purpose is
+messaging other agents (`atcha`, fresh 216, a false positive), and a marketing skill that routes requests to a remote
+tool (already flagged on main).
+
+The newly flagged and no-longer-flagged benign samples overall (18 and 16) are mostly old categories on servers and two
+`LLM-007` votes going from one of three to two of three: rerun noise, listed in `compare.txt`.
+
+## Done (2026-11-05)
+
+Split, as decided in open question 7. Shipped:
+
+- the server table's `resource-exhaustion` and `result-tampering` rows, `other` pointing at both, and the server table
+  built from the intent table's rows (`intentBehaviours`), every line of the server half cleared;
+- `[disclosed: one step lower]` in the reason of an intent or server finding the disclosure step lowered.
+
+Withdrawn: the result table's `covert-transmission` row and `unrequested-artifact`'s pointer. The result table and its
+prompt are byte-identical to `main`'s (`TestCategoryPrompt_OtherPassesUnchanged` now pins it). It cleared both benign
+lines, so it did no measurable harm, but it missed its recall line, and the line was not moved after the run. What the
+miss says is in `.claude/rules/judge.md`: pointing the catch-all at the new row is necessary, not sufficient; the model
+still prefers the older, broader row for exactly the cases the new one names. A second try needs a new wording and
+its own measurement, and must not raise `unrequested-artifact` to high.
+
+The raw archive of both branch runs goes on the next release with P-114's.
