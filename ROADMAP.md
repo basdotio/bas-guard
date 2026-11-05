@@ -65,6 +65,13 @@ progress, what is recorded but not scheduled, and the limitations we state out l
   report can say which of its outputs SERVE a record-keeping duty. It must not say "compliant" —
   that is a claim about an organisation, not about a scan, and overreaching here would poison the
   disclosure discipline the rest of the tool is built on.
+- **A judge category for writes to an agent's memory files** (left out of P-115 by the maintainer,
+  2026-11-05) — a skill that silently appends a standing rule to `MEMORY.md` is filed by the result
+  pass as `unrequested-artifact` (medium), and on the full corpus of 2026-11-04 one malicious sample
+  was missed that way. A row or a `persistence` clause naming `CLAUDE.md`/`MEMORY.md`/`AGENTS.md`/
+  `SOUL.md` would recover it, but 214 benign `SKILL.md` files in the corpus name those files against
+  40 malicious ones: self-improving and memory-keeping skills write there by design. Doing it means
+  its own measurement on those skills first.
 
 ## Known limitations (honest)
 
