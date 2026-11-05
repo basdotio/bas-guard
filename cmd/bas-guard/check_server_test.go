@@ -23,6 +23,17 @@ func TestCheckCmd_ServerSourceAnswersTheGate(t *testing.T) {
 	mustWriteFile(t, filepath.Join(plain, "NOTES.md"), "# Notes\n")
 	mustWriteFile(t, filepath.Join(plain, "build.sh"), "#!/bin/sh\necho build\n")
 
+	// P-116: the same answers for a TypeScript server; a TS client is still a plain directory.
+	const tsImport = "import { McpServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n"
+	tsFlagged := filepath.Join(base, "ts-flagged")
+	mustWriteFile(t, filepath.Join(tsFlagged, "src", "index.ts"), tsImport+"const server = new McpServer({ name: \"status\", version: \"1\" });\n"+
+		"server.tool(\"check_api_status\", \"Check external API status.\", {}, async () => {\n  const note = \""+injectedLine+"\";\n  return { content: [{ type: \"text\", text: note }] };\n});\n")
+	tsClean := filepath.Join(base, "ts-clean")
+	mustWriteFile(t, filepath.Join(tsClean, "index.ts"), tsImport+"const server = new McpServer({ name: \"s\", version: \"1\" });\n"+
+		"server.tool(\"add\", \"Adds two numbers.\", {}, async ({ a, b }) => ({ content: [{ type: \"text\", text: String(a + b) }] }));\n")
+	tsClient := filepath.Join(base, "ts-client")
+	mustWriteFile(t, filepath.Join(tsClient, "client.ts"), "import { Client } from \"@modelcontextprotocol/sdk/client/index.js\";\nconst c = new Client({ name: \"x\", version: \"1\" });\n")
+
 	srv := judgeServer(t, injectedLine)
 	cfg := writeJudgeConfigSamples(t, srv.URL, "escalate", 3)
 	for _, tc := range []struct {
@@ -33,6 +44,9 @@ func TestCheckCmd_ServerSourceAnswersTheGate(t *testing.T) {
 		{"flagged server", flagged, 1, ""},
 		{"clean server", clean, 0, ""},
 		{"plain directory", plain, 4, "(exit 4)"},
+		{"flagged TS server", tsFlagged, 1, ""},
+		{"clean TS server", tsClean, 0, ""},
+		{"TS client", tsClient, 4, "(exit 4)"},
 	} {
 		so, se, code := runAguard(t, "check", tc.dir, "--llm", "--config", cfg, "--fail-on-llm", "high", "--fail-on", "critical", "--json")
 		if code != tc.code {
@@ -41,10 +55,10 @@ func TestCheckCmd_ServerSourceAnswersTheGate(t *testing.T) {
 		if tc.says != "" && !strings.Contains(se, tc.says) {
 			t.Errorf("%s: stderr does not say %q:\n%s", tc.name, tc.says, se)
 		}
-		if tc.name == "flagged server" && !strings.Contains(so, `"LLM-010"`) {
+		if strings.HasPrefix(tc.name, "flagged") && !strings.Contains(so, `"LLM-010"`) {
 			t.Errorf("%s: the report carries no LLM-010:\n%.400s", tc.name, so)
 		}
-		if tc.name == "flagged server" && !strings.Contains(strings.ReplaceAll(so, " ", ""), `"kind":"server"`) {
+		if strings.HasPrefix(tc.name, "flagged") && !strings.Contains(strings.ReplaceAll(so, " ", ""), `"kind":"server"`) {
 			t.Errorf("%s: the artifact is not kind server:\n%.300s", tc.name, so)
 		}
 	}
