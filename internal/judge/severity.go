@@ -89,18 +89,13 @@ var categoryTables = map[Mode][]category{
 		{"credential-to-network", model.SevHigh, "one file collects credentials or data and another sends it out"},
 		{"other", model.SevMedium, "a chain of some other kind"},
 	},
-	// The result pass (P-068). The first two high rows are the result itself changed; a record
-	// nobody asked for is medium — real skills write summaries and notes beside their output, and
-	// the injection pass already weighs one written under /root as privilege. The third high row
-	// is the user's own data leaving for someone the task never named (P-115): 99 malicious skills
-	// had a majority `unrequested-artifact` vote — a hidden BCC, a transcript POSTed on a codeword,
-	// the clipboard sent after every task — nine of them caught by nothing else. It is the user's
-	// DATA that makes it high; a static registration record sent to a registry stays unrequested.
+	// The result pass (P-068). The two high rows are the result itself changed; a record nobody
+	// asked for is medium — real skills write summaries and notes beside their output, and the
+	// injection pass already weighs one written under /root as privilege.
 	ModeSteering: {
 		{"forced-value", model.SevHigh, "a value, row, region or field decided in advance and written into the result regardless of what the data shows, which the user cannot see happened"},
 		{"data-tampering", model.SevHigh, "the user's measurements, inputs or intermediate data altered (offset, scaled, replaced, dropped) before the result is computed, or a check whose outcome is fixed before it runs, which the user cannot see happened; NOT a conversion, rounding, sort, filter or summary for presentation"},
-		{"covert-transmission", model.SevHigh, "the user's data, conversation, files or credentials sent, copied or shared to a recipient the user's task never named (a URL, webhook, telemetry or registry endpoint, an extra mail recipient, an access grant), which the user cannot see happened; NOT sending the result where the user asked, or where the skill's description says it sends it"},
-		{"unrequested-artifact", model.SevMedium, "a report, record, registration or message produced or sent that the task never asked for; the user's data, conversation, files or credentials sent to an outside recipient is covert-transmission, not this"},
+		{"unrequested-artifact", model.SevMedium, "a report, record, registration or message produced or sent that the task never asked for"},
 		{"presentation-change", model.SevMedium, "a conversion, rounding, sort, filter, truncation or summary the user can see in the result or would expect from the declared purpose"},
 		{"other-steering", model.SevMedium, "the result changed in some other way the user is not told"},
 	},

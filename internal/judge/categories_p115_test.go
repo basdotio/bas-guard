@@ -11,13 +11,14 @@ import (
 	"github.com/basdotio/bas-guard/internal/model"
 )
 
-// P-115: the server and result tables gain the rows for behaviour the model already described
-// correctly and filed under a medium catch-all. These tests pin the rows, that the server table
-// is the intent table plus two, that every other pass's category prompt is byte-identical to what
-// it was before, and that the catch-alls point at their new neighbours.
+// P-115: the server table gains the rows for behaviour the model already described correctly and
+// filed under its medium catch-all. These tests pin the rows, that the server table is the intent
+// table plus two, that every other pass's category prompt is byte-identical to what it was before,
+// and that the catch-all points at its new neighbours. The result half (a covert-transmission row on
+// the result pass) was measured and withdrawn: 2 of the 9 misses it was for, against a line of 4.
 
-// TestSeverityFor_NewRows: the three new rows are high, the server two take the ordinary
-// disclosure step, and the catch-alls beside them stay medium.
+// TestSeverityFor_NewRows: the two new rows are high and take the ordinary disclosure step, and
+// the catch-all beside them stays medium.
 func TestSeverityFor_NewRows(t *testing.T) {
 	cases := []struct {
 		mode      Mode
@@ -31,10 +32,9 @@ func TestSeverityFor_NewRows(t *testing.T) {
 		{ModeServer, "result-tampering", true, model.SevMedium},
 		{ModeServer, "other", false, model.SevMedium},
 		{ModeServer, "denial-of-service", false, model.SevMedium}, // not in the table
-		{ModeSteering, "covert-transmission", false, model.SevHigh},
-		{ModeSteering, "covert-transmission", true, model.SevHigh}, // no disclosure step on this pass
+		// The result pass did not gain covert-transmission (withdrawn after measurement).
+		{ModeSteering, "covert-transmission", false, model.SevMedium},
 		{ModeSteering, "unrequested-artifact", false, model.SevMedium},
-		{ModeSteering, "exfiltration", false, model.SevMedium}, // another table's name
 		// The intent table did not gain them: on that pass they are unknown names, so medium.
 		{ModeIntent, "resource-exhaustion", false, model.SevMedium},
 		{ModeIntent, "result-tampering", false, model.SevMedium},
@@ -71,8 +71,7 @@ func TestCategoryTables_ServerIsIntentPlusTwo(t *testing.T) {
 	}
 }
 
-// TestCategoryPrompt_OtherPassesUnchanged is the reverse assertion: only the server and result
-// prompts move. The digests are of main's categoryPrompt before P-115 (v0.33.1-3-g5a18a6db).
+// TestCategoryPrompt_OtherPassesUnchanged is the reverse assertion: only the server prompt moves. The digests are of main's categoryPrompt before P-115 (v0.33.1-3-g5a18a6db).
 func TestCategoryPrompt_OtherPassesUnchanged(t *testing.T) {
 	want := map[Mode]string{
 		ModeIntent:     "e3ab30b0cd3df92acd8ea5703d9b0affaa850f1a80bd6378cf8f3f732f8d11aa",
@@ -81,26 +80,22 @@ func TestCategoryPrompt_OtherPassesUnchanged(t *testing.T) {
 		ModeCapability: "9c0557c5c24dc9464f7e1f6cdea78f0a43ac7662d1a2f4150fd74a744f8f4985",
 		ModeMCPConfig:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // empty: no table
 		ModeCollusion:  "8e14aa1e90eb81950ec528e22ce25ab91e19b1cd44a08c228ee0faf6b60ab589",
+		ModeSteering:   "7ce24e6950e1ec64079a2e30cd8c8ff0ed212420f5a11b5d8767ab0fb0769e8c",
 	}
 	for m, d := range want {
 		sum := sha256.Sum256([]byte(categoryPrompt(m)))
 		if got := hex.EncodeToString(sum[:]); got != d {
-			t.Errorf("mode %d: category prompt changed (%s); P-115 moves only the server and result tables", m, got)
+			t.Errorf("mode %d: category prompt changed (%s); P-115 moves only the server table", m, got)
 		}
 	}
-	// And the two that were meant to move did.
-	for m, old := range map[Mode]string{
-		ModeServer:   "e3ab30b0cd3df92acd8ea5703d9b0affaa850f1a80bd6378cf8f3f732f8d11aa",
-		ModeSteering: "7ce24e6950e1ec64079a2e30cd8c8ff0ed212420f5a11b5d8767ab0fb0769e8c",
-	} {
-		sum := sha256.Sum256([]byte(categoryPrompt(m)))
-		if hex.EncodeToString(sum[:]) == old {
-			t.Errorf("mode %d: category prompt did not change", m)
-		}
+	// And the one that was meant to move did.
+	sum := sha256.Sum256([]byte(categoryPrompt(ModeServer)))
+	if hex.EncodeToString(sum[:]) == "e3ab30b0cd3df92acd8ea5703d9b0affaa850f1a80bd6378cf8f3f732f8d11aa" {
+		t.Errorf("server category prompt did not change")
 	}
 }
 
-// TestCategoryPrompt_CatchAllsPointAway: each catch-all names the new row beside it. Without the
+// TestCategoryPrompt_CatchAllsPointAway: the catch-all names the new rows beside it. Without the
 // pointer the votes stay where they were: P-066's row was picked zero times in 840 trees.
 func TestCategoryPrompt_CatchAllsPointAway(t *testing.T) {
 	cases := []struct {
@@ -109,7 +104,6 @@ func TestCategoryPrompt_CatchAllsPointAway(t *testing.T) {
 		points []string
 	}{
 		{ModeServer, "other", []string{"resource-exhaustion", "result-tampering"}},
-		{ModeSteering, "unrequested-artifact", []string{"covert-transmission"}},
 	}
 	for _, c := range cases {
 		var what string
@@ -150,7 +144,7 @@ func TestDisclosedLowering_IsAnnotated(t *testing.T) {
 		{ModeServer, "resource-exhaustion", true, true},
 		{ModeServer, "remote-execution", false, false},
 		{ModeInjection, "exfiltration", true, false}, // no disclosure notion on this pass
-		{ModeSteering, "covert-transmission", true, false},
+		{ModeSteering, "forced-value", true, false},
 		{ModeCapability, "network", true, false},
 	}
 	for _, c := range cases {
