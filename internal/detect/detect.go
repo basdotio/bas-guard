@@ -537,6 +537,10 @@ type chain struct {
 	// is how it talks to it — reading those two as a chain turned the standard remote-MCP
 	// shape into EXFIL-001 on 45 benign configs and no malicious one. See egress.
 	literalIsEgress bool
+	// requestLine, when set, is a second set of request calls that count as the network leg
+	// beside networkActionRE. Only the judge's CredentialSentElsewhere sets it (P-117); the rules'
+	// chains leave it nil, so no static finding depends on it.
+	requestLine *regexp.Regexp
 	// Destination consistency: credService holds the service tokens of every named secret
 	// the file reads (DEEPL_API_KEY -> deepl); destHosts holds every readable non-loopback
 	// destination; destUnreadable is set when an off-box line names a destination we cannot read.
@@ -556,7 +560,7 @@ type chain struct {
 // literalIsEgress says so. A literal that is not a leg also does not vote on the loopback
 // downgrade — observe only reaches that code for lines that are legs.
 func (c *chain) egress(norm string) bool {
-	if networkActionRE.MatchString(norm) {
+	if networkActionRE.MatchString(norm) || (c.requestLine != nil && c.requestLine.MatchString(norm)) {
 		return true
 	}
 	return c.literalIsEgress && urlLiteralRE.MatchString(norm)
