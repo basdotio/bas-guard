@@ -262,11 +262,12 @@ bas-guard scan --llm --config config.yaml
   | hook 越权(`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | 解码(`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | 共谋(`LLM-006`) | credential-to-network | other |
-  | 结果(`LLM-011`) | forced-value · data-tampering · covert-transmission | unrequested-artifact · presentation-change · other-steering |
+  | 结果(`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
 
-  服务器那一行多出的两类和结果那一行的 `covert-transmission`(P-115)都是模型本来就描述对了、却归进 medium 兜底类别的行为:
-  fork 炸弹、往搜索结果里塞东西被归成 `other`,把用户数据发到 webhook、暗中加 BCC 被归成 `unrequested-artifact`。两个兜底类别的说明
-  现在都点名了旁边的新类别;没人要、但不带用户任何数据的记录或登记,仍是 `unrequested-artifact`。
+  服务器那一行多出的两类(P-115)是模型本来就描述对了、却归进 medium 的 `other` 的行为:fork 炸弹、解压炸弹、往搜索结果里塞商品。
+  `other` 的说明现在点名了这两类。在 802 棵服务器树上实测:多数票为 `other` 的 14 个恶意服务器里 10 个升级,Cisco 的 127 个从 102 个
+  被报到 118 个,没有良性服务器经这两行升级。同一个提案还在结果趟试过一行 `covert-transmission`(用户数据发给任务没点名的接收方),
+  测完撤回:暗中 BCC、`full_access` 授权模型仍归成 `unrequested-artifact`,它要救的 9 个漏报只抓到 2 个,门槛是 4 个。
 
   意图趟和服务器趟里,声明用途里写明了的行为(`disclosed: true`)降一档,理由里写 `[disclosed: one step lower]`——改软件源除外,那条无论披露与否都报。提示词要求类别只按文本本身
   显示的内容来定,不许从脚本名猜:只跑一个本地文件的 hook 就是 `process-control`(medium),文件叫什么都一样。`samples: 3` 时类别也

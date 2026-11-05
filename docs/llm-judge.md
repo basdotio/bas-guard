@@ -347,14 +347,16 @@ everything on your machine. That trade-off is yours.
   | hook capability (`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | deobfuscation (`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | collusion (`LLM-006`) | credential-to-network | other |
-  | result (`LLM-011`) | forced-value · data-tampering · covert-transmission | unrequested-artifact · presentation-change · other-steering |
+  | result (`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
 
-  The server row's two extra categories and the result row's `covert-transmission` (P-115) are
-  behaviour the model was already describing correctly and filing under the medium catch-all: a
-  fork bomb or injected search results under `other`, the user's data posted to a webhook or a
-  hidden BCC under `unrequested-artifact`. Each catch-all's line now names its new neighbour; a
-  record or registration nobody asked for, carrying none of the user's data, stays
-  `unrequested-artifact`.
+  The server row's two extra categories (P-115) are behaviour the model was already describing
+  correctly and filing under the medium `other`: a fork bomb, a decompression bomb, search results
+  with products slipped in. `other`'s line now names both. Measured on the 802 server trees, 10 of
+  the 14 malicious servers whose majority was `other` now escalate, Cisco's 127 go from 102 to 118
+  flagged, and no benign server escalates through either row. The same proposal tried a
+  `covert-transmission` row on the result pass (the user's data sent to a recipient the task never
+  named) and withdrew it: the model still filed a hidden BCC and a `full_access` grant under
+  `unrequested-artifact`, and it caught 2 of the 9 misses it was for, against a line of 4.
 
   On the intent and server passes a behaviour the declared purpose states (`disclosed: true`) is one step
   lower, and the reason says `[disclosed: one step lower]` — except a changed software source, which the prompt flags disclosed or not. The prompt
