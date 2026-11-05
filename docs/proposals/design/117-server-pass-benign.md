@@ -175,15 +175,21 @@ All asked at once. Each has a recommended answer.
 
 1. **Direction 1 as V1?** Recommended: **yes**. V2 (a non-destination list) is left out: a list this repository would
    have to maintain, for 4 more benign votes.
+   **Decided (2026-11-05)**: yes, V1.
 2. **The four malicious samples caught for the wrong reason.** Recommended: **accept losing them**, under the line
    above (only that kind may be lost). Keeping them means keeping a check that holds 39 benign votes high on the same
    mistake.
+   **Decided (2026-11-05)**: accept, under the line above.
 3. **Direction 3, `.github/` out of the server pass?** Recommended: **yes**, small and independent; workflows run on
    GitHub, not where the server is installed.
+   **Decided (2026-11-05)**: yes.
 4. **Direction 2, the prompt separating a fixed program from arbitrary execution?** Recommended: **not in P-117**; its
    own proposal after this one is measured, measured on Cisco's 127 first. Wording changes failed twice (P-048, P-066).
+   **Decided (2026-11-05)**: not in P-117.
 5. **Measurement and cost.** Recommended: the plain branch binary on the 802 Python server trees (about US$4), and a
    measurement-only build with P-116's recogniser on the 237 TS/JS trees (about US$1), read but not gated.
+   **Decided (2026-11-05)**: as recommended, about US$5 approved.
 6. **`alert_justified` on benign servers whose declared purpose is arbitrary execution?** Recommended: **not now**.
    It would change what a false positive is in the middle of this comparison; if wanted, it is a corpus change read
    on its own, before the next proposal measures.
+   **Decided (2026-11-05)**: not now.
