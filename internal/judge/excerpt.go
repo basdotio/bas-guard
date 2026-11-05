@@ -596,7 +596,8 @@ var serverToolRe = regexp.MustCompile(`(?s)@\w+(?:\.\w+)*\.tool(?:\((?:[^()]*|\(
 var serverToolTypeRe = regexp.MustCompile(`(?s)\bTool\(\s*name\s*=\s*(?:"([^"\n]+)"|'([^'\n]+)'|([\w.]+))\s*,.*?description\s*=\s*(?:"""(.*?)"""|'''(.*?)'''|"([^"\n]*)"|'([^'\n]*)')`)
 
 // serverDeclared renders an MCP server's declared side: one line per tool, "name: first docstring
-// line", gathered from the Python files of dir within the behaviour walker's bounds, redacted and
+// line", gathered from the Python files of dir — or, when they declare nothing, from its TypeScript
+// and JavaScript files (tsDeclared, P-116) — within the behaviour walker's bounds, redacted and
 // capped like a skill's description. A tool without a docstring is listed by name alone, and a
 // server with no tool at all declares nothing — which the prompt reads as a thin declaration, so
 // most of what the code does is undisclosed, which is the right reading of a server that documents
@@ -606,6 +607,11 @@ var serverToolTypeRe = regexp.MustCompile(`(?s)\bTool\(\s*name\s*=\s*(?:"([^"\n]
 func serverDeclared(dir string, eg egress) (string, []sourceUnit) {
 	var lines []string
 	var units []sourceUnit
+	// TypeScript and JavaScript tools (P-116) are read alongside and used only when no Python file
+	// declared anything: a tree is one server, and a Python server's declared side stays
+	// byte-identical whatever JavaScript sits beside it (a web UI, a test harness).
+	var tsLines []string
+	var tsUnits []sourceUnit
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -616,7 +622,8 @@ func serverDeclared(dir string, eg egress) (string, []sourceUnit) {
 			}
 			return nil
 		}
-		if !strings.EqualFold(filepath.Ext(p), ".py") || collect.FileReach(dir, p).Kind != collect.Read {
+		py := strings.EqualFold(filepath.Ext(p), ".py")
+		if (!py && !collect.TSSourceFile(d.Name())) || collect.FileReach(dir, p).Kind != collect.Read {
 			return nil
 		}
 		raw := readAtMost(p, maxFileRead)
@@ -624,6 +631,15 @@ func serverDeclared(dir string, eg egress) (string, []sourceUnit) {
 			return nil
 		}
 		rel, _ := filepath.Rel(dir, p)
+		if !py {
+			if found := tsDeclared(string(raw)); len(found) > 0 {
+				tsLines = append(tsLines, found...)
+				if len(tsUnits) == 0 {
+					tsUnits = append(tsUnits, sourceUnit{file: detect.Redact(rel), firstLine: 1, collapsed: true})
+				}
+			}
+			return nil
+		}
 		for _, m := range serverToolTypeRe.FindAllStringSubmatch(string(raw), -1) {
 			// name: a string, or an expression such as GitTools.STATUS, of which the last segment
 			// is the name a client sees; description: the first line of whichever string form.
@@ -656,6 +672,9 @@ func serverDeclared(dir string, eg egress) (string, []sourceUnit) {
 		}
 		return nil
 	})
+	if len(lines) == 0 {
+		lines, units = tsLines, tsUnits
+	}
 	if len(lines) == 0 {
 		return "", nil
 	}
