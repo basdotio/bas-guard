@@ -223,6 +223,12 @@ func finding(r Request, v Verdict) *model.Finding {
 	if strings.TrimSpace(why) == "" {
 		why = model.JudgeRuleText(ruleID)
 	}
+	if disclosureLowered(r.Mode, v) {
+		// P-115: the other two downgrades say so in the vote's reason ("category not shown by
+		// the text"); this one did not, so a medium Cisco server reading "remote-execution,
+		// remote-execution, remote-execution" could not be told apart from a medium category.
+		why += " [disclosed: one step lower]"
+	}
 	return &model.Finding{
 		RuleID:    ruleID,
 		Dimension: dim,
