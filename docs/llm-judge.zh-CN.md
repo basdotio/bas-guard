@@ -258,12 +258,17 @@ bas-guard scan --llm --config config.yaml
   |------|------|--------|
   | 注入(`LLM-003`) | exfiltration · credential-read · remote-execution · safety-disable · concealed-directive · privilege | other-directive |
   | 意图(`LLM-001`) | 上述五类 · software-source · persistence · file-deletion · privilege | other |
+  | 服务器(`LLM-010`) | 意图那一行的九类 · resource-exhaustion · result-tampering | other |
   | hook 越权(`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | 解码(`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | 共谋(`LLM-006`) | credential-to-network | other |
-  | 结果(`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
+  | 结果(`LLM-011`) | forced-value · data-tampering · covert-transmission | unrequested-artifact · presentation-change · other-steering |
 
-  意图趟里,声明用途里写明了的行为(`disclosed: true`)降一档——改软件源除外,那条无论披露与否都报。提示词要求类别只按文本本身
+  服务器那一行多出的两类和结果那一行的 `covert-transmission`(P-115)都是模型本来就描述对了、却归进 medium 兜底类别的行为:
+  fork 炸弹、往搜索结果里塞东西被归成 `other`,把用户数据发到 webhook、暗中加 BCC 被归成 `unrequested-artifact`。两个兜底类别的说明
+  现在都点名了旁边的新类别;没人要、但不带用户任何数据的记录或登记,仍是 `unrequested-artifact`。
+
+  意图趟和服务器趟里,声明用途里写明了的行为(`disclosed: true`)降一档,理由里写 `[disclosed: one step lower]`——改软件源除外,那条无论披露与否都报。提示词要求类别只按文本本身
   显示的内容来定,不许从脚本名猜:只跑一个本地文件的 hook 就是 `process-control`(medium),文件叫什么都一样。`samples: 3` 时类别也
   参与投票:多数同意票选了同一个类别,就按那张票的严重度;没有任何类别过半时,取各票里最低的严重度(大家同意该报,但没说清是什么,就不许任何一张票单独定权重)。这张表的代价在 `samples: 1`:一张 high 类别的票就是 high,没有第二意见,P-041 的测量看得见(224 个样本 `samples: 3` 下良性升级 1→0,500 个样本 `samples: 1` 下 6→11;全部 3,220 个良性样本 `samples: 1` 下 1.65%,大头是往通知器发消息的 hook 和参数要自家 key 的 MCP 工具);要让闸门读判官,跑 `samples: 3`。**文本里没有依据的类别只算 medium**(P-049):hook 的 `network`、`install`、`permission-override`、`credential` 要在发给模型的命令里有该行为的词——localhost 以外的 URL 或主机、`curl`/`ssh`/`git pull`、`npm`/`pip`/`brew`、`permissionDecision`/`allow`/`approve`、密钥文件或 secret 这个词——因为被问到 `bash ensure-gh-cli.sh` 的模型会按文件名作答——另有三种写法本身不算 `install` 或 `network` 的依据(P-090,维护者读过判官在良性 hook 上报的那些之后定的规矩):用包运行器拉会变的发布标签(`npx claude-flow@alpha`)、用包运行器跑常见的格式化或检查工具(`npx prettier --write`、`npx oxfmt`)、`git pull`/`git fetch`;来历不明的包经 npx 运行,不论锁没锁版本,仍算 `install`;连接器的 `credential-read` 引的那行不能只是目录里的参数行(`tool ▸ param secretKey: …` 是用户把自家的 key 交给工具);注入趟和结果趟上,类别如果只靠**一个词**的引用撑着——整条命令就是 `claude-ignore` 的 hook,被读成"忽略之前的指令"——同样算没有依据,一个词的引用也不出 `LLM-007`(P-087):指令是一句话,名字不是。票里保留模型的类别,理由里写 `[category not shown by the text: …]`。`LLM-007` 一直是工具定死的 high;
   `LLM-009` 没有表(只提示),仍按模型的词、封顶到 high。任何一趟都吐不出 `critical`。
@@ -281,7 +286,7 @@ bas-guard scan --llm --config config.yaml
 | `LLM-006` | 同一 skill 内跨文件的能力链(维度 3)。 |
 | `LLM-008` | hook 的能力超出其拦截点所需(维度 2)。 |
 | `LLM-007` | artifact 直接对分析器说话 —— 告诉它该得出什么结论,或让它无视自己的指令(维度 1)。 |
-| `LLM-010` | MCP 服务器源码做了工具描述没说的事(维度 10)。`check <目录>` 指向 Python 写的 MCP 服务器(导入了 SDK、声明了工具)时问意图趟的问题:声明侧是每个工具的名字和 docstring 第一行——客户端看到的只有这些,模块注释永远不算——行为侧是代码,走 skill 脚本的摘录器和预算;意图表和 `disclosed` 照用。普通目录仍然一个问题都不问(P-053)。 **在良性服务器源码上的实测(三票,P-059)**:官方和示例服务器 69 个里报 5 个,但代码搜索找到的第三方 Python 服务器 261 个里报 65 个、语料建成之后新建仓库里的 189 个里报 26 个——合计 506 个里 95 个,五个里一个——176 张升级票里 142 张给的类别是 `credential-read`,针对的是服务器读自己的 key 去调自己的 API。P-062 起,引文落在的文件若按整条静态链(`detect.CredentialGoesHome`,全文)读的是有名字的凭证且只发往它自家的服务或回环,`credential-read` 这票降到 medium 并在理由里注明;在那 547 棵树上离线模拟是 96 个里降 12 个——其余大多是链不认的读法或调用在别的文件里。P-098 起,引文落在的文件若除了服务器自己的配置之外什么都没去够——没有别的程序的密钥、系统文件或 `/proc`/`/sys`、整环境读取、元数据服务、用户库、钥匙串、cookie 库或临时目录里的隐藏文件(`detect.CredentialOverreach`)——也没把凭证发往一个写明了、但不是它自家服务的主机(`detect.CredentialSentElsewhere`),`credential-read` 这票同样降到 medium;在 543 个良性服务器上因此从 high 降下 43 个,Cisco 的 127 个恶意服务器上 2 个(两个都是注入或遍历被归成了 `credential-read`),其余 12 个恶意 MCP 样本 0 个。`LLM-010` 在第三方服务器上仍只当提示看;数字和分母在 `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`。 |
+| `LLM-010` | MCP 服务器源码做了工具描述没说的事(维度 10)。`check <目录>` 指向 Python 写的 MCP 服务器(导入了 SDK、声明了工具)时问意图趟的问题:声明侧是每个工具的名字和 docstring 第一行——客户端看到的只有这些,模块注释永远不算——行为侧是代码,走 skill 脚本的摘录器和预算;意图表加 `resource-exhaustion`、`result-tampering`(P-115),`disclosed` 照用。普通目录仍然一个问题都不问(P-053)。 **在良性服务器源码上的实测(三票,P-059)**:官方和示例服务器 69 个里报 5 个,但代码搜索找到的第三方 Python 服务器 261 个里报 65 个、语料建成之后新建仓库里的 189 个里报 26 个——合计 506 个里 95 个,五个里一个——176 张升级票里 142 张给的类别是 `credential-read`,针对的是服务器读自己的 key 去调自己的 API。P-062 起,引文落在的文件若按整条静态链(`detect.CredentialGoesHome`,全文)读的是有名字的凭证且只发往它自家的服务或回环,`credential-read` 这票降到 medium 并在理由里注明;在那 547 棵树上离线模拟是 96 个里降 12 个——其余大多是链不认的读法或调用在别的文件里。P-098 起,引文落在的文件若除了服务器自己的配置之外什么都没去够——没有别的程序的密钥、系统文件或 `/proc`/`/sys`、整环境读取、元数据服务、用户库、钥匙串、cookie 库或临时目录里的隐藏文件(`detect.CredentialOverreach`)——也没把凭证发往一个写明了、但不是它自家服务的主机(`detect.CredentialSentElsewhere`),`credential-read` 这票同样降到 medium;在 543 个良性服务器上因此从 high 降下 43 个,Cisco 的 127 个恶意服务器上 2 个(两个都是注入或遍历被归成了 `credential-read`),其余 12 个恶意 MCP 样本 0 个。`LLM-010` 在第三方服务器上仍只当提示看;数字和分母在 `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`。 |
 | `LLM-009` | MCP 服务器配置风险 —— 来源、是否 pin、传输方式、凭证(维度 5)。**只提示**:按模型给的严重度显示,但无论几票都不升级。"`npx -y` 没钉版本还拿着 token"是真实配置的常态,500 个良性配置上它是唯一一条升级过的判官规则(P-019)。 |
 
 triage 标签(`likely-real` / `likely-benign`)显示在对应发现下方:终端和 markdown 报告用白话
