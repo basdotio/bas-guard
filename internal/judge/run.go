@@ -637,7 +637,7 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 		// An MCP server's source (P-053): the tools' docstrings are the only description a client
 		// sees, the code is what runs. The intent question, with the skill passes' walker and caps.
 		declared, declaredUnits := serverDeclared(a.Path, eg)
-		behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
+		behavior, behaviorUnits := behaviorExcerptSkipping(a.Path, eg, serverSkipDirs)
 		if behavior != "" {
 			ask(Request{Mode: ModeServer, Declared: declared, Behavior: behavior}, append(declaredUnits, behaviorUnits...))
 		}
