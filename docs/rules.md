@@ -184,7 +184,7 @@ and never trips `--fail-on`.
 | ID | Severity | Title | Why it fires |
 |---|---|---|---|
 | `LLM-001` | medium · advisory | Intent mismatch | The declared purpose and what the scripts actually do do not line up. The severity is the tool's, from the category the model names (exfiltration, credential read, remote execution, safety disable, concealed directive, software source, persistence, file deletion, privilege → high; other → medium), one step lower when the declared purpose states the behaviour, except a changed software source. |
-| `LLM-010` | medium · advisory | MCP server source does more than its tools say | The server-source pass (P-053): `check <dir>` on an MCP server's source — a Python file importing mcp or fastmcp and declaring tools — asks whether the tools do more than their docstrings say, with the intent pass's category table; the module docstring is never the declared side. Runs on kind server only; a plain directory is still asked nothing. |
+| `LLM-010` | medium · advisory | MCP server source does more than its tools say | The server-source pass (P-053): `check <dir>` on an MCP server's source — a Python file importing mcp or fastmcp and declaring tools, or (P-116) a TypeScript/JavaScript file importing @modelcontextprotocol/sdk or fastmcp and building a server or declaring a tool — asks whether the tools do more than their docstrings or description strings say, with the intent pass's category table; the module docstring is never the declared side. Runs on kind server only; a plain directory is still asked nothing. |
 
 ## Scan notes (dimension 0)
 

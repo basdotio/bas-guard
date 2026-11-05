@@ -54,7 +54,7 @@ userinfo 整段、每个 query 值、fragment 换成 `<REDACTED>`,再过 `Secret
 **趟数按 artifact 种类选**(`judge/run.go` 里的 mode 表,不是固定四趟):injection(`LLM-003`,
 维度 1,跑 skill/CLAUDE.md/subagent/command/hook)、intent(`LLM-001`,维度 10,仅 skill)、
 deobfuscation(`LLM-004`,维度 6,**只解码、绝不执行**)、collusion(`LLM-006`,维度 3)、
-hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
+hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;**P-116 起认 TS/JS 服务器**(`tsServerImport`+`tsServerTool`,声明侧 `tsDeclared`):**导入和建服务器/声明工具必须在同一个文件**,别放宽成"哪个文件提到 SDK 就算"——只用 SDK 的客户端会被当成服务器;探测走**扫描名单**(`ExcludeFromScan`,`dist/` 照读),别换成哈希名单;TS 声明只在 Python 一行都没读出时才用,Python 服务器的声明侧因此逐字节不变(802 棵 `llm preview` 双二进制核过);`tsDeclared` 吃作者的字节,配了 fuzz,改它要跑;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
 因为 500 个良性配置上它是唯一升级过的判官规则,P-019)、triage(仅展示用的标签)。
 `LLM-007`(artifact 试图指挥分析器,维度 1)的严重度由工具定死。**其余各趟的严重度自 P-041 也由工具定**:`severity.go` 的
 `categoryTables` 按 (趟, 类别) 查,模型只能从提示词列出的封闭名单里选 `category`,不认识的名字一律 medium;意图趟多一个 `disclosed`,
