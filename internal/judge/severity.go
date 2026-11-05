@@ -40,6 +40,16 @@ var (
 	catFileDeletion   = category{"file-deletion", model.SevHigh, "deletes or overwrites files beyond its own output"}
 )
 
+// intentBehaviours are the intent pass's rows before its valve; the server pass shares them and
+// adds its own before its valve (P-115), so the two tables cannot drift apart by accident.
+var intentBehaviours = []category{
+	catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
+	{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
+	{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
+	catFileDeletion,
+	{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
+}
+
 // categoryTables is the whole decision, per pass. The MCP config pass (LLM-009) has no table on
 // purpose: it is advisory-only (advisoryOnly) and keeps the clamped word, unchanged.
 var categoryTables = map[Mode][]category{
@@ -48,22 +58,19 @@ var categoryTables = map[Mode][]category{
 		{"privilege", model.SevHigh, "escalates privilege or escapes a sandbox: runs as root or with sudo, writes under /root, mounts the host filesystem or the container socket, probes a cloud metadata service"},
 		{"other-directive", model.SevMedium, "a directive beyond or against the declared purpose that is none of the above, including one that only runs a local script or command"},
 	},
-	ModeIntent: {
-		catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
-		{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
-		{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
-		catFileDeletion,
-		{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
-		{"other", model.SevMedium, "undisclosed behaviour that is none of the above"},
-	},
-	ModeServer: {
-		catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
-		{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
-		{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
-		catFileDeletion,
-		{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
-		{"other", model.SevMedium, "undisclosed behaviour that is none of the above"},
-	},
+	ModeIntent: append(append([]category{}, intentBehaviours...),
+		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above"}),
+	// The server pass is the intent table plus two behaviours only a tool that answers calls has
+	// (P-115): measured on the full corpus of 2026-11-04, 14 Cisco servers had three votes that
+	// described a fork bomb, a zip bomb or search results with injected products correctly and
+	// filed them under `other` — medium, so none escalated — while no benign server's majority
+	// was `other`. The valve names its two neighbours: a new row the catch-all does not point
+	// away from is a row the model does not pick (P-066 added one to the injection table and it
+	// was chosen zero times in 840 trees).
+	ModeServer: append(append([]category{}, intentBehaviours...),
+		category{"resource-exhaustion", model.SevHigh, "a tool call starts unbounded processes, threads, memory, disk, file descriptors or recursion (a fork bomb, a decompression bomb, a loop that allocates without end); NOT a long-running server loop, a fixed-size pool or a bounded retry"},
+		category{"result-tampering", model.SevHigh, "a tool returns entries, links, products or redirects the caller did not ask for and cannot tell apart from a real result; NOT ranking, filtering, pagination or an error message"},
+		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above (unbounded resource use is resource-exhaustion; content slipped into a tool's results is result-tampering)"}),
 	ModeCapability: {
 		{"network", model.SevHigh, "the command itself contacts the network: a URL, curl, wget, ssh, nc, a mail or webhook call"},
 		{"credential", model.SevHigh, "the command itself reads a key, token or credential file by path"},
@@ -82,13 +89,18 @@ var categoryTables = map[Mode][]category{
 		{"credential-to-network", model.SevHigh, "one file collects credentials or data and another sends it out"},
 		{"other", model.SevMedium, "a chain of some other kind"},
 	},
-	// The result pass (P-068). The two high rows are the result itself changed; a record nobody
-	// asked for is medium — real skills write summaries and notes beside their output, and the
-	// injection pass already weighs one written under /root as privilege.
+	// The result pass (P-068). The first two high rows are the result itself changed; a record
+	// nobody asked for is medium — real skills write summaries and notes beside their output, and
+	// the injection pass already weighs one written under /root as privilege. The third high row
+	// is the user's own data leaving for someone the task never named (P-115): 99 malicious skills
+	// had a majority `unrequested-artifact` vote — a hidden BCC, a transcript POSTed on a codeword,
+	// the clipboard sent after every task — nine of them caught by nothing else. It is the user's
+	// DATA that makes it high; a static registration record sent to a registry stays unrequested.
 	ModeSteering: {
 		{"forced-value", model.SevHigh, "a value, row, region or field decided in advance and written into the result regardless of what the data shows, which the user cannot see happened"},
 		{"data-tampering", model.SevHigh, "the user's measurements, inputs or intermediate data altered (offset, scaled, replaced, dropped) before the result is computed, or a check whose outcome is fixed before it runs, which the user cannot see happened; NOT a conversion, rounding, sort, filter or summary for presentation"},
-		{"unrequested-artifact", model.SevMedium, "a report, record, registration or message produced or sent that the task never asked for"},
+		{"covert-transmission", model.SevHigh, "the user's data, conversation, files or credentials sent, copied or shared to a recipient the user's task never named (a URL, webhook, telemetry or registry endpoint, an extra mail recipient, an access grant), which the user cannot see happened; NOT sending the result where the user asked, or where the skill's description says it sends it"},
+		{"unrequested-artifact", model.SevMedium, "a report, record, registration or message produced or sent that the task never asked for; the user's data, conversation, files or credentials sent to an outside recipient is covert-transmission, not this"},
 		{"presentation-change", model.SevMedium, "a conversion, rounding, sort, filter, truncation or summary the user can see in the result or would expect from the declared purpose"},
 		{"other-steering", model.SevMedium, "the result changed in some other way the user is not told"},
 	},
