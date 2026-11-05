@@ -132,6 +132,17 @@ func severityFor(m Mode, v Verdict) model.Severity {
 	return sev
 }
 
+// disclosureLowered reports whether severityFor took the disclosure step for this verdict: the
+// same answer without `disclosed` would be higher. The finding's reason says so (P-115).
+func disclosureLowered(m Mode, v Verdict) bool {
+	if !v.Disclosed {
+		return false
+	}
+	undisclosed := v
+	undisclosed.Disclosed = false
+	return severityFor(m, v).Rank() < severityFor(m, undisclosed).Rank()
+}
+
 // oneStepLower: high → medium → low; low stays low.
 func oneStepLower(s model.Severity) model.Severity {
 	switch s {

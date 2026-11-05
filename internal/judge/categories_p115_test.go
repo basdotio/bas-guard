@@ -2,6 +2,7 @@
 package judge
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -128,5 +129,54 @@ func TestCategoryPrompt_CatchAllsPointAway(t *testing.T) {
 				t.Errorf("mode %d: the %q row does not point at %q: %s", c.mode, c.valve, n, what)
 			}
 		}
+	}
+}
+
+// TestDisclosedLowering_IsAnnotated: a finding the disclosure step lowered says so in its reason,
+// like the other two downgrades; one it did not lower carries nothing new. Both directions, and
+// end to end through Run on a skill (intent lowered, injection untouched by the same reply).
+func TestDisclosedLowering_IsAnnotated(t *testing.T) {
+	const mark = "[disclosed: one step lower]"
+	cases := []struct {
+		mode      Mode
+		category  string
+		disclosed bool
+		want      bool
+	}{
+		{ModeIntent, "credential-read", true, true},
+		{ModeIntent, "credential-read", false, false},
+		{ModeIntent, "other", true, true},            // medium → low is a step too
+		{ModeIntent, "software-source", true, false}, // exempt: no step taken
+		{ModeServer, "resource-exhaustion", true, true},
+		{ModeServer, "remote-execution", false, false},
+		{ModeInjection, "exfiltration", true, false}, // no disclosure notion on this pass
+		{ModeSteering, "covert-transmission", true, false},
+		{ModeCapability, "network", true, false},
+	}
+	for _, c := range cases {
+		f := finding(Request{Mode: c.mode, Artifact: "skill:x"}, Verdict{Flagged: true, Category: c.category, Disclosed: c.disclosed, Summary: "does a thing"})
+		if f == nil {
+			t.Fatalf("mode %d: no finding", c.mode)
+		}
+		if got := strings.Contains(f.Why, mark); got != c.want {
+			t.Errorf("mode %d %q disclosed=%v: annotated=%v, want %v (%q)", c.mode, c.category, c.disclosed, got, c.want, f.Why)
+		}
+	}
+	// An empty summary falls back to the rule text; the mark still follows it.
+	if f := finding(Request{Mode: ModeIntent}, Verdict{Flagged: true, Category: "exfiltration", Disclosed: true}); !strings.HasSuffix(f.Why, mark) {
+		t.Errorf("fallback reason lost the mark: %q", f.Why)
+	}
+
+	arts := skillTree(t, 1)
+	Run(context.Background(), categoryClient(Verdict{Flagged: true, Category: "exfiltration", Disclosed: true, Summary: "sends the repo out"}), arts, Options{Concurrency: 1, Samples: 3})
+	intent, inj := findingByRule(arts[0], "LLM-001"), findingByRule(arts[0], "LLM-003")
+	if intent == nil || inj == nil {
+		t.Fatalf("want LLM-001 and LLM-003: %+v", arts[0].Findings)
+	}
+	if intent.Severity != model.SevMedium || !strings.Contains(intent.Why, mark) {
+		t.Errorf("intent, disclosed exfiltration: %s %q; want medium and the mark", intent.Severity, intent.Why)
+	}
+	if inj.Severity != model.SevHigh || strings.Contains(inj.Why, mark) {
+		t.Errorf("injection, same reply: %s %q; want high and no mark", inj.Severity, inj.Why)
 	}
 }
