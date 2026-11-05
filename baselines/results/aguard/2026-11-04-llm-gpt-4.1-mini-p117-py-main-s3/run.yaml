@@ -1,0 +1,87 @@
+# Written by baselines/cmd/baseline. Read baselines/README.md before citing any
+# figure produced alongside this file.
+#
+# measured by agent-guard's own adapter (agent-guard baselines/adapter/aguard), threshold "high" chosen by us, placement: by content, into a fake home; unplaceable trees are handed to `check` directly. EXTRA ARGS: --llm --config /Users/lewisqin/Projects/bascan/agent-guard-repo/agent-guard-work/judge-s3.yaml — the verdicts below fold deterministic findings only and are unaffected; anything these flags added lives in raw/ and is not committed, except what the judge cost, which run.yaml sums under judge_usage
+
+tool: aguard
+tool_version: bas-guard v0.33.1-3-g5a18a6db (commit 5a18a6d, built 2026-11-04T02:13:35Z) · reputation entries=18 · rules=717ada4c680b · judge-prompt=b851dfd5412b · judge-excerpt=9
+threshold: high
+tool_extra_args:
+    - --llm
+    - --config
+    - /Users/lewisqin/Projects/bascan/agent-guard-repo/agent-guard-work/judge-s3.yaml
+check_llm: true
+uploads_samples: true
+uploads_samples_basis: 'this run passed --llm to aguard: redacted excerpts of every judged artifact were sent to the endpoint named in the judge config. The verdicts fold deterministic findings only, so verdicts.jsonl and the scorecard are unaffected; what the judge found exists only in raw/ (kept as a release asset, never in the tree) and is folded by baselines/cmd/judgefold, and what it cost is summed under judge_usage.'
+corpus_commit: c314e4d9
+started_at: 2026-11-04T02:17:31.034471Z
+adapter: agent-guard baselines/adapter/aguard
+placement: by content, into a fake home; unplaceable trees are handed to `check` directly
+provisional: false
+counts:
+    scored: 5272
+    no_verdict: 0
+    error: 0
+work_list_size: 5272
+judge_usage:
+    basis: reported
+    basis_note: 'summed from the tool''s own counts: every sample with a judge summary reported triage_calls and retries. Questions asked = (calls - triage_calls) / the judge''s samples setting, exact only when skipped is 0'
+    reported_samples: 4971
+    derived_samples: 0
+    calls: 44094
+    failed: 27
+    skipped: 0
+    repaired: 761
+    reasked: 182
+    triage_calls: 1482
+    retries: 0
+    prompt_tokens: 70907328
+    completion_tokens: 16535697
+    cached_prompt_tokens: 21733888
+    usage_by_pass:
+        capability:
+            calls: 2937
+            prompt_tokens: 2559402
+            completion_tokens: 215251
+        collusion:
+            calls: 45
+            reasked: 2
+            prompt_tokens: 64907
+            completion_tokens: 7051
+            cached_prompt_tokens: 25088
+        deobfuscation:
+            calls: 6
+            prompt_tokens: 4536
+            completion_tokens: 489
+        injection:
+            calls: 15768
+            reasked: 83
+            prompt_tokens: 28558458
+            completion_tokens: 9625761
+            cached_prompt_tokens: 9854080
+        intent:
+            calls: 10158
+            reasked: 33
+            prompt_tokens: 12286994
+            completion_tokens: 1242160
+            cached_prompt_tokens: 1646592
+        mcp-config:
+            calls: 1176
+            prompt_tokens: 678891
+            completion_tokens: 80677
+        result:
+            calls: 10116
+            reasked: 36
+            prompt_tokens: 20807005
+            completion_tokens: 4169426
+            cached_prompt_tokens: 8905088
+        server:
+            calls: 2406
+            reasked: 28
+            prompt_tokens: 4987421
+            completion_tokens: 1104934
+            cached_prompt_tokens: 1303040
+        triage:
+            calls: 1482
+            prompt_tokens: 959714
+            completion_tokens: 89948

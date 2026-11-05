@@ -513,6 +513,18 @@ func boundedRedact(s string, max int, eg egress) string {
 // actually shown, so a unit holding text that never got sent would ground a claim about
 // something the model could not have seen.
 func behaviorExcerpt(dir string, eg egress) (string, []sourceUnit) {
+	return behaviorExcerptSkipping(dir, eg, nil)
+}
+
+// serverSkipDirs are left out of a server's behaviour excerpt, not of a skill's (P-117): a GitHub
+// workflow runs on GitHub when the repository publishes, not where the server is installed, and the
+// server pass asks what the server does. Measured on the corpus's server trees, the only `.github/`
+// citations at high were benign (a publish workflow's npm token read as exfiltration or a changed
+// software source). The rules still read `.github/`.
+var serverSkipDirs = map[string]bool{".github": true}
+
+// behaviorExcerptSkipping is behaviorExcerpt with directories, by name, left out of the walk.
+func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (string, []sourceUnit) {
 	var units []sourceUnit
 	total := 0
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -520,7 +532,7 @@ func behaviorExcerpt(dir string, eg egress) (string, []sourceUnit) {
 			return nil
 		}
 		if d.IsDir() {
-			if collect.ExcludedFromScan(d.Name()) {
+			if collect.ExcludedFromScan(d.Name()) || (p != dir && skip[d.Name()]) {
 				return filepath.SkipDir
 			}
 			return nil

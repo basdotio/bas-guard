@@ -1,0 +1,5 @@
+{"sample":"ben-mcp-gh-mohan-c0des-mcp-alexa","path":"corpus/benign/mcp/gh-mohan-c0des-mcp-alexa","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-nobanks-qloo-mcp-qloo-mcp","path":"corpus/benign/mcp/gh-nobanks-qloo-mcp-qloo-mcp","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-pranesh-2005-mcp-client","path":"corpus/benign/mcp/gh-pranesh-2005-mcp-client","class":"benign","surface":["mcp"]}
+{"sample":"mal-mcp-ci-result_poisoning_data_injection","path":"corpus/malicious/mcp/ci-result_poisoning_data_injection","class":"malicious","surface":["mcp"],"severity":"high"}
+{"sample":"mal-mcp-ci-template_command_injection","path":"corpus/malicious/mcp/ci-template_command_injection","class":"malicious","surface":["mcp"],"severity":"high"}
