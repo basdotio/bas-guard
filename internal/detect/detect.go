@@ -1390,7 +1390,8 @@ func readCapped(path, relBase string) ([]byte, *model.Finding) {
 }
 
 // MCPServerKey is the key an MCP artifact's server sits under in the server map of a.Path — its
-// `mcpServers`, or the top level of a plugin file without the wrapper (mcpServerMap, P-029). The
+// `mcpServers`, the top level of a plugin file without the wrapper (P-029), or a project's
+// `mcpServers` in a .claude.json (P-119); see mcpServerMap. The
 // rule engine, the content hash and the LLM judge all find the entry through it, so the three
 // cannot be reading different entries.
 //
@@ -1408,7 +1409,7 @@ func MCPServerKey(a model.ArtifactReport) string {
 	if a.MCPServer != "" {
 		return a.MCPServer
 	}
-	if _, ok := mcpEntry(a.Path, a.MCPUnwrapped, ""); ok {
+	if _, ok := mcpEntry(a, ""); ok {
 		return ""
 	}
 	return a.Name

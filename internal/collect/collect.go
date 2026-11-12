@@ -421,7 +421,7 @@ func CollectAll(root string) Result {
 
 	// The root's own MCP configs, under every spelling of the root; see RootMCPConfigs.
 	for _, p := range RootMCPConfigs(root, home) {
-		rm, rmn := mcpServersFrom(p, "", &res.Env)
+		rm, rmn := rootMCPServers(p, &res.Env)
 		res.Artifacts = append(res.Artifacts, rm...)
 		res.Notes = append(res.Notes, rmn...)
 	}
@@ -637,11 +637,11 @@ func collectNestedSkills(dir, home, group string, extraDepth int, env *model.Env
 }
 
 func collectMCP(home string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
-	return mcpServersFrom(filepath.Join(home, ".claude.json"), "", env)
+	return claudeJSONServers(filepath.Join(home, claudeJSONName), env)
 }
 
 // rootMCPFiles are the MCP configs read at the top of the ROOT as well as in home, in home's order.
-var rootMCPFiles = []string{".claude.json", ".mcp.json"}
+var rootMCPFiles = []string{claudeJSONName, ".mcp.json"}
 
 // RootMCPConfigs returns the MCP configs at the top of root that CollectAll reads besides home's: each
 // of rootMCPFiles that is there and is not the very file home's copy is (a symlink to it, or a root
