@@ -166,16 +166,16 @@ func hookHashInput(root string, h model.Hook) (string, []byte, bool) {
 	return domainHook, canon, ok
 }
 
-// mcpHashInput: the server's whole entry in its server map — under mcpServers, or at the top level
-// of a plugin file without the wrapper (P-029). The canonical form is the entry alone, so the same
-// server hashes the same whichever layout holds it.
+// mcpHashInput: the server's whole entry in its server map — under mcpServers, at the top level of a
+// plugin file without the wrapper (P-029), or under a project of a .claude.json (P-119). The canonical
+// form is the entry alone, so the same server hashes the same whichever layout or scope holds it.
 func mcpHashInput(a model.ArtifactReport, docs map[string]configDoc) (string, []byte, bool) {
 	key := MCPServerKey(a) // the entry the rules scanned, a plugin's server and the "" key included
 	top, ok := readConfigDoc(a.Path, docs)
 	if !ok {
 		return "", nil, false
 	}
-	raw, ok := mcpServerMap(top, a.MCPUnwrapped)[key]
+	raw, ok := mcpServerMap(top, a)[key]
 	if !ok {
 		return "", nil, false
 	}

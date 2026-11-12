@@ -196,6 +196,12 @@ type ArtifactReport struct {
 	// layout, so every artifact built without saying otherwise reads as before. Scan input,
 	// never serialized.
 	MCPUnwrapped bool `json:"-"`
+	// MCPProject is set for a server declared in local scope, the default of `claude mcp add`: the key
+	// under `projects` in Path (a .claude.json) whose `mcpServers` holds it, and the directory Claude
+	// Code starts it in. The entry is then projects[MCPProject].mcpServers[MCPServer] (P-119). The zero
+	// value is the top-level map, so every artifact built without saying otherwise reads as before; a
+	// project keyed "" is never collected, since no session runs in it. Scan input, never serialized.
+	MCPProject string `json:"-"`
 	// Advisory carries DISPLAY-ONLY annotations (e.g. LLM triage labels, spec §5.2.1). They
 	// reference findings by RuleID but NEVER alter them — findings and Score are computed
 	// only from Findings. Advisory annotations can't move the score or the --fail-on gate.
