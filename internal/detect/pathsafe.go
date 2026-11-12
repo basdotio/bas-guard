@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/basdotio/bas-guard/internal/collect"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // anchorRoot is the one spelling of the scan root every path check in this package sees. The
@@ -22,6 +23,17 @@ import (
 // always were — inBoundary, at check time (invariant #2: resolve, then check). This used to be a
 // private copy of that function, and ContentHashes kept a second one.
 func anchorRoot(root string) string { return collect.AnchorRoot(root) }
+
+// resolveRoot is the root a's script references resolve against: the config root its settings file
+// was read under when a `check` target declared it (model.ArtifactReport.ConfigRoot, P-120), else the
+// scan's. Run and ContentHashes both ask it, so the rules and the hash follow the same script — the
+// one `scan --root <that config root>` follows, and so the same identity.
+func resolveRoot(root string, a model.ArtifactReport) string {
+	if a.ConfigRoot != "" {
+		return anchorRoot(a.ConfigRoot)
+	}
+	return root
+}
 
 // inBoundary reports whether path, after resolving symlinks, stays under base — the
 // same §16.2 containment used by collect, applied here so the engine never reads a

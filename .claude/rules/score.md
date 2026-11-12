@@ -8,7 +8,8 @@ paths:
 ```
 单 artifact = clamp(100 − Σ_维度 max(严重度惩罚), 0, 100)   # critical 40 · high 25 · medium 12 · low 5
 总分        = 各单元分数的平均值,再套木桶封顶: 出现 critical → ≤49 · 出现 high → ≤69
-单元        = 一个 artifact;插件和它的子项(Plugin 指回它的 skill/命令/子 agent)是一个单元,发现合在一起算
+单元        = 一个 artifact;插件和它的子项(Plugin 指回它的 skill/命令/子 agent)是一个单元,发现合在一起算;
+              `check` 目标和它声明的配置(Within 指回目标的 hook/权限/env/MCP,P-120)同理
 风险等级    = ≥85 Low · ≥70 Watch · ≥50 Elevated · <50 High
 ```
 

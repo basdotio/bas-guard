@@ -367,3 +367,16 @@ func TestMarkdown_ReadingOrder(t *testing.T) {
 		t.Error("the disclosure belongs to the summary")
 	}
 }
+
+// TestTarget_IsNeverTheConfigurationItDeclares (P-120): `check ./.mcp.json` yields the file and, from
+// it, its servers — all at the target's own path. The report is about the file the user named; a
+// server read out of it (Within) is never taken for the target, whatever order the artifacts come in.
+func TestTarget_IsNeverTheConfigurationItDeclares(t *testing.T) {
+	file := model.ArtifactReport{Kind: model.KindInstruction, Name: ".mcp.json", Path: "/x/.mcp.json", Findings: []model.Finding{}}
+	server := model.ArtifactReport{Kind: model.KindMCP, Name: "notes", Path: "/x/.mcp.json", Within: ".mcp.json", Findings: []model.Finding{}}
+	r := model.ScanResult{Root: "/x/.mcp.json", Artifacts: []model.ArtifactReport{server, file}}
+	got, ok := target(r)
+	if !ok || got.Kind != model.KindInstruction {
+		t.Errorf("target = %s:%s (%v), want the file the user named", got.Kind, got.Name, ok)
+	}
+}

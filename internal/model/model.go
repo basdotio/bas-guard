@@ -220,6 +220,20 @@ type ArtifactReport struct {
 	// score.Families), and the gate's session start, `approve` and hygiene skip children — all by this
 	// field, never by parsing the " (plugin …)" name suffix, which a plugin author controls.
 	Plugin string `json:"plugin,omitempty"`
+	// Within is set on an artifact read out of the Claude Code configuration a `check` target declares
+	// (P-120): the hooks, permission lists, env block and MCP servers in the target's .claude/settings
+	// files, its own settings files and its .mcp.json, or in the one such file the target is. It holds
+	// the Name of the target's artifact, whose tree or bytes hold this one. Set by the collector, never
+	// by content. Like Plugin it makes the target and these one unit of the score and prints a finding
+	// both carry once (score.Families); unlike a plugin's children these carry findings the target's own
+	// row cannot (a grant's shape, an http hook, a preload in env), so nothing that skips plugin
+	// children skips them.
+	Within string `json:"within,omitempty"`
+	// ConfigRoot is set with Within on a hook or permission list: the directory its settings file sits
+	// in, anchored. A script the hook or grant names resolves against it as it does under
+	// `scan --root <that directory>` ($CLAUDE_PROJECT_DIR and ~ name its parent), so the content hash is
+	// the same either way; evidence is still named from the check target. Scan input, never serialized.
+	ConfigRoot string `json:"-"`
 }
 
 // ReputationMark names the reputation entry an artifact matched and what the match did.

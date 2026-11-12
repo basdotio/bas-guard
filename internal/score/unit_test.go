@@ -126,3 +126,32 @@ func TestFamilies_LinkByNameThenPath(t *testing.T) {
 		}
 	}
 }
+
+// TestFamilies_DeclaredConfigurationJoinsItsTarget (P-120): what a `check` target declares — its
+// settings' hooks and grants, its .mcp.json's servers — names the target in Within and joins its unit,
+// so clean configuration cannot dilute the tree's finding. The target is the artifact of that name that
+// is nobody's child; a name no target carries links nothing.
+func TestFamilies_DeclaredConfigurationJoinsItsTarget(t *testing.T) {
+	medium := model.Finding{RuleID: "EXEC-004", Dimension: 4, Severity: model.SevMedium, Source: model.SrcStatic,
+		Evidence: []model.Evidence{{File: "tool.py", Line: 2}}}
+	arts := []model.ArtifactReport{
+		{Kind: model.KindDirectory, Name: "repo", Path: "/w/repo", Findings: []model.Finding{medium}},
+		{Kind: model.KindHook, Name: "Stop[*]#1", Path: "/w/repo/.claude/settings.json", Within: "repo"},
+		{Kind: model.KindMCP, Name: "pw", Path: "/w/repo/.mcp.json", Within: "repo"},
+		{Kind: model.KindMCP, Name: "other", Path: "/w/x/.mcp.json", Within: "x"},
+		{Kind: model.KindHook, Name: "repo", Path: "/w/repo/settings.json", Within: "repo"},
+	}
+	f := Families(arts)
+	for i, want := range []int{-1, 0, 0, -1, 0} {
+		if got := f.Parent(i); got != want {
+			t.Errorf("Parent(%d) = %d, want %d", i, got, want)
+		}
+	}
+	r := model.ScanResult{Artifacts: arts[:3]}
+	Apply(&r)
+	alone := model.ScanResult{Artifacts: arts[:1]}
+	Apply(&alone)
+	if r.Overall != alone.Overall {
+		t.Errorf("overall = %d with clean configuration, %d without: the configuration diluted the target", r.Overall, alone.Overall)
+	}
+}

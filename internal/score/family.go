@@ -35,20 +35,32 @@ type Family struct {
 // child's Plugin names, and, when several plugin artifacts share that name, the one whose path holds
 // the child's. A child whose plugin is not in arts is an artifact of its own. Build it where it is used:
 // it reads the findings arts holds at that moment.
+//
+// The configuration a `check` target declares (P-120) is linked the same way, by the collector's Within
+// field: the target is the artifact of that Name that is nobody's child itself. Its findings join the
+// target's unit and a finding the target's row already shows is printed once; unlike a plugin's
+// children these carry findings the target's row cannot, which ShownByPlugin, comparing finding by
+// finding, leaves on their own rows.
 func Families(arts []model.ArtifactReport) Family {
 	f := Family{arts: arts, parent: make([]int, len(arts))}
-	byName := map[string][]int{}
+	plugins, targets := map[string][]int{}, map[string][]int{}
 	for i, a := range arts {
 		f.parent[i] = -1
 		if a.Kind == model.KindPlugin {
-			byName[a.Name] = append(byName[a.Name], i)
+			plugins[a.Name] = append(plugins[a.Name], i)
+		}
+		if a.Plugin == "" && a.Within == "" {
+			targets[a.Name] = append(targets[a.Name], i)
 		}
 	}
 	for i, a := range arts {
-		if a.Plugin == "" || a.Kind == model.KindPlugin {
-			continue
+		var cands []int
+		switch {
+		case a.Plugin != "" && a.Kind != model.KindPlugin:
+			cands = plugins[a.Plugin]
+		case a.Within != "":
+			cands = targets[a.Within]
 		}
-		cands := byName[a.Plugin]
 		for _, c := range cands {
 			if len(cands) == 1 || holds(arts[c].Path, a.Path) {
 				f.parent[i] = c
