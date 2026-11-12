@@ -339,7 +339,8 @@ Full reference: [`docs/llm-judge.md`](llm-judge.md).
 header of [`rules.md`](rules.md), generated from the code; any number restated here would be a
 stale copy), including the shape checks in `detect/shape.go` (padding, disguised archives,
 shipped bytecode, registry redirects), permission audit with the escapable-binary table,
-per-command hook artifacts that follow referenced scripts, plugin collection (both
+per-command hook artifacts that follow referenced scripts, MCP servers in both scopes a `.claude.json` holds (the
+top level, and each project's local scope, the default of `claude mcp add`; `collect.localScopeServersFrom`), plugin collection (both
 `installed_plugins.json`, Claude Desktop's own plugin/skill store in `collect/desktop.go`, and
 the sandbox's `synced/<uuid>/` layout; a plugin's skills, commands and agents are artifacts of
 their own, following Claude Code's loader, `collect/plugincontents.go`), remote MCP connectors read from the desktop's cached

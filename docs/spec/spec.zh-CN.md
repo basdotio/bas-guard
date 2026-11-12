@@ -75,7 +75,7 @@ bas-guard version                                         # 版本 + 与已装�
 | 类型 `ArtifactKind` | 来源路径 | 采集内容 |
 |---|---|---|
 | `skill` | `<root>/skills/*/SKILL.md` + 同目录脚本/资源 | frontmatter(name/description/allowed-tools/version)、脚本文件列表、bin/、node_modules 存在性。frontmatter 只认从文件第一个字节开始的那份,BOM 或空行之后的 `---` 是正文——Claude Code 就是这么读的(2.1.107 实测,P-024;子 agent、斜杠命令同一个解析器) |
-| `mcp` | `~/.claude.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。哈希 = 该条目的内容哈希(§8),不含 server 名与文件路径 |
+| `mcp` | `~/.claude.json`(设了 `CLAUDE_CONFIG_DIR` 时是 `<root>/.claude.json`)→ `mcpServers`(用户作用域)和 `projects["<目录>"].mcpServers`(本地作用域,`claude mcp add` 的默认,P-119);项目 `.mcp.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。本地作用域的每个项目都采(目录在不在都采,Claude Code 在那个目录里跑就启动它们),名字 `<key> (project <目录>)`,条目经 `MCPServer` + `MCPProject` 定位。哈希 = 该条目的内容哈希(§8),不含 server 名、项目目录与文件路径:同一份条目在哪个作用域都是同一个身份 |
 | `hook` | `<root>/settings.json` → `hooks` | 每条 hook 的 matcher + command(type=command),或 type=http 时的 matcher + url。HTTP hook 把完整事件 payload(工具输入、命令行、授权提示)POST 到该 url,仍是一等审计对象。哈希 = 内容哈希(§8):event + matcher + 整个条目 + 它跟进的脚本内容 |
 | `permission` | `<root>/settings.json` → `permissions.allow/deny`;另有一个同 kind、名为 `settings env` 的 artifact 承载 `env` 块(P-016,2026-09-23) | 规则条目原文;`env` 块渲染为 `KEY=VALUE` 行进全部规则,permcheck 不在它上面重跑。哈希 = 内容哈希(§8):整个 `permissions` 对象 + allow 引用的脚本内容;`env` 块单独一个域 |
 | `subagent` | `<root>/agents/*` | 定义文件全文 |

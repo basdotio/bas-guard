@@ -70,7 +70,7 @@ maintainer in review:
    none is still read whole with every rule. P-105 kept "a plain directory, read" out of its exit-4 rule for the same
    reason. Say so if the headline should still hedge for it.
 
-`rulesEpoch` 9 → 10: for the same input `check` now produces findings it did not.
+`rulesEpoch` 10 → 11 (P-119 merged first and took 10): for the same input `check` now produces findings it did not.
 
 ## Done criteria
 
