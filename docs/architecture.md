@@ -48,7 +48,10 @@ Four of those orderings are decisions, not sequence:
 - **`check` enters through layout routing, not through `scan`** —
   `collect.CollectTarget` decides most-specific-first: single file → `SKILL.md` → plugin
   manifest (the tree, plus its skills, commands and agents) → looks-like-a-root → any other
-  directory (read as one whole tree).
+  directory (read as one whole tree). A directory, and a file named `settings.json`,
+  `settings.local.json` or `.mcp.json`, are also read for the Claude Code configuration they declare —
+  in addition to the tree, never instead of it (`collect.withDeclared`, P-120); what that adds names the
+  target in `Within` and counts as one unit with it (`score.Families`).
 
 Each package is an approximately pure stage over the immutable types in
 [`internal/model`](../internal/model/model.go).

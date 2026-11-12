@@ -323,6 +323,10 @@ bas-guard scan --llm --config config.yaml
 - **插件**由规则按整棵树扫,它的组成部分还会各自再采一遍:skills、commands、子 agent(Claude Code 会加载的那些——所以
   `--llm` 会判它们;分数把插件和它的这些子项算作一项,两边都带的发现只印一次),hook 按 (event, command),MCP 按 server。
   它的 output style 和 manifest 里内联的命令只在树里当文本读;`check <插件>` 不像 `scan` 那样拆出它的 hook 和 MCP server。
+- **`check <目录>`** 把目录当一整棵树读,并**另外**用扫描用的那些读取器读它在顶层声明的 Claude Code 配置:
+  `.claude/settings.json` 和 `settings.local.json`(hook、权限授权、env)、它自己的 `settings*.json`,以及 `.mcp.json`;
+  `check ./.mcp.json` 和 `check <路径>/settings.json` 也把那个文件当配置读。分数把目录和这些配置算作一项。项目 `.claude`
+  下的 skill、子 agent、rule 作为树的一部分读,不逐个列;要逐个列用 `scan --root <仓库>/.claude`。
 - **hook 引用的脚本**只跟进一层,且只在 home 目录内读取。越界不读,并计分为 `HOOK-002`。
 - 配置 root 下**没有采集器认领的顶层目录不读** —— 真机上那些是你自己的会话记录、配置备份和 shell
   快照(`sessions/`、`history.jsonl`、`file-history/`),把它们读进报告等于用一个盲点换一次泄露。
