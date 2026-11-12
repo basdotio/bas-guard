@@ -64,7 +64,7 @@ paths:
 - **插件自带的 MCP server 是逐个 server 的 artifact**(`collect.collectPluginMCP` → `readMCPServers`,CLI/桌面版/synced 都过)。以前只当
   树里的文本读,`mcp=0`,setup 对装着 figma 插件的机器说"没有暴露"(2026-09-05 真机);闸门那句"插件的 MCP 不受门禁"只有数字不为零才有意义。
   **找条目一律经 `detect.MCPServerKey`,不按 `Name`**:名字带 ` (plugin …)` 后缀,按名字找是零 unit、干净的 100,本机 26 个插件 server
-  就这样一条规则、一次判官都没跑过(P-021)。key 是 `""` 时先认 `""` 再退回 `Name`,反过来就能拿一个以那个名字为 key 的良性诱饵顶替它。插件文件照 Claude Code 的 `doc.mcpServers || doc` 读(`pluginMCPServers`,外壳键区分大小写),无外壳的 server 记 `MCPUnwrapped`,条目一律经 `mcpServerMap` 取(P-029);**别把这个回退挪到用户级/项目级**:Claude Code 不认,`~/.claude.json` 顶层是设置,会凭空造 server。
+  就这样一条规则、一次判官都没跑过(P-021)。key 是 `""` 时先认 `""` 再退回 `Name`,反过来就能拿一个以那个名字为 key 的良性诱饵顶替它。插件文件照 Claude Code 的 `doc.mcpServers || doc` 读(`pluginMCPServers`,外壳键区分大小写),无外壳的 server 记 `MCPUnwrapped`,条目一律经 `mcpServerMap` 取(P-029);**别把这个回退挪到用户级/项目级**:Claude Code 不认,`~/.claude.json` 顶层是设置,会凭空造 server。本地作用域的 server(`MCPProject`,P-119)也经 `mcpServerMap` 取:`projects[MCPProject].mcpServers`;顶层同名的良性 server 是诱饵,不许被当成它扫(`TestDetect_LocalScopeMCPServerIsFoundInItsProject`)。
 - **桌面版的远程 connector 现在采了**([collect/connectors.go](../../internal/collect/connectors.go),2026-09-08)。这些是账号上挂的远程 MCP
   服务器(Figma/Notion/Slack…),我们**从不联网连它们**,读的是桌面版每次会话缓存在
   `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json` 里 `remoteMcpServersConfig` 那一段——服务器发来的

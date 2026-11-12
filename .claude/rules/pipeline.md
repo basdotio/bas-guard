@@ -74,6 +74,10 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   skill 被 `withinDir` 当成"指到 HOME 外"丢掉。也不要解析 root:`~/.claude → ~/dotfiles/claude` 的 home 会被挪走。**root 顶层的
   `.mcp.json`/`.claude.json` 照读**(`collect.RootMCPConfigs`,与 home 那份是同一个文件时不读两遍):放 skill 的仓库(CI 模板在顶层
   有 `skills/` 时)`scan --root .` 把仓库当 root,项目 MCP 配置就在那里;以前只有 `.` 因为 home == root 碰巧读到,绝对写法不读,而 `rootOwned` 声称读了(P-012)。
+  **`.claude.json` 有两个作用域,两个都读**(`collect.claudeJSONServers`,P-119):顶层 `mcpServers` 是用户作用域,`projects["<目录>"].mcpServers`
+  是本地作用域,而那是 `claude mcp add` 不带 `--scope` 时写的地方——以前只读顶层,默认方式加的 server 是 mcp=0、100 分。每个项目都读(不 stat
+  用户的目录),键 `""` 跳过;成员按**精确键**取(和 detect 的 `mcpServerMap` 一样,struct 解码会大小写不敏感地多采);名字带 ` (project <目录>)`,
+  **找条目一律经 `MCPServer` + `MCPProject`**,和插件 server 不按 `Name` 找是同一条理由。
 - **root 采集器是布局白名单,所以必须有人认领"剩下那一半"**
   ([collect/unowned.go](../../internal/collect/unowned.go))。`~/.claude/install.sh` 里写
   `curl | bash` + `rm -rf /`,以前扫出来是 **100/100 + "✅ No risk findings" + 退出码 0** ——

@@ -259,7 +259,8 @@ nonce 每个问题取一次、由它的几次采样共用,端点的提示词缓�
 
 **已完成且承重的**:10 个维度的静态检测(规则条数以 [`rules.md`](rules.md) 头部由代码生成的计数块为准,
 这里再写一个数就是会过期的副本),含 `detect/shape.go` 的形状检查(空行填充、伪装压缩包、随包字节码、改包源)、
-带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、plugin 采集(`installed_plugins.json`、
+带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、`.claude.json` 两个作用域里的 MCP server
+(顶层,以及每个项目的本地作用域——`claude mcp add` 的默认,`collect.localScopeServersFrom`)、plugin 采集(`installed_plugins.json`、
 Claude 桌面版自己的插件/skill 仓库 `collect/desktop.go`、以及沙箱的 `synced/<uuid>/` 布局;插件的 skill、命令、子 agent
 按 Claude Code 的加载规则各自成为 artifact,`collect/plugincontents.go`)、从桌面版缓存读取的远程 MCP
 connector 工具清单(`collect/connectors.go`,从不联网)与 `MCP-001..004` 投毒规则、沙箱识别(在 Claude Cloud / Cowork 里跑出的
