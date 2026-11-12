@@ -115,7 +115,7 @@ func ContentHashes(root string, arts []model.ArtifactReport) []model.ArtifactRep
 		if a.Hash != "" || hasParseError(a) {
 			continue
 		}
-		if domain, canon, ok := contentHashInput(root, a, docs); ok {
+		if domain, canon, ok := contentHashInput(resolveRoot(root, a), a, docs); ok {
 			out[i].Hash = contentDigest(domain, canon)
 		}
 	}
