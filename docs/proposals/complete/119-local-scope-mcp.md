@@ -129,7 +129,7 @@ None left open by the brief; see Decisions, which the maintainer can overturn in
 ## Done
 
 ```
-Merged: not yet (PR open; find the sha with git log --grep P-119 after the merge)
+Merged: not yet — PR #145 (find the sha with git log --grep P-119 after the merge)
 Released: (fill in after the release)
 Evidence: TestScan_LocalScopePreloadFailsTheGate (cmd/bas-guard/local_scope_mcp_test.go); the brief's repro,
   `scan --root $HOME/.claude --inbox off --fail-on high`: 100/100, mcp=0, exit 0 → 69/100, EXEC-010, exit 1;
