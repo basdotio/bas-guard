@@ -28,7 +28,8 @@ import (
 //   - a directory: <dir>/.claude/settings.json and settings.local.json — a project's, read as
 //     `scan --root <dir>/.claude` reads them — then <dir>/settings.json and settings.local.json (a
 //     config root with another name, the shape looksLikeRoot leaves to `scan --root`), then
-//     <dir>/.mcp.json;
+//     <dir>/.mcp.json, then the project's instruction files and what they import
+//     (declaredInstructions, P-125);
 //   - a file named settings.json, settings.local.json or .mcp.json: that file.
 //
 // Each file must be one the tree read may open (FileReach): a .claude or .mcp.json that is a symlink
@@ -85,6 +86,9 @@ func withDeclared(res Result, path string, isDir bool) Result {
 			a, n := mcpServersFrom(p, "", &env)
 			add(a, n, "")
 		}
+		known := append(append([]model.ArtifactReport{}, res.Artifacts...), arts...)
+		a, n := declaredInstructions(path, known)
+		add(a, n, "")
 	} else {
 		switch base := filepath.Base(path); base {
 		case projectMCPName:
@@ -108,6 +112,32 @@ func withDeclared(res Result, path string, isDir bool) Result {
 		Env:       env,
 		Notes:     append(append([]model.Finding{}, res.Notes...), notes...),
 	}
+}
+
+// declaredInstructions reads the instruction files of the project at dir, and what they import, by the
+// collector a scan of dir/.claude uses (P-125): instructionFiles names them — the project's CLAUDE.md and
+// CLAUDE.local.md and those of its .claude — and expandImports follows their `@` imports with home the
+// project, as it is for that scan. So an import is read, refused as a credential (EXFIL-005 on the file
+// that wrote it, a COV-000 note, nothing read) or left unread out of the project exactly as a scan
+// decides it. known are the artifacts already collected for the target; an import landing on one is not
+// read again.
+//
+// A tree read meets these files too, but as text: it does not follow an import, so a CLAUDE.md whose one
+// line is `@.env` loaded the project's secrets into every session and scored nothing under `check <repo>`.
+// A lone CLAUDE.md target is not expanded here: its boundary would be its directory, and the Downloads
+// pass checks loose files there, where an import would read a sibling that is not a candidate.
+func declaredInstructions(dir string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
+	var seeds []model.ArtifactReport
+	for _, c := range instructionFiles(filepath.Join(dir, projectDirName), dir) {
+		if isFile(c.path) && readableInTree(dir, c.path) {
+			seeds = append(seeds, artifact(model.KindInstruction, c.name, c.path, FileHash(c.path)))
+		}
+	}
+	if len(seeds) == 0 {
+		return nil, nil
+	}
+	seeds, imported, notes := expandImports(AnchorRoot(dir), seeds, known)
+	return append(seeds, imported...), notes
 }
 
 // readableInTree reports whether p exists and is a file the tree read of root may open (FileReach). An
