@@ -233,7 +233,10 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   low + advisory, because unrelated files legitimately do each half. A same-file chain whose
   every network target is loopback drops to that same band, so a local sidecar cannot cap the
   environment at 69. `HOOK-002` (script outside HOME) and `HOOK-003` (HTTP hook) are also
-  structural: they score a surface the line-oriented rules cannot see.
+  structural: they score a surface the line-oriented rules cannot see. `HOOK-003` has a command
+  half (`internal/detect/hookegress*.go`, P-128): a reading of the hook command and the shell,
+  Python or Node scripts it runs that follows the event (stdin), its content fields and the
+  transcript forward through one file to a sender — not an interpreter.
 - **Advisory means "we cannot confirm this."** Dimensions 7 and 8 are advisory by
   construction, and the report must say *not confirmed*. A tool that distinguishes suspicion
   from certainty is one you can put in CI.

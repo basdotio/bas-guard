@@ -60,9 +60,12 @@ inside the home directory so the scanner can follow it, or accept the unaudited 
 baseline it with a written reason. `PermissionRequest` on this shape is high — that hook
 takes allow/deny.
 
-`HOOK-003` is an HTTP hook. A loopback URL on an ordinary event is a local sidecar; confirm it.
-A non-loopback URL, or any URL on `PermissionRequest`, is the event stream (or the
-authorization decision) leaving the box — remove it unless that is what you intended.
+`HOOK-003` is a hook that sends what Claude Code hands it: an HTTP hook, or a command hook
+(or the script it runs) that sends its stdin, the prompt or a tool's input or output, or the
+transcript file. A loopback destination on an ordinary event is a local sidecar; confirm it.
+A non-loopback one, or any one on `PermissionRequest`, is the event stream (or the
+authorization decision) leaving the box — remove it unless that is what you intended. A
+notifier that only needs to say "done" can send a fixed message instead.
 
 If a hook is one the user did not add, that is the finding. Hooks are the surface where
 "I don't know where this came from" should stop the conversation and start an investigation.

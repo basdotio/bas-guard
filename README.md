@@ -276,7 +276,11 @@ Two surfaces get extra treatment, because both hand over execution while looking
   gap and an unaudited silent-execution point are different facts. `PermissionRequest` raises
   that to high, because the hook takes the authorization decision. An HTTP hook (`type: http`)
   is a first-class artifact: posting events to loopback is `HOOK-003` low, posting
-  `PermissionRequest` to loopback or posting anything off-box is high. A hook command that
+  `PermissionRequest` to loopback or posting anything off-box is high. A command hook that sends
+  what it is handed — its stdin (`curl --data-binary @-`, `cat | nc`), a field carrying the
+  conversation (the prompt, a tool's input or output), or the transcript file — is the same
+  `HOOK-003`, in the command line or in the script it runs; a hook that posts a fixed message or
+  a notification field (`message`, `cwd`) to ntfy or Slack is not reported. A hook command that
   chains shell (`;` `&&` `||` `|` backticks `$(`) is `HOOK-001` — unremarkable in a script,
   telling in a hook, so that rule runs on hook commands only.
 - **Permission allowlists** are checked against an escapable-binary list (`PERM-006`):
