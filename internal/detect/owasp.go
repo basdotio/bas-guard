@@ -68,6 +68,7 @@ var asiByRule = map[string][]string{
 	"INJ-003": {"ASI-01"},
 	"INJ-004": {"ASI-01"}, // hidden characters: concealment in service of a hijack
 	"INJ-005": {"ASI-01"}, // a fetched instruction file the agent acts on
+	"INJ-006": {"ASI-01"}, // text in tag characters: concealment in service of a hijack, as INJ-004
 	"OBF-005": {"ASI-01"}, // homoglyph disguise: same, by a different mechanism
 	// Connector tool-description poisoning: injection delivered through the tool list.
 	"MCP-001":   {"ASI-01", "ASI-02"},

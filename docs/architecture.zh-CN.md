@@ -43,6 +43,9 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   是硬要求。
 - **`check` 的入口是布局路由,不是 `scan`** —— `collect.CollectTarget` 按"从具体到宽泛"依次判定:
   单文件 → `SKILL.md` → plugin manifest(整树,外加它的 skill、命令、子 agent)→ 像 root → 其他目录(整棵树当一个 artifact 读掉)。
+  目录,以及名为 `settings.json`、`settings.local.json`、`.mcp.json` 的文件,还会读它们声明的 Claude Code 配置——**在整树之外另读,
+  绝不代替整树**(`collect.withDeclared`,P-120);读出来的 artifact 在 `Within` 里指回目标,和目标算一个单元(`score.Families`)。
+  目录的 `CLAUDE.md` 也这样另读,用的是扫描它的 `.claude` 时那份清单和那套 `@` 导入展开(`collect.declaredInstructions`,P-125)。
 
 每个包都是围绕 [`internal/model`](../internal/model/model.go) 中不可变类型的一个(近似)纯函数阶段。
 
@@ -178,7 +181,9 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
   [`logical.go, shape.go`](../internal/detect/logical.go) 会把行连接、零宽字符、切词用的引号(`cu""rl`)
   还原成一个归一化字符串用于匹配,而证据保留原始字节 —— 文件里写的是 `cu""rl`、报告里印
   `curl …`,等于把用户自己机器上的事实告诉错了。规则**先跑 raw,没命中才看 norm**,所以归一化
-  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。
+  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。Unicode tag 字符(U+E0000–E007F)
+  在 norm 里解码成它镜像的 ASCII,因为模型就是这么读的([`tags.go`](../internal/detect/tags.go),P-123):
+  用它写的一句话照样碰到每条规则;`INJ-006` 报 emoji 旗帜之外的任何 tag 字符,说明里印出解码后的隐藏文字。
 - **有些检查是结构化的,不是正则。** `EXFIL-001/002/003` 与 `OBF-004` 在**两个粒度**上累计三条腿:
   读凭证、编码、出网。**凑齐链只要两条腿**(凭证 + 出网),编码腿是**放大器**。跨文件只到
   low + advisory,因为不相关的文件本来就会各干一半。同一文件的链若所有网络目标都是回环地址,降到
@@ -259,7 +264,8 @@ nonce 每个问题取一次、由它的几次采样共用,端点的提示词缓�
 
 **已完成且承重的**:10 个维度的静态检测(规则条数以 [`rules.md`](rules.md) 头部由代码生成的计数块为准,
 这里再写一个数就是会过期的副本),含 `detect/shape.go` 的形状检查(空行填充、伪装压缩包、随包字节码、改包源)、
-带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、plugin 采集(`installed_plugins.json`、
+带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、`.claude.json` 两个作用域里的 MCP server
+(顶层,以及每个项目的本地作用域——`claude mcp add` 的默认,`collect.localScopeServersFrom`)、plugin 采集(`installed_plugins.json`、
 Claude 桌面版自己的插件/skill 仓库 `collect/desktop.go`、以及沙箱的 `synced/<uuid>/` 布局;插件的 skill、命令、子 agent
 按 Claude Code 的加载规则各自成为 artifact,`collect/plugincontents.go`)、从桌面版缓存读取的远程 MCP
 connector 工具清单(`collect/connectors.go`,从不联网)与 `MCP-001..004` 投毒规则、沙箱识别(在 Claude Cloud / Cowork 里跑出的

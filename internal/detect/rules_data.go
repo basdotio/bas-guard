@@ -126,13 +126,23 @@ func builtinRules() []Rule {
 		rule("INJ-002", 1, model.SevMedium, `disregard\s+(the\s+)?(system|developer)\s+prompt`, "Prompt injection: disregard system prompt", "Coaxes the agent to drop its safety constraints.", owaspInj),
 		rule("INJ-003", 1, model.SevMedium, `you\s+are\s+now\s+(a\s+)?(DAN|jailbroken|unrestricted)`, "Jailbreak persona switch", "Classic jailbreak / persona-override pattern.", owaspInj),
 		rule("INJ-004", 1, model.SevMedium, `\x{200b}|\x{200e}|\x{202e}|\x{feff}`, "Hidden / Unicode-steganography characters", "Zero-width / directional control characters are used to hide injected instructions.", owaspInj),
-		// INJ-005: curl/wget/fetch of a URL whose path is named like instructions — instructions, steps,
-		// commands, payload, tasks — as a FILE (a dot extension), so a REST `/command` endpoint on a local
-		// service does not match. A skill that fetches a remote instruction file acts on what it gets, so
-		// the file is remote injection: the author controls what the agent does, from a server, after
-		// install. The path token is what keeps it off ordinary fetches; on the corpus this matched
-		// 0 benign. It does not follow the URL — it flags the fetch, that is all.
-		rule("INJ-005", 1, model.SevHigh, `\b(curl|wget|fetch)\b[^\n|]*https?://[^\s"\x60]*\b(instructions?|steps|commands?|payload|tasks?)\.(md|txt|sh|bash|json|ya?ml|py|js)\b`, "Fetches remote instructions to act on", "The skill downloads a file named like instructions/steps/commands/payload from a remote URL. Whatever that file says, the agent is told to carry out — remote-controlled behaviour delivered after install.", owaspInj),
+		// INJ-005: the agent is made to fetch a remote file and do what it says, so the author controls what
+		// the agent does, from a server, after install. Three spellings (remoteinstr.go, P-121): curl/wget/fetch
+		// of a URL whose FILE is named like instructions (a dot extension, so a REST `/command` endpoint does
+		// not match); a fetch verb, a URL and an obedience phrase in one sentence; an obedience phrase pointed
+		// at a URL. The fourth — a download kept at a path, and another line obeying that path — spans lines
+		// and lives in scanUnits (remoteOrders). It does not follow the URL; it flags the order, that is all.
+		rule("INJ-005", 1, model.SevHigh, remoteOrdersRE, "Fetches remote instructions to act on", "The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read.", owaspInj),
+		// INJ-006 (P-123): text written in Unicode tag characters outside an emoji flag (tags.go). High, not
+		// INJ-004's medium: zero-width characters have ordinary uses (joiners in emoji and Persian, a BOM left
+		// mid-file by a concatenation), while tag characters have one, the flag, and hiddenTagPattern leaves
+		// it alone. What the hidden text says is matched by every other rule through the decoded view; this
+		// rule says that the line hides text at all, which a sentence with no attack phrase still does, and
+		// its explanation prints the text decoded (hiddenTagWhy). Not RawOnly, like INJ-004: the decoded view
+		// holds no tag character, so it can never match there.
+		rule("INJ-006", 1, model.SevHigh, hiddenTagPattern, "Text hidden in Unicode tag characters",
+			"Part of this line is written in Unicode tag characters (U+E0000–E007F), which no terminal, editor or diff shows and a model reads as ordinary text: the agent follows words nobody reviewing the file can see. Emoji flags, the one legitimate use of these characters, are not reported.",
+			owaspInj),
 
 		// 4 — Code execution
 		rule("EXEC-001", 4, model.SevHigh, `\bcurl\b[^|]*\|\s*(sudo\s+)?(ba)?sh\b`, "curl piped to shell", "Fetches a script from the network and runs it directly — arbitrary remote code execution.", owaspSup),
@@ -413,15 +423,17 @@ var (
 	// not because anything measured it.
 	envWholeRE = regexp.MustCompile(`(?i)(process\.env|os\.environ)\s*(?:[^.\[\w]|$|\.(items|keys|values|copy|to_dict)\s*\()`)
 
-	// settingsFileRE / settingsWriteRE — the two legs of the file-level half of PERM-007.
-	// The per-line rule needs the write verb and the file name on one line; the corpus's hook
+	// settingsFileRE / settingsReadRE — the naming leg of the file-level half of PERM-007; the
+	// write leg is writesAFile (permfile.go).
+	// The per-line rule needs the write verb right before the file name; the corpus's hook
 	// builds the path on one line and calls write_text on the next, which is also how a careful
 	// author writes it. So a script that NAMES a Claude settings file on a line that is not itself
-	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any other line closes the same
-	// finding. Measured: zero benign scripts inside the corpus's sample trees do both.
-	settingsFileRE  = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
-	settingsReadRE  = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
-	settingsWriteRE = regexp.MustCompile(`(?i)\.(write_text|write_bytes)\(|\bwriteFile(Sync)?\(|open\([^)]*['"][wa]|(^|[^>])>>?\s*["~./$]|\btee\s`)
+	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any line — the same one
+	// included (P-124: `fs.writeFileSync(path.join(os.homedir(), '.claude', 'settings.json'), …)`
+	// has a space after `path.join(` and passed both halves) — closes the same finding.
+	// Measured: zero benign scripts inside the corpus's sample trees do both.
+	settingsFileRE = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
+	settingsReadRE = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
 
 	// envDumpShellRE — the shell's own whole-environment dump, PIPED OR REDIRECTED INTO A COMMAND.
 	// This is the one-word form an attacker actually types — `env | curl …` — and until it

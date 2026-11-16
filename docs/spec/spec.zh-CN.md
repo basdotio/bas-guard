@@ -48,6 +48,7 @@ bas-guard clean [--root ~/.claude] [--apply] [--undo <id>|last] [--ask] [--dry-r
              # 默认只列;--apply 只「移动」到 <root>/.aguard-trash,永不删除;--undo 按批次恢复
 bas-guard check <path-or-zip> [--json] [--sarif out.sarif] [--md out.md|-] [--fail-on high] [--llm] [--fail-on-llm <level>]
                                                        # 装前闸门:单个 skill/插件/目录/文件/zip;默认静态,--llm 与 scan 是同一个开关
+                                                       # 目录和 settings*.json / .mcp.json 文件另读它们声明的配置(整树照读,P-120)
                                                        # 基线不自动发现:目标即被审对象,只认显式 --ignore
 bas-guard hook install|uninstall|status [--dry-run]       # 加载时闸门:注册为 Claude Code hook,见 §17
 bas-guard hook                                            # hook runner:从 stdin 读事件(由 Claude Code 调用)
@@ -74,7 +75,7 @@ bas-guard version                                         # 版本 + 与已装�
 | 类型 `ArtifactKind` | 来源路径 | 采集内容 |
 |---|---|---|
 | `skill` | `<root>/skills/*/SKILL.md` + 同目录脚本/资源 | frontmatter(name/description/allowed-tools/version)、脚本文件列表、bin/、node_modules 存在性。frontmatter 只认从文件第一个字节开始的那份,BOM 或空行之后的 `---` 是正文——Claude Code 就是这么读的(2.1.107 实测,P-024;子 agent、斜杠命令同一个解析器) |
-| `mcp` | `~/.claude.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。哈希 = 该条目的内容哈希(§8),不含 server 名与文件路径 |
+| `mcp` | `~/.claude.json`(设了 `CLAUDE_CONFIG_DIR` 时是 `<root>/.claude.json`)→ `mcpServers`(用户作用域)和 `projects["<目录>"].mcpServers`(本地作用域,`claude mcp add` 的默认,P-119);项目 `.mcp.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。本地作用域的每个项目都采(目录在不在都采,Claude Code 在那个目录里跑就启动它们),名字 `<key> (project <目录>)`,条目经 `MCPServer` + `MCPProject` 定位。哈希 = 该条目的内容哈希(§8),不含 server 名、项目目录与文件路径:同一份条目在哪个作用域都是同一个身份 |
 | `hook` | `<root>/settings.json` → `hooks` | 每条 hook 的 matcher + command(type=command),或 type=http 时的 matcher + url。HTTP hook 把完整事件 payload(工具输入、命令行、授权提示)POST 到该 url,仍是一等审计对象。哈希 = 内容哈希(§8):event + matcher + 整个条目 + 它跟进的脚本内容 |
 | `permission` | `<root>/settings.json` → `permissions.allow/deny`;另有一个同 kind、名为 `settings env` 的 artifact 承载 `env` 块(P-016,2026-09-23) | 规则条目原文;`env` 块渲染为 `KEY=VALUE` 行进全部规则,permcheck 不在它上面重跑。哈希 = 内容哈希(§8):整个 `permissions` 对象 + allow 引用的脚本内容;`env` 块单独一个域 |
 | `subagent` | `<root>/agents/*` | 定义文件全文 |
@@ -82,7 +83,7 @@ bas-guard version                                         # 版本 + 与已装�
 | `plugin` | `<root>/plugins/installed_plugins.json` → 各条 `installPath` | 插件打包的 skills/commands/hooks/MCP —— 展开后按对应 kind 再扫(B4,不可整块漏)。**只采「已安装」的那份**:marketplace 镜像不进任何会话,扫了只是噪声。`installPath` 出自配置文件、可被影响,须过 §16.2 边界收敛 |
 | `instruction` | `<root>/CLAUDE.md`、`skills/*/SKILL.md` 正文 | 指令文本(injection 扫描面) |
 | `rule` / `workflow` / `output_style` / `memory` | `<root>/rules/*`、`workflows/*`、`output-styles/*`、`memory/*` | 自动加载的指令面,各自单文件;清单里单列(「你有 14 条 rule 每次会话都进上下文」和「你有一个 CLAUDE.md」是不同的事实)。rule 的名字带 ` (path-scoped)` 当且仅当 Claude Code 会遵守它的 `paths:`:frontmatter 从第一个字节开始,且 `paths` 按逗号切分、花括号展开、去掉结尾的 `/**` 之后至少剩一条非空、不是 `**` 的 glob;否则它每次会话都加载(2.1.107 实测,P-024) |
-| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报 |
+| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报。`check <dir>` 另读目录顶层声明的配置:`.claude/settings*.json`、自己的 `settings*.json` 用 `settings.json` 的读取器,`.mcp.json` 用 MCP 的读取器(P-120);这些 artifact 的 `Within` 指回目录,与目录算一个单元(§5.3),hook/权限跟进的脚本按配置文件所在目录解析(`ConfigRoot`),与 `scan --root <那个目录>` 同一个哈希。整树里 `.claude/commands/` 下的 `.md` 按斜杠命令跑全部规则。目录的 `CLAUDE.md`、`CLAUDE.local.md` 及 `.claude/` 下的这两个用 `instruction` 的采集器读、跟进 `@` 导入,home 取目录本身——与 `scan --root <目录>/.claude` 同一份清单、同一个解析与边界(P-125) |
 | `connector` | 桌面版会话缓存 `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json` → `remoteMcpServersConfig` | 远程 MCP connector(Figma/Notion/Slack…)向模型**通告的工具清单**:每个工具的 name/description/参数 description。**从不联网连它们**,读的是桌面版已缓存的那份;这是 tool-poisoning 面,也是不联网能拿到工具说明的唯一地方。每个 connector 一个 artifact,哈希覆盖工具清单。只解码 connector 段(会话文件还装着用户会话状态);覆盖=本机会话见过的,报告不说「所有 connector」 |
 | `quarantined` | `<root>/.aguard-trash/` | `clean --apply` 隔离过的东西,仍扫、单列,不计入清单主数 |
 
@@ -178,6 +179,9 @@ type Rule struct {
   行连接符、命令名里的零宽/双向控制字符、以及**把词切开的引号**(`cu""rl`/`cur'l'`/`c\url`)—— 再交给规则匹配。
   产出两份**故意不同**的文本:`norm` 供匹配,`raw` 进证据(报告必须显示文件里真正写的那一行,否则等于把规避替用户抹平了);
   且**规则先匹配 raw、未命中才看 norm**,因为归一化只做删除,这个顺序只会多报不会漏报,反过来会让 `INJ-004`(专门报告零宽字符的规则)自己消音。
+  Unicode tag 字符(U+E0000–E007F)在 norm 里**解码**成它镜像的 ASCII(P-123):模型就是这么读的,整句写成 tag 的指令以前对每条规则都不可见。
+  它们**不进** `detect.Invisible` 那张表:emoji 旗帜(U+1F3F4 + 1–6 个小写/数字 tag + U+E007F)正是用它们写的,而判官的垫料折叠读那张表,
+  一句 tag 写的指令会被折成空。"非旗帜的 tag"由 `INJ-006`(high)报告,`report.Sanitize` 对同一谓词(`detect.HidesTagText`)成立的字符串把 tag 换成 U+FFFD。
   **仍然缺的是真语法树才能给的东西**:链式表达式(`Buffer.from(secret).toString('base64')`)、跨语句的取值追踪,以及同形异义字折叠(需要 Unicode confusables 表)。
   这三项记在 ROADMAP,**不得在文档中含糊为已完成**。要补,前提是先决定是否接受一个 parser 依赖 —— 那是交付形态的决定,不是实现细节。
 - **structural**:内置检查器(非文本模式),如「读 env/凭证 AND 有外连 host」= exfil 链、「hook command 含 shell 元字符」、「MCP env 里疑似明文 secret」。
@@ -315,6 +319,7 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
              overall_effective = min(overall,
                                      round(加权平均(各单元的 score_effective)) + 木桶封顶(含合格 LLM 发现))
 单元:         一个 artifact;插件和它的子项(Plugin 字段指回它的 skill/命令/子 agent)合成一个单元,
+             `check` 目标和它声明的配置(Within 字段指回目标的 hook/权限/env/MCP/指令文件,P-120、P-125)也合成一个单元,
              单元分 = 把它们的发现合在一起按「每 artifact」那两行算
              木桶封顶:任一 artifact 出现 critical → ≤ 49(高危);任一 high(无 critical)→ ≤ 69(中危)
 风险等级:     ≥85 低危 · 70–84 关注 · 50–69 中危 · <50 高危        // 两个数共用同一张分级表
@@ -323,6 +328,8 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
   就是 `issues/008` 当年放弃拆产物的 86 → 97);合成单元后重复的发现不加罚分(同维度取最高),子项独有的发现照样算,子项上合格的 LLM
   发现经单元进 `overall_effective`。只要子项的确定性发现是插件的子集(真机上 28 条全是),`overall` 与拆之前逐字节相同。每 artifact 的
   `score`/`score_effective` 定义不变。插件的 hook 和 MCP 仍各算一项(并入单元会改今天的分,`issues/023` 的后续)。
+- **`check` 目标和它声明的配置是一个单元(P-120)**。理由同上:干净的 hook、server 各算一项会把目录树自己的发现稀释掉。与插件子项不同,
+  这些 artifact 带着目录那一行没有的发现(授权的形状、http hook、env 里的预加载),单元把它们原样算进去;同一条发现两边都有时只印一次。
 - **`min(...)` 是结构性保证,不是算术必要**。多加发现本来就只会加罚分,但把单向性写成**代码形状**,可以让"LLM 把分数改高了"从一类可能的 bug 变成不可表达的状态。配一条 `overall_effective ≤ overall` 恒成立的属性测试(§13)。
 - **不开 `--llm` 时 `overall_effective == overall`**;两个数在报告与 JSON 中**并列输出**,各自标明含义(§8/§9)。
 - **§10 的 attestation 载荷只取 `overall`** —— 上链的数必须能被第三方用同一份内容离线复算,含 LLM 的数做不到。

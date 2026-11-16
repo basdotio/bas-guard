@@ -37,7 +37,7 @@ import (
 type logicalLine struct {
 	start   int    // 1-based physical line where this logical line begins
 	raw     string // physical lines joined at continuations; quoted in evidence
-	norm    string // raw with invisibles stripped and interior quoting folded; matched against
+	norm    string // raw with invisibles stripped, tags decoded, interior quoting folded; matched against
 	comment bool   // every physical line it spans is comment-only
 }
 
@@ -172,6 +172,10 @@ func endsWithContinuation(lang commentLang, line string) bool {
 // renderers strip the same characters from attacker-chosen names and paths that this engine
 // reports inside file contents. One table, one definition — a second copy would drift,
 // and the failure would be a report whose file names can be rewritten by the file's author.
+//
+// Unicode tag characters draw nothing either and are deliberately NOT in this table (tags.go, P-123).
+// Emoji flags are written in them, so a tag present is not text hidden; and the judge's padding fold
+// reads this table, so a sentence of more than 32 tag characters would be sent to it as nothing.
 func Invisible(r rune) bool { return invisible(r) }
 
 func invisible(r rune) bool {
@@ -191,7 +195,9 @@ func invisible(r rune) bool {
 }
 
 // normalizeForMatch renders the line as the interpreter would read it: invisible characters
-// gone, quoting that only serves to split a word folded away.
+// gone, quoting that only serves to split a word folded away, and Unicode tag characters decoded to
+// the ASCII they mirror — the reader there is the model, which reads them, and a sentence written in
+// them is otherwise invisible to every rule (P-123).
 //
 // It DOES fold homoglyphs, via a small hand-written confusables table (see confusable). The table
 // is deliberately not the full Unicode confusables data: the goal is not general homoglyph detection,
@@ -243,6 +249,12 @@ func normalizeForMatch(s string) string {
 		switch {
 		case invisible(r):
 			// dropped
+		case IsTag(r):
+			// A tag character is read as the ASCII it mirrors, because a model reads it that way and that
+			// is the attack (tags.go, P-123); the language and cancel tags mirror nothing and go.
+			if c := decodeTag(r); c >= 0 {
+				stripped.WriteRune(c)
+			}
 		case confusable[r] != 0:
 			stripped.WriteRune(confusable[r])
 		case punctFold[r] != 0:

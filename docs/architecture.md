@@ -48,7 +48,12 @@ Four of those orderings are decisions, not sequence:
 - **`check` enters through layout routing, not through `scan`** —
   `collect.CollectTarget` decides most-specific-first: single file → `SKILL.md` → plugin
   manifest (the tree, plus its skills, commands and agents) → looks-like-a-root → any other
-  directory (read as one whole tree).
+  directory (read as one whole tree). A directory, and a file named `settings.json`,
+  `settings.local.json` or `.mcp.json`, are also read for the Claude Code configuration they declare —
+  in addition to the tree, never instead of it (`collect.withDeclared`, P-120); what that adds names the
+  target in `Within` and counts as one unit with it (`score.Families`). A directory's `CLAUDE.md` files are
+  read the same way, with the list and the `@` import expansion a scan of its `.claude` uses
+  (`collect.declaredInstructions`, P-125).
 
 Each package is an approximately pure stage over the immutable types in
 [`internal/model`](../internal/model/model.go).
@@ -217,7 +222,11 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   matching, while evidence keeps the raw bytes — printing `curl …` when the file says `cu""rl`
   would tell the user something false about their own machine. Rules run on raw first, then
   normalised, so normalisation can only add findings, never silence one (notably `INJ-004`,
-  whose whole purpose is reporting zero-width characters).
+  whose whole purpose is reporting zero-width characters). Unicode tag characters
+  (U+E0000–E007F) are decoded there to the ASCII they mirror, because that is how a model reads
+  them ([`tags.go`](../internal/detect/tags.go), P-123): a sentence written in them meets every rule,
+  and `INJ-006` reports any tag character outside an emoji flag, with the hidden text decoded in its
+  explanation.
 - **Some checks are structural, not regex.** `EXFIL-001/002/003` and `OBF-004` accumulate
   three legs — credential read, encode, network egress — at two granularities. Two legs
   (credential + egress) complete a chain; encoding is an amplifier. Cross-file only reaches
@@ -336,7 +345,8 @@ Full reference: [`docs/llm-judge.md`](llm-judge.md).
 header of [`rules.md`](rules.md), generated from the code; any number restated here would be a
 stale copy), including the shape checks in `detect/shape.go` (padding, disguised archives,
 shipped bytecode, registry redirects), permission audit with the escapable-binary table,
-per-command hook artifacts that follow referenced scripts, plugin collection (both
+per-command hook artifacts that follow referenced scripts, MCP servers in both scopes a `.claude.json` holds (the
+top level, and each project's local scope, the default of `claude mcp add`; `collect.localScopeServersFrom`), plugin collection (both
 `installed_plugins.json`, Claude Desktop's own plugin/skill store in `collect/desktop.go`, and
 the sandbox's `synced/<uuid>/` layout; a plugin's skills, commands and agents are artifacts of
 their own, following Claude Code's loader, `collect/plugincontents.go`), remote MCP connectors read from the desktop's cached
