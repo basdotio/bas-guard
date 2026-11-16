@@ -214,8 +214,8 @@ Samples carrying `PERM-009`: malicious 0 → 1, benign 0 → 0, hard negatives 0
 ## Done
 
 ```
-Merged: PR (to be filled in)
-Released: (to be filled in)
+Merged: not yet — PR #153 (find the sha with git log --grep P-127 after the merge)
+Released: (filled in at the release)
 Evidence: TestCollect_ProjectMCPApprovals, TestCollect_ProjectMCPApprovalNeedsBothFilesInView,
   TestCollect_ProjectMCPApprovalIsAPermissionFinding, TestTopLevelKeyLines (internal/collect/mcpapproval_test.go),
   TestCheck_ProjectMCPApprovalIsReported (cmd/bas-guard/check_mcp_approval_test.go); via check: the CVE-2025-59536
