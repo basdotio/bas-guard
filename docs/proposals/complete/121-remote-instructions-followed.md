@@ -148,7 +148,7 @@ None left open by the brief; decision 1 is the one the maintainer is most likely
 ## Done
 
 ```
-Merged: not yet — PR (number filled in when opened; find the sha with git log --grep P-121 after the merge)
+Merged: not yet — PR #147 (find the sha with git log --grep P-121 after the merge)
 Released: (fill in after the release)
 Evidence: TestDetect_RemoteInstructionsFollowed (internal/detect/remoteinstr_test.go); the five rows via check:
   INJ-005 on 2 → 5, rows 2-4 100/100 → 69/100; corpus 24c15d32 malicious flagged 159 → 161 of 550, benign 324 → 325
