@@ -163,7 +163,7 @@ revisit.
 ## Done
 
 ```
-Merged: not yet — PR (number filled in when opened; find the sha with git log --grep P-125 after the merge)
+Merged: not yet — PR #151 (find the sha with git log --grep P-125 after the merge)
 Released: (fill in after the release)
 Evidence: TestCheck_AProjectsCLAUDEmdImportIsReported (cmd/bas-guard/check_instructions_test.go); the brief's project:
   `check .` 50/100, 5 findings, no EXFIL-005 → 25/100, EXFIL-005 + COV-000, exit 1 both; `scan --root ./.claude`
