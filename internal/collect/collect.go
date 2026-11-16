@@ -821,18 +821,34 @@ func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.Artif
 	return out, notes
 }
 
-func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
-	candidates := []struct{ path, name string }{
+// instructionFile is an instruction file Claude Code loads for a config root: where it is, and the
+// name the report gives it.
+type instructionFile struct{ path, name string }
+
+// instructionFiles lists the instruction files of root and of home (the project, when root is a
+// project's .claude), in order. A scan reads them under its root (collectInstruction) and `check`
+// reads them under a directory target as a project's (withDeclared, P-125): one list, so the two
+// commands read the same files under the same names.
+func instructionFiles(root, home string) []instructionFile {
+	return []instructionFile{
 		{filepath.Join(root, "CLAUDE.md"), "CLAUDE.md"},
 		{filepath.Join(root, "CLAUDE.local.md"), "CLAUDE.local.md"},
 		{filepath.Join(home, "CLAUDE.md"), "CLAUDE.md (project)"},
 		{filepath.Join(home, "CLAUDE.local.md"), "CLAUDE.local.md (project)"},
 	}
+}
+
+// isFile reports whether p exists and is not a directory, following a symlink.
+func isFile(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
 	var out []model.ArtifactReport
 	var refused []model.Finding
-	for _, c := range candidates {
-		fi, err := os.Stat(c.path)
-		if err != nil || fi.IsDir() {
+	for _, c := range instructionFiles(root, home) {
+		if !isFile(c.path) {
 			continue
 		}
 		if !withinDir(home, c.path) {

@@ -51,7 +51,9 @@ Four of those orderings are decisions, not sequence:
   directory (read as one whole tree). A directory, and a file named `settings.json`,
   `settings.local.json` or `.mcp.json`, are also read for the Claude Code configuration they declare —
   in addition to the tree, never instead of it (`collect.withDeclared`, P-120); what that adds names the
-  target in `Within` and counts as one unit with it (`score.Families`).
+  target in `Within` and counts as one unit with it (`score.Families`). A directory's `CLAUDE.md` files are
+  read the same way, with the list and the `@` import expansion a scan of its `.claude` uses
+  (`collect.declaredInstructions`, P-125).
 
 Each package is an approximately pure stage over the immutable types in
 [`internal/model`](../internal/model/model.go).
