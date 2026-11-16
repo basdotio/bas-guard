@@ -122,6 +122,8 @@ benchmark shows the cost (none) and not the gain; the gain is the brief's projec
   The reverse ones passed there and pass here.
 - [x] `check pkg.zip` with the same `CLAUDE.md`: `EXFIL-005` on `CLAUDE.md (project)`, and no path into the extraction
   directory anywhere in the JSON (P-016).
+- [x] A real `~/.claude` scan on the measuring Mac (383 artifacts) gives the same overall (69), the same 790 findings and
+  the same 8 notes on v0.34.0 and on this branch: `scan` is unchanged.
 - [x] `make verify` green; `go.mod` line 2 is still `go 1.23.5`; `go version` reports go1.23.5 with no toolchain switch.
 
 ## Out of scope
