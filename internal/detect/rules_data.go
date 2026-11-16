@@ -133,6 +133,16 @@ func builtinRules() []Rule {
 		// at a URL. The fourth — a download kept at a path, and another line obeying that path — spans lines
 		// and lives in scanUnits (remoteOrders). It does not follow the URL; it flags the order, that is all.
 		rule("INJ-005", 1, model.SevHigh, remoteOrdersRE, "Fetches remote instructions to act on", "The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read.", owaspInj),
+		// INJ-006 (P-123): text written in Unicode tag characters outside an emoji flag (tags.go). High, not
+		// INJ-004's medium: zero-width characters have ordinary uses (joiners in emoji and Persian, a BOM left
+		// mid-file by a concatenation), while tag characters have one, the flag, and hiddenTagPattern leaves
+		// it alone. What the hidden text says is matched by every other rule through the decoded view; this
+		// rule says that the line hides text at all, which a sentence with no attack phrase still does, and
+		// its explanation prints the text decoded (hiddenTagWhy). Not RawOnly, like INJ-004: the decoded view
+		// holds no tag character, so it can never match there.
+		rule("INJ-006", 1, model.SevHigh, hiddenTagPattern, "Text hidden in Unicode tag characters",
+			"Part of this line is written in Unicode tag characters (U+E0000–E007F), which no terminal, editor or diff shows and a model reads as ordinary text: the agent follows words nobody reviewing the file can see. Emoji flags, the one legitimate use of these characters, are not reported.",
+			owaspInj),
 
 		// 4 — Code execution
 		rule("EXEC-001", 4, model.SevHigh, `\bcurl\b[^|]*\|\s*(sudo\s+)?(ba)?sh\b`, "curl piped to shell", "Fetches a script from the network and runs it directly — arbitrary remote code execution.", owaspSup),

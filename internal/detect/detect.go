@@ -381,9 +381,13 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				if u.role != roleScript && injectionQuotedAsExample(r, ll) {
 					continue // prose that quotes the attack in order to refuse it
 				}
+				why := r.Why
+				if r.ID == "INJ-006" {
+					why = hiddenTagWhy(why, ll.raw) // the snippet shows the tags as written; this says what they read
+				}
 				findings = append(findings, model.Finding{
 					RuleID: r.ID, Dimension: r.Dimension, Severity: r.Severity,
-					Title: r.Title, Why: r.Why, Source: model.SrcStatic, Advisory: r.Advisory,
+					Title: r.Title, Why: why, Source: model.SrcStatic, Advisory: r.Advisory,
 					Evidence: []model.Evidence{{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}},
 				})
 				if r.ID == "PERM-007" {

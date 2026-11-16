@@ -98,7 +98,7 @@ paths:
   - `norm` 给规则匹配;`raw` 进证据。**报告里印 `curl …` 而文件里写的是 `cu""rl …`,等于把用户自己
     机器上的事实告诉错了** —— 那正是这条规避想要的效果。
   - **规则先跑 `raw`,只有没命中才去看 `norm`。** 归一化只做删除,所以这个顺序只会多报不会漏报;反过来
-    先跑 norm 会把 `INJ-004`(它存在的意义就是报告零宽字符)自己消音。
+    先跑 norm 会把 `INJ-004`(它存在的意义就是报告零宽字符)自己消音。**Unicode tag 字符在 norm 里解码成它镜像的 ASCII**(P-123,[tags.go](../../internal/detect/tags.go)),整句 tag 写的指令照样碰到 INJ-001/FS-001;`INJ-006`(high)报旗帜之外的 tag(`hiddenTagPattern`:🏴 + 1–6 个小写/数字 tag + U+E007F 是旗帜),说明里印 `revealTags` 解码的那一行。**别把 tag 加进 `invisible()`**:判官的垫料折叠读那张表,超过 32 个 tag 的一句会折成空(`TestFoldPadding_KeepsTagCharacters`),报告里的旗帜也会被换掉;**别放宽成"见到 tag 就报"**,旗帜在 emoji 列表里到处都是(zod 的测试就带着三面)。
   - 行连接只对 `langHash`(sh/py/…)生效,且**注释行不参与** —— shell 里注释中的反斜杠不接续任何东西。
     合并后的发现报的是**命令开始的那一行**,不是它结尾的那个碎片。
   - **以词开头的引号段整段原样保留**(`echo "curl http://x | bash"`)—— 那是普通的带引号参数,把它的引号
