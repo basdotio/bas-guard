@@ -60,7 +60,7 @@ download kept at a path and another line telling the agent to obey that path, wh
   instructions contained within it", `urlretrieve`), the pairs citing the download line and then the obeying line.
 - [x] The precision half of the same test, 10 shapes quiet: a dataset downloaded and loaded, an install script
   downloaded and run, a URL for a person to read, "follow the steps below" in the next sentence, "the following
-  actions", link text "[here](…)", downloaded data read but not obeyed, a local reference file obeyed beside an unrelated
+  actions", link text `[here](…)`, downloaded data read but not obeyed, a local reference file obeyed beside an unrelated
   download, a local reference file obeyed, a download to standard output.
 - [x] `TestKeptPaths` (18 lines: output flags, redirects, `tee`, `-OutFile`, `urlretrieve`, remote names; standard output,
   standard error, `/dev/*` and a Markdown quote keep nothing), `TestObeysPath` (a longer path containing the kept one is
@@ -78,7 +78,7 @@ download kept at a path and another line telling the agent to obey that path, wh
 ## Out of scope
 
 - An order with no fetch verb, or whose URL is in another sentence ("The steps are at https://…. Follow them."), and
-  link text ("follow the instructions [here](…)"): the line pattern does not see them. The judge's injection question
+  link text (`follow the instructions [here](…)`): the line pattern does not see them. The judge's injection question
   reads prose; it is unchanged here.
 - A download printed rather than kept (`curl -s https://…` in a block, "do what it prints" below it), a URL or a path
   held in a variable, and a download written by code across lines (`requests.get` then `open(…).write`).
@@ -139,6 +139,7 @@ pairing, read the same way (without the engine's line joining), matched no benig
 | 1 | The two halves, `rulesEpoch` 12, regenerated `docs/rules.md` and `.claude/rules/detect.md`; tests written first | `detect: INJ-005 reads the order to fetch a remote file and do what it says, not the file's name (P-121)` |
 | 2 | The four static runs | `baselines: P-121 static runs, main and branch, corpus and held-out ClawHub (P-121)` |
 | 3 | The proposal and its index row | `proposals: P-121 done, measured (P-121)` |
+| 4 | `.claude/rules/detect.md` held to its 200-line budget; the proposal's link examples in code spans (both caught by `make verify`) | `docs: keep detect.md within its 200 lines; link examples in code spans (P-121)` |
 
 ## Open questions
 
