@@ -62,10 +62,9 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   自己的 `settings*.json`、`.mcp.json`(先过 `FileReach`,软链出目标的不读,树那边已经出 `SCOPE-001`);名为这三种的单文件目标同理。
   以前 `check <仓库>`、`check ./.mcp.json` 对 `Bash(*)`、放行 hook、http hook、`NODE_OPTIONS` 预加载一律 100 分退 0。读出来的 artifact
   `Within` 指回目标(`score.Families` 并成一个单元、同一条发现只印一次);hook/权限带 `ConfigRoot`(配置文件所在目录),脚本按它解析、哈希也按它算,
-  **`$CLAUDE_PROJECT_DIR` 才是项目目录而不是项目的上一级**。项目的 `CLAUDE.md` 同理另读(`collect.declaredInstructions`,P-125):清单是 scan 的
-  `instructionFiles`、导入展开是 scan 的 `expandImports`,home 取目标本身——与 `scan --root <目标>/.claude` 同一个解析和边界;以前树读只把它当文本、
-  不跟 `@` 导入,`@.env` 的 `EXFIL-005` 在 `check <仓库>` 下漏掉。**别给单文件 `check CLAUDE.md` 也跟导入**:它的边界只能是所在目录,而下载目录
-  对散落的 `CLAUDE.md` 跑的正是 `check`,跟进导入就会读到不是候选的兄弟文件。**别把"另读"改成"改道到 `CollectAll`"**,也别让任何 `Within` 的东西少读整树一个字节。同理,**`check` 的目标
+  **`$CLAUDE_PROJECT_DIR` 才是项目目录而不是项目的上一级**。项目的 `CLAUDE.md` 同理另读(`collect.declaredInstructions`,P-125):scan 的 `instructionFiles` +
+  `expandImports`,home 取目标,与 `scan --root <目标>/.claude` 同一解析与边界(树读不跟 `@`,`@.env` 的 `EXFIL-005` 曾漏)。**别给单文件 `check CLAUDE.md` 跟导入**:
+  下载目录对散落的 `CLAUDE.md` 跑的就是 `check`,会读到非候选的兄弟文件。**别把"另读"改成"改道到 `CollectAll`"**,也别让任何 `Within` 的东西少读整树一个字节。同理,**`check` 的目标
   读不出来必须报错(退出码 2)**,不能返回空结果 —— 空结果会渲染成 100/100 + 退出码 0。
 - **`scan`/`clean` 的 root 同样先校验再采集**(`collect.ValidateRoot`,在 `main.scanEnv` 里调用)。
   各 collector 把 ENOENT 当成"这个布局不存在"是对的,但对 root 本身就是灾难:一个打错的 `--root`
