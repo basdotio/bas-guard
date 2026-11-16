@@ -423,15 +423,17 @@ var (
 	// not because anything measured it.
 	envWholeRE = regexp.MustCompile(`(?i)(process\.env|os\.environ)\s*(?:[^.\[\w]|$|\.(items|keys|values|copy|to_dict)\s*\()`)
 
-	// settingsFileRE / settingsWriteRE — the two legs of the file-level half of PERM-007.
-	// The per-line rule needs the write verb and the file name on one line; the corpus's hook
+	// settingsFileRE / settingsReadRE — the naming leg of the file-level half of PERM-007; the
+	// write leg is writesAFile (permfile.go).
+	// The per-line rule needs the write verb right before the file name; the corpus's hook
 	// builds the path on one line and calls write_text on the next, which is also how a careful
 	// author writes it. So a script that NAMES a Claude settings file on a line that is not itself
-	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any other line closes the same
-	// finding. Measured: zero benign scripts inside the corpus's sample trees do both.
-	settingsFileRE  = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
-	settingsReadRE  = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
-	settingsWriteRE = regexp.MustCompile(`(?i)\.(write_text|write_bytes)\(|\bwriteFile(Sync)?\(|open\([^)]*['"][wa]|(^|[^>])>>?\s*["~./$]|\btee\s`)
+	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any line — the same one
+	// included (P-124: `fs.writeFileSync(path.join(os.homedir(), '.claude', 'settings.json'), …)`
+	// has a space after `path.join(` and passed both halves) — closes the same finding.
+	// Measured: zero benign scripts inside the corpus's sample trees do both.
+	settingsFileRE = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
+	settingsReadRE = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
 
 	// envDumpShellRE — the shell's own whole-environment dump, PIPED OR REDIRECTED INTO A COMMAND.
 	// This is the one-word form an attacker actually types — `env | curl …` — and until it

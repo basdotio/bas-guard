@@ -339,8 +339,9 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 			fileChain.assigns = urlAssignments(u.text)
 		}
 		// File-level half of PERM-007: a script that names a Claude settings file on one line and
-		// writes on another. Only real scripts and hook commands — an instruction file
-		// naming settings.json is telling a person where to paste, and a config unit is data.
+		// writes on that line or another (P-124). Only real scripts and hook commands — an
+		// instruction file naming settings.json is telling a person where to paste, and a config
+		// unit is data.
 		var settingsNameEv, settingsWriteEv *model.Evidence
 		permFileWriteScope := (u.role == roleScript && !u.synthetic) || u.role == roleHookCmd
 		perm007Fired := false
@@ -437,7 +438,9 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				if settingsNameEv == nil && settingsFileRE.MatchString(ll.norm) && !settingsReadRE.MatchString(ll.norm) {
 					settingsNameEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
 				}
-				if settingsWriteEv == nil && settingsWriteRE.MatchString(ll.norm) {
+				// raw first, as the rules read it: the normalized view folds a quoted word that
+				// splits a word, so open("w") reads there as open(w) and its mode is gone (P-124).
+				if settingsWriteEv == nil && (writesAFile(ll.raw) || writesAFile(ll.norm)) {
 					settingsWriteEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
 				}
 			}
@@ -454,11 +457,18 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				})
 			}
 		}
-		if !perm007Fired && settingsNameEv != nil && settingsWriteEv != nil && settingsNameEv.Line != settingsWriteEv.Line {
+		// The two legs may close on one line (P-124). Before, they had to be different lines, so a
+		// path built and written in one statement passed both halves — and in a hook command, a
+		// synthetic unit whose every line is 0, this half could never fire at all.
+		if !perm007Fired && settingsNameEv != nil && settingsWriteEv != nil {
 			if r, ok := e.byID("PERM-007"); ok {
+				ev := []model.Evidence{*settingsNameEv, *settingsWriteEv}
+				if *settingsNameEv == *settingsWriteEv {
+					ev = ev[:1] // one line is the whole story; citing it twice reads as a rendering bug
+				}
 				findings = append(findings, model.Finding{
 					RuleID: r.ID, Dimension: r.Dimension, Severity: r.Severity, Title: r.Title, Why: r.Why,
-					Source: model.SrcStatic, Evidence: []model.Evidence{*settingsNameEv, *settingsWriteEv},
+					Source: model.SrcStatic, Evidence: ev,
 				})
 			}
 		}
