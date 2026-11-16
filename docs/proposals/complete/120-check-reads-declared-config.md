@@ -135,8 +135,8 @@ None left open by the brief; see Decisions, which the maintainer can overturn in
 ## Done
 
 ```
-Merged: not yet — PR #146 (find the sha with git log --grep P-120 after the merge)
-Released: (fill in after the release)
+Merged: PR #146 (2026-11-16; find the sha with git log --grep P-120)
+Released: v0.34.0
 Evidence: TestCheck_ATargetsDeclaredConfigurationIsRead (cmd/bas-guard/check_declared_test.go); the brief's project,
   --fail-on high: `check <repo>` 100/100, exit 0 → 50/100, 4 findings, exit 1; `check <repo>/.mcp.json` 100 → 69,
   exit 1; `check <repo>/.claude/settings.json` 100 → 50, exit 1; reverse: TestCollectTarget_ReadsTheConfigurationATargetDeclares (W-003 tree, plain directory,

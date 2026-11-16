@@ -17,7 +17,42 @@ rate copied into prose goes stale on the next rule. `git tag` and the Releases p
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.33.1
+## v0.2.0 – v0.34.0
+
+**v0.34.0 (2026-11-16) — `check` reads the configuration a project declares, `scan` reads MCP servers added in the
+default scope, and `INJ-005` reads the order to fetch a remote file rather than the file's name.**
+
+One JSON field added: `within`, on an artifact that a `check` target's own configuration added. No flag or exit code
+changed meaning, but the same input can now produce findings it did not, so a gate can go red on upgrade (see the last
+point). `rules` `717ada4c680b` → `39b17de88dd4`; `judge-prompt` `b851dfd5412b` → `9cd57da1a4bd`; `judge-excerpt` 9
+unchanged.
+
+- **`check` on a project reads the configuration it declares** (P-120). `check <dir>` still reads the whole tree, and
+  now also reads `.claude/settings.json`, `.claude/settings.local.json`, the directory's own `settings*.json` and
+  `.mcp.json` with the readers `scan` uses; `check ./.mcp.json` and `check <path>/settings.json` read that file as
+  configuration. Before, a wildcard grant, a hook that allows every tool call, an `http` hook and a server preloading
+  code through `NODE_OPTIONS` all scored 100/100 under `check <repo>`. What the configuration adds is reported as part
+  of the target (`within` in JSON) and scored as one unit with it; a hook's scripts resolve against the project, so it
+  has the same hash under `check <repo>` and `scan --root <repo>/.claude`. A project's `.claude/commands/*.md` run the
+  command rules.
+- **MCP servers added with `claude mcp add`'s default scope are collected** (P-119). The default scope is `local`, which
+  writes the server under `projects["<dir>"].mcpServers` in `~/.claude.json` (or `$CLAUDE_CONFIG_DIR/.claude.json`);
+  only the top-level `mcpServers` was read, so such a server was never an artifact (`mcp=0`, 100/100). Each is now one,
+  named `<key> (project <dir>)`, with the same content hash it would have in the user scope.
+- **`INJ-005` reads the order to fetch a remote file and do what it says** (P-121). It matched only `curl`, `wget` or
+  `fetch` of a URL whose file was named `instructions`, `steps`, `commands`, `payload` or `tasks`, so renaming
+  `steps.md` to `guide.txt`, or writing "download <URL> and follow the steps it lists", scored 100/100. It now also
+  matches a fetch verb, a URL and an obedience phrase in one sentence, "follow the steps in <URL>", and a download kept
+  at a path that another line tells the agent to obey ("read /tmp/guide.txt and do what it says"). The host is not
+  read: a skill that fetches a service's file every few hours and follows it is reported at high. A paraphrase outside
+  these spellings still passes the static rules.
+- **The judge's server pass names resource exhaustion and result tampering** (P-115). A fork bomb, a decompression bomb
+  or a tool that injects entries into its results, which the model already described correctly, was filed under the
+  medium catch-all and never escalated; the two rows are high, one step lower when the server discloses the behaviour.
+  An intent or server finding lowered for disclosure now says `[disclosed: one step lower]` in its reason.
+- **Upgrading a CI gate:** `check` on a project's top level, its `.mcp.json` or a settings file now reads that
+  configuration, and `scan` reads local-scope servers, so a gate that passed can fail with `1` on findings that were
+  always there. Reports carry the new `rules_version`.
 
 **v0.33.1 (2026-10-27) — the README pair no longer opens with the rename from AgentGuard.**
 
