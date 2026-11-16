@@ -43,8 +43,8 @@ still not on the machine this release was cut from.
 ## Done
 
 ```
-Merged: not yet — PR pending
-Released: (fill in after the release)
+Merged: PR #152 (2026-11-16; find the sha with git log --grep P-126)
+Released: v0.35.0
 Evidence: make verify: all gates passed on the branch
 Evidence: bas-guard version on main before this branch: rules=35dbd6adf202 judge-prompt=9cd57da1a4bd judge-excerpt=9
 ```
