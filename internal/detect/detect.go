@@ -113,7 +113,9 @@ func (e *Engine) Run(root string, arts []model.ArtifactReport) ([]model.Artifact
 			defer wg.Done()
 			for i := range idx {
 				a := arts[i]
-				units, cn := e.unitsFor(root, a)
+				// A script a hook or grant names resolves against the config root the artifact was read
+				// under (ConfigRoot, P-120); evidence is still named from the scan's root.
+				units, cn := e.unitsFor(resolveRoot(root, a), a)
 				a.Findings = append(a.Findings, e.scanUnits(root, units)...)
 				// unitsFor mostly reports coverage gaps, which are scan-level notes. It can
 				// also produce a real SCORING finding — a structural one only the reader is
@@ -884,11 +886,25 @@ func treeRole(dir, p string, named map[string]bool) fileRole {
 	if named[treeRel(dir, p)] {
 		return roleNamedDoc
 	}
-	if first, _, ok := strings.Cut(treeRel(dir, p), "/"); ok && first == "commands" &&
-		strings.EqualFold(filepath.Ext(p), ".md") {
+	if strings.EqualFold(filepath.Ext(p), ".md") && underCommands(treeRel(dir, p)) {
 		return roleInstruction
 	}
 	return role
+}
+
+// underCommands reports whether rel, a slash path inside a tree, is under the tree's commands/ — a
+// plugin's — or its .claude/commands/: a project's, which Claude Code loads in every session run in
+// that project. `check <repo>` reads the repository as a tree, and read as a bundled document a project
+// command ran the injection rules only, while `check <repo>/.claude` ran all of them (P-120).
+func underCommands(rel string) bool {
+	first, rest, ok := strings.Cut(rel, "/")
+	if !ok {
+		return false
+	}
+	if first == "commands" {
+		return true
+	}
+	return first == ".claude" && strings.HasPrefix(rest, "commands/")
 }
 
 // readTextTree reads every in-boundary text file under dir, DEDUPING identical file
