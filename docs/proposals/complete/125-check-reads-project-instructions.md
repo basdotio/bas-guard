@@ -4,7 +4,7 @@
 - **Source**: new finding, 2026-11-16, re-testing the advice of a self-check list on v0.34.0 (`4bee868`): comparing
   `scan --root ./.claude` with `check .` on the same project
 - **Depends on**: P-120 (`check` reads the configuration a target declares). Touches `internal/detect/rules_version.go`
-  like P-123 and P-124: P-123 merged first and took 13, so this takes 14; P-124, if it merges later, takes the next value
+  like P-123 and P-124: both merged first (P-123 took 13, P-124 took 14), so this takes 15
 - **Branch**: `p/125-check-reads-project-instructions`
 
 ## Problem
@@ -63,9 +63,9 @@ uses, and follow their imports with the same resolution and boundary. Never inst
    a candidate, which that pass promises never to do. A skill, a plugin and a root keep their branches unchanged; an `@`
    in a `SKILL.md` is not an import (Claude Code expands imports in `CLAUDE.md` files).
 
-`rulesEpoch` 13 → 14 (P-123 merged first and took 13; rules version `2879033d238e` → `c767f85ecaf7`): for the same input
-`check` produces findings it did not. Measured before that merge, on top of v0.34.0, where the bump read 12 → 13
-(`39b17de88dd4` → `b9d0a5520737`).
+`rulesEpoch` 14 → 15 (P-123 took 13 and P-124 took 14, both merged first; rules version `c767f85ecaf7` → `35dbd6adf202`): for the
+same input `check` produces findings it did not. Measured before those merges, on top of v0.34.0, where the bump read
+12 → 13 (`39b17de88dd4` → `b9d0a5520737`).
 
 ## Measured
 
@@ -158,6 +158,7 @@ benchmark shows the cost (none) and not the gain; the gain is the brief's projec
 | 4 | The four static runs | `baselines: P-125 static runs, main and branch, corpus and held-out ClawHub (P-125)` |
 | 5 | The proposal | `proposals: P-125 done, check reads a project's CLAUDE.md files (P-125)` |
 | 6 | Merge `main` after P-123: `rulesEpoch` 14, `docs/rules.md` regenerated, both index rows kept | `Merge main into p/125-check-reads-project-instructions (P-125)` |
+| 7 | Merge `main` after P-124: `rulesEpoch` 15, `docs/rules.md` regenerated, both index rows kept | `Merge main into p/125 after P-124: rulesEpoch 15 (P-125)` |
 
 ## Open questions
 
