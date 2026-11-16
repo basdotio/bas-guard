@@ -18,6 +18,9 @@ import (
 func importView(res Result, base string) []string {
 	// An imported file's path is resolved (/var → /private/var on macOS); the seeds' are as built.
 	resolve := func(p string) string {
+		if a, err := filepath.Abs(p); err == nil { // a seed of `check .` is relative to the working directory
+			p = a
+		}
 		if r, err := filepath.EvalSymlinks(p); err == nil {
 			return r
 		}
@@ -227,4 +230,59 @@ func TestCollectTarget_ProjectInstructionsStayInsideTheTarget(t *testing.T) {
 	if len(res.Artifacts) != 1 {
 		t.Errorf("artifacts = %d, want the tree alone", len(res.Artifacts))
 	}
+}
+
+// TestCollectTarget_ProjectImportsDoNotDependOnTheSpelling: `check .` from inside the project builds the
+// instruction files from the target as typed, relative to the working directory, while the import
+// boundary is the anchored project. Related only as strings, every import under `check .` read as
+// escaping the project — a COV-000 that is false, and an in-tree import never read. Each spelling gives
+// what the absolute target gives.
+func TestCollectTarget_ProjectImportsDoNotDependOnTheSpelling(t *testing.T) {
+	base := t.TempDir()
+	repo := filepath.Join(base, "repo")
+	mustWrite(t, filepath.Join(repo, "CLAUDE.md"), "@.env\n@docs/guide.md\n@../elsewhere/notes.md\n")
+	mustWrite(t, filepath.Join(repo, ".env"), "API_KEY=sk-test-000\n")
+	mustWrite(t, filepath.Join(repo, "docs", "guide.md"), "# Guide\n")
+	mustWrite(t, filepath.Join(base, "elsewhere", "notes.md"), "# notes\n")
+	abs, err := CollectTarget(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := importView(abs, base)
+	if len(want) != 5 {
+		t.Fatalf("fixture: the absolute target gives %q, want the CLAUDE.md, the guide, EXFIL-005 and two notes", want)
+	}
+	for _, sp := range []struct{ dir, target string }{
+		{repo, "."},
+		{repo, "./"},
+		{filepath.Join(repo, "docs"), ".."},
+		{base, "repo"},
+		{filepath.Join(base, "elsewhere"), filepath.Join("..", "repo")},
+	} {
+		t.Run(sp.target, func(t *testing.T) {
+			anchorChdir(t, sp.dir)
+			got, err := CollectTarget(sp.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The seeds keep the target as typed, and Within names it as typed (P-120); importView relates
+			// the paths to base, and the names are compared without Within.
+			if g, w := withoutWithin(importView(got, base)), withoutWithin(want); fmt.Sprint(g) != fmt.Sprint(w) {
+				t.Errorf("check %s from %s\n got: %q\nwant: %q", sp.target, sp.dir, g, w)
+			}
+		})
+	}
+}
+
+// withoutWithin blanks the within field of importView's artifact rows.
+func withoutWithin(rows []string) []string {
+	out := make([]string, len(rows))
+	for i, r := range rows {
+		f := strings.Split(r, "|")
+		if len(f) == 4 {
+			f[1] = ""
+		}
+		out[i] = strings.Join(f, "|")
+	}
+	return out
 }
