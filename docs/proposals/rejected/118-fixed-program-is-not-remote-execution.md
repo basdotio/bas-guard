@@ -177,3 +177,51 @@ From `agent-guard-work/runs/2026-11-05-p117-{py,ts}-s3/` (P-117's branch runs) a
   `` execAsync(`cd ${cwd}`) ``, `krasun-notes-mcp-src` `` execAsync(`osascript … ${script}`) ``, `namin-dafny-mcp`
   `os.system`); `tommelt-hpc-mcp-src` runs a binary the caller names; the rest are terminals, installers or network
   download-and-run (`0x7556-wolfshell`, `maximilianromer-onion-search-mcp`).
+
+## Readings
+
+Four fresh gpt-4.1-mini runs on 2026-11-16 (`baselines/results/aguard/2026-11-16-llm-gpt-4.1-mini-p118-{py-base,py-branch,ts-base,ts-branch}-s3/`;
+`compare.txt` in `py-branch` lists every target, every benign change with the model's sentence and every malicious
+loss). US$8.77. Failed calls 5 / 6 / 8 / 1, incomplete samples 5 / 4 / 6 / 1. The runs waited from 2026-11-05 to
+2026-11-16 because the OpenAI key stopped working (401). A 20-sample pilot on `deepseek-chat` (the user's own judge)
+in the meantime flagged none of the five Python targets: the false positive this proposal targets is gpt-4.1-mini's.
+
+| line (set before the run) | baseline | branch | |
+|---|---:|---:|---|
+| targets with no escalating high `LLM-010`, of the 8 high on the baseline | — | **1** | ≥ 5 ✗ |
+| benign escalating high `LLM-010`, Python + TS | 62 | **80** | ≤ 62 ✗ |
+| malicious losses because the severity fell | — | **4** | 0 ✗ |
+| malicious losses on the vote count (noise, listed) | — | 5 | — |
+
+**Targets.** The model picked the row and kept the reading. Seven of the eight stay high, now as `code-execution`;
+`securityfortech-secops-mcp`, not high on the baseline, became high. The sentences repeat the exemption and flag anyway:
+xcodebuild "runs subprocess commands built from parameters, including xcodebuild with arguments passed as a list,
+which executes local programs dynamically based on input"; ffmpeg "with arguments constructed from caller input,
+executing arbitrary local commands". The one loss, `tidewave-ai-tidewave-js-src`, was a 2-of-3 installer vote on the
+baseline.
+
+**Benign.** Python 38 → 45, TS 24 → 35. New highs come in two kinds: servers whose purpose is to run the caller's code
+(`fm-code_mode`, `12458-wolfram-mcp`, `osmarbetancourt-hetzner-mcp-src`, `berry-13-code-interpreter-mcp`,
+`fdrechsler-mcp-server-idapro`, `synohara-supercollider-mcp-src`), which the row's own words (eval, code strings) now
+invite and the exemption keeps high; and more fixed programs (`nacgarg-bazel-mcp-server`,
+`whybothercoding-ableton-mcp-server-src`, `arvindrk-extract-design-system-src`, `rebekahx23-chime`).
+
+**Malicious.** 144 → 142 escalating. All four severity losses moved to `other` (medium): `log_tampering_evidence_removal`
+(was `file-deletion`), `response_poisoning_content_injection` (was `exfiltration`), `stealth_logging_interaction_tracking`
+and `timestamp_manipulation_anti_forensics` (was `safety-disable`). The only change to `other` was its pointer
+sentence, which now names three rows; the model reads it as a wider catch-all.
+
+**Read.** Of the 46 malicious samples whose high vote was `remote-execution` on the baseline, the branch majority is
+`code-execution` 34, `remote-execution` 9, `exfiltration` 1, none 2. Escalating high `code-execution` votes on the
+branch, all classes: 80.
+
+## Done (2026-11-16)
+
+Rejected: every line failed. The row, the pointer, the exemption, the `serverTask` sentence and their tests were
+reverted on the branch (`4bd9221`); `main` is unchanged. The model does not separate a fixed program with list
+arguments from a command built from input when told to: it renames the category and quotes the exception while
+applying it. With P-115's `covert-transmission` this is the second time a sentence in the prompt drew a line the
+model did not keep. The next attempt should check the line in the tool, as `categoryShown` does for hooks (P-049):
+whether the quoted call has `shell=True`, `exec`/`eval`, or a string command, not what the model calls it.
+`issues/028` records this. The raw archive (`aguard-judge-raw-2026-11-p118.tar.gz`) goes on the next release with
+P-114's to P-117's.
