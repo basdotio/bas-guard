@@ -162,7 +162,7 @@ Samples carrying `PERM-007`: malicious 1 → 1, benign 12 → 13, hard negatives
 ## Done
 
 ```
-Merged: not yet — PR (number filled in when opened; find the sha with git log --grep P-124 after the merge)
+Merged: not yet — PR #150 (find the sha with git log --grep P-124 after the merge)
 Released: (fill in after the release)
 Evidence: TestDetect_PermissionFileRewriteOnOneLine, TestDetect_PermissionFileRewriteOneLineCitesItOnce,
   TestDetect_PermissionFileRewriteInAHookCommand, TestWritesAFile (internal/detect/perm007_test.go); via check:
