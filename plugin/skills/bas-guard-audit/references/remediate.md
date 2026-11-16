@@ -87,6 +87,9 @@ If a hook is one the user did not add, that is the finding. Hooks are the surfac
 - `INJ-004` (zero-width / directional control characters) — **look at the bytes**, not the
   rendered text. That is the whole technique. `grep -nP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}\x{FEFF}]'`
   on the file shows where they are.
+- `INJ-006` (text in Unicode tag characters) — the finding's explanation prints the hidden text
+  decoded, between `⟦ ⟧`. Read that, not the rendered line: the rendered line is what a reviewer
+  saw and approved. Delete the tag characters; a skill has no reason to carry text nobody can see.
 - `OBF-001`…`OBF-004` — decode the blob and read it. Decode; never execute.
 
 ### Filesystem and exfiltration

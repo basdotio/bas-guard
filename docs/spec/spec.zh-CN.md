@@ -179,6 +179,9 @@ type Rule struct {
   行连接符、命令名里的零宽/双向控制字符、以及**把词切开的引号**(`cu""rl`/`cur'l'`/`c\url`)—— 再交给规则匹配。
   产出两份**故意不同**的文本:`norm` 供匹配,`raw` 进证据(报告必须显示文件里真正写的那一行,否则等于把规避替用户抹平了);
   且**规则先匹配 raw、未命中才看 norm**,因为归一化只做删除,这个顺序只会多报不会漏报,反过来会让 `INJ-004`(专门报告零宽字符的规则)自己消音。
+  Unicode tag 字符(U+E0000–E007F)在 norm 里**解码**成它镜像的 ASCII(P-123):模型就是这么读的,整句写成 tag 的指令以前对每条规则都不可见。
+  它们**不进** `detect.Invisible` 那张表:emoji 旗帜(U+1F3F4 + 1–6 个小写/数字 tag + U+E007F)正是用它们写的,而判官的垫料折叠读那张表,
+  一句 tag 写的指令会被折成空。"非旗帜的 tag"由 `INJ-006`(high)报告,`report.Sanitize` 对同一谓词(`detect.HidesTagText`)成立的字符串把 tag 换成 U+FFFD。
   **仍然缺的是真语法树才能给的东西**:链式表达式(`Buffer.from(secret).toString('base64')`)、跨语句的取值追踪,以及同形异义字折叠(需要 Unicode confusables 表)。
   这三项记在 ROADMAP,**不得在文档中含糊为已完成**。要补,前提是先决定是否接受一个 parser 依赖 —— 那是交付形态的决定,不是实现细节。
 - **structural**:内置检查器(非文本模式),如「读 env/凭证 AND 有外连 host」= exfil 链、「hook command 含 shell 元字符」、「MCP env 里疑似明文 secret」。
