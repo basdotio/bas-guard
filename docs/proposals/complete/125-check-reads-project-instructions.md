@@ -63,9 +63,9 @@ uses, and follow their imports with the same resolution and boundary. Never inst
    a candidate, which that pass promises never to do. A skill, a plugin and a root keep their branches unchanged; an `@`
    in a `SKILL.md` is not an import (Claude Code expands imports in `CLAUDE.md` files).
 
-`rulesEpoch` 14 → 15 (P-123 took 13 and P-124 took 14, both merged first; rules version `c767f85ecaf7` → `35dbd6adf202`): for the
-same input `check` produces findings it did not. Measured before those merges, on top of v0.34.0, where the bump read
-12 → 13 (`39b17de88dd4` → `b9d0a5520737`).
+`rulesEpoch` 14 → 15 (P-123 took 13 and P-124 took 14, both merged first; rules version `c767f85ecaf7` →
+`35dbd6adf202`): for the same input `check` produces findings it did not. Measured before those merges, on top of
+v0.34.0, where the bump read 12 → 13 (`39b17de88dd4` → `b9d0a5520737`).
 
 ## Measured
 
