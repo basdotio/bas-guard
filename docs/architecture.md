@@ -254,7 +254,7 @@ built inline, so the epoch is all that covers them. Scan reports carry it as `ru
 without `make docs`. It covers **deterministic detection only** — what `overall` is
 computed from. **When you change deterministic detection code outside `builtinRules()`** —
 structural or shape checks, the role gate, the lexical layer, which files are read, `collect`'s
-credential-import check (`EXFIL-005`), `permcheck` — in a way that changes which findings an input
+credential-import check (`EXFIL-005`) and project MCP approval check (`PERM-009`), `permcheck` — in a way that changes which findings an input
 produces or their ID/dimension/severity/advisory flag, **bump `rulesEpoch` in the same commit.**
 Nothing enforces it; a forgotten bump lets two reports claim the same rules while different code
 produced them. The LLM judge is outside it altogether — prompts, grounding, consensus and severity

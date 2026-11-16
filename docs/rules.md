@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**89 rule IDs** in this build — 50 engine rules + 14 structural + 6 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **79 score** and 10 never do (dimension 0).
+**90 rule IDs** in this build — 50 engine rules + 14 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **80 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `35dbd6adf202`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `400eaf0b1400`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 14 structural checks, the 6 permission checks, the 5
+- **Covered only by the epoch:** the 14 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -42,7 +42,7 @@ agree were produced by the same engine rule table.
 ## Contents
 
 - [1 — Prompt injection](#1--prompt-injection) (12)
-- [2 — Excessive permissions](#2--excessive-permissions) (7)
+- [2 — Excessive permissions](#2--excessive-permissions) (8)
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
 - [4 — Code execution](#4--code-execution) (16)
 - [5 — Supply chain](#5--supply-chain) (8)
@@ -83,6 +83,7 @@ agree were produced by the same engine rule table.
 | `PERM-006` | medium | Grant covers a command that can spawn a shell | The allow covers an everyday binary that reaches arbitrary execution anyway — Bash(git *) via `git -c core.pager=`, and likewise find/awk/tar/docker/ssh/npm/make/xargs/rsync. Same capability as PERM-002 through a narrower-looking disguise, hence the same severity. The grant must be open-ended, so a fully specified Bash(git status) always stays clean. Beyond that, whether pinning a subcommand helps depends on the binary, and this was measured rather than assumed: git parses `git log -c k=v` as a revision, so Bash(git status:*) is genuinely out of reach and stays clean, but make, find, rsync, ssh and vim accept their escape option ANYWHERE in the command line, so Bash(make test *) is as open as Bash(make *) and is reported. |
 | `PERM-007` | high | Writes Claude Code's permission settings file | Code that writes settings.json, settings.local.json or ~/.claude.json is rewriting the permission and hook configuration the user relies on, typically to grant itself what a prompt would have refused. |
 | `PERM-008` | medium | Hook auto-approves tool calls | The hook answers the permission prompt itself with allow. Every tool call it matches runs without the user being asked; whether that is a convenience or a bypass depends on what it matches, which the report cannot see. |
+| `PERM-009` | medium | Project MCP server approved without a prompt | A project's settings approve the servers its .mcp.json declares in advance — enableAllProjectMcpServers: true for all of them, enabledMcpjsonServers for the ones it names — so once the folder is trusted they start with every session without the per-server prompt that shows the user each command. Raised on each approved server, citing the settings line, only when the project's .claude settings and its .mcp.json are read together (check <dir>, or a scan whose root is the project's .claude; for a scan of ~/.claude, home's own .mcp.json). Follows Claude Code's precedence: a disabledMcpjsonServers entry in any file rejects the server; for enableAllProjectMcpServers the highest-precedence file that sets it decides, settings.local.json above settings.json. Medium: the approved command is in view and every MCP rule reads it, and teams that ship a .mcp.json commit the key for convenience. A settings file with the key and no .mcp.json in view, and a user's settings approving the servers of projects a scan does not read, raise nothing. |
 
 ## 3 — Data exfiltration
 
