@@ -170,7 +170,7 @@ the two the maintainer is most likely to want to revisit.
 ## Done
 
 ```
-Merged: not yet — PR (number filled in when opened; find the sha with git log --grep P-123 after the merge)
+Merged: not yet — PR #149 (find the sha with git log --grep P-123 after the merge)
 Released: (fill in after the release)
 Evidence: TestDetect_TagSmuggledSentence (internal/detect/tags_test.go); row 1 via check 100/100, exit 0 →
   50/100, exit 1 (INJ-001, INJ-006, FS-001); gchan's bad-humanizer PoC 100 → 69; reverse:
