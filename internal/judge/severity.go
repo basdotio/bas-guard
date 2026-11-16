@@ -67,18 +67,10 @@ var categoryTables = map[Mode][]category{
 	// was `other`. The valve names its two neighbours: a new row the catch-all does not point
 	// away from is a row the model does not pick (P-066 added one to the injection table and it
 	// was chosen zero times in 840 trees).
-	//
-	// code-execution (P-118) is the row the server question already asked for ("executing shell or
-	// arbitrary code built from a parameter") and the table did not have: without it the model filed
-	// a `subprocess.run(["bazel", "build", target])` and a `shell=True` injection alike under
-	// remote-execution, whose text is a network download. It says what is not it — a fixed program
-	// run with list arguments and no shell — and it is exempt from the disclosure step (see
-	// disclosureExempt).
 	ModeServer: append(append([]category{}, intentBehaviours...),
-		category{"code-execution", model.SevHigh, "a tool runs a shell command, code, a template or a serialized object built from its caller's input (a command string through a shell, eval, exec or compile, a template rendered from a caller's string, pickle or an unsafe YAML load of input, a module imported by a caller's name); NOT a fixed program run with its arguments as a list and no shell, and NOT downloading code and running it, which is remote-execution"},
 		category{"resource-exhaustion", model.SevHigh, "a tool call starts unbounded processes, threads, memory, disk, file descriptors or recursion (a fork bomb, a decompression bomb, a loop that allocates without end); NOT a long-running server loop, a fixed-size pool or a bounded retry"},
 		category{"result-tampering", model.SevHigh, "a tool returns entries, links, products or redirects the caller did not ask for and cannot tell apart from a real result; NOT ranking, filtering, pagination or an error message"},
-		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above (running a caller's input as a shell command or code is code-execution; unbounded resource use is resource-exhaustion; content slipped into a tool's results is result-tampering)"}),
+		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above (unbounded resource use is resource-exhaustion; content slipped into a tool's results is result-tampering)"}),
 	ModeCapability: {
 		{"network", model.SevHigh, "the command itself contacts the network: a URL, curl, wget, ssh, nc, a mail or webhook call"},
 		{"credential", model.SevHigh, "the command itself reads a key, token or credential file by path"},
@@ -109,35 +101,27 @@ var categoryTables = map[Mode][]category{
 	},
 }
 
-// disclosureExempt names the categories the disclosure step never lowers. software-source: the
-// prompt flags it whether or not the declared purpose states it — no honest skill needs to change
-// where a machine gets its software. code-execution (P-118, server pass only): a tool that says it
-// executes commands is exactly what a malicious server writes too — Cisco's samples are named
-// execute_shell_command and documented "Unrestricted eval allows arbitrary code execution" — and
-// issues/028 measured lowering on that: 10 Cisco lost for 2 benign. The prompt does not ask for
-// disclosed execution to be flagged; the exemption only keeps a flagged one where it is.
-var disclosureExempt = map[string]bool{"software-source": true, "code-execution": true}
+// disclosureExempt names the intent categories the prompt flags whether or not the declared
+// purpose states them: no honest skill needs to change where a machine gets its software.
+const disclosureExempt = "software-source"
 
 // severityFor is the finding's severity for a verdict in a mode. A mode without a table keeps the
 // model's word, clamped (LLM-009, advisory-only). A category not in the table is medium. On the
-// intent and server passes a disclosed behaviour is one step lower, except a row of the table that
-// disclosureExempt names.
+// intent pass a disclosed behaviour is one step lower, except disclosureExempt.
 func severityFor(m Mode, v Verdict) model.Severity {
 	rows, ok := categoryTables[m]
 	if !ok {
 		return clampSeverity(v.Severity)
 	}
 	cat := strings.ToLower(strings.TrimSpace(v.Category))
-	sev, inTable := model.SevMedium, false
+	sev := model.SevMedium
 	for _, r := range rows {
 		if r.name == cat {
-			sev, inTable = r.sev, true
+			sev = r.sev
 			break
 		}
 	}
-	// The exemption belongs to a row: a name the pass's table does not have (code-execution on the
-	// intent pass) is an unknown name and takes the step like any other.
-	if (m == ModeIntent || m == ModeServer) && v.Disclosed && !(inTable && disclosureExempt[cat]) {
+	if (m == ModeIntent || m == ModeServer) && v.Disclosed && cat != disclosureExempt {
 		sev = oneStepLower(sev)
 	}
 	return sev

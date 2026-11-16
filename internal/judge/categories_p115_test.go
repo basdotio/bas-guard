@@ -47,14 +47,13 @@ func TestSeverityFor_NewRows(t *testing.T) {
 	}
 }
 
-// TestCategoryTables_ServerIsIntentPlusThree: the server table is the intent table's behaviour rows,
-// then code-execution (P-118), resource-exhaustion and result-tampering, then its own `other` valve.
-// Before P-115 the two were separate literals with identical rows; a row added to one could silently
-// miss the other.
-func TestCategoryTables_ServerIsIntentPlusThree(t *testing.T) {
+// TestCategoryTables_ServerIsIntentPlusTwo: the server table is the intent table's behaviour rows,
+// then resource-exhaustion and result-tampering, then its own `other` valve. Before P-115 the two
+// were separate literals with identical rows; a row added to one could silently miss the other.
+func TestCategoryTables_ServerIsIntentPlusTwo(t *testing.T) {
 	intent, server := categoryTables[ModeIntent], categoryTables[ModeServer]
-	if len(server) != len(intent)+3 {
-		t.Fatalf("server table has %d rows, intent %d; want intent + 3", len(server), len(intent))
+	if len(server) != len(intent)+2 {
+		t.Fatalf("server table has %d rows, intent %d; want intent + 2", len(server), len(intent))
 	}
 	for i := 0; i < len(intent)-1; i++ {
 		if server[i] != intent[i] {
@@ -62,7 +61,7 @@ func TestCategoryTables_ServerIsIntentPlusThree(t *testing.T) {
 		}
 	}
 	n := len(intent) - 1
-	for i, want := range []string{"code-execution", "resource-exhaustion", "result-tampering", "other"} {
+	for i, want := range []string{"resource-exhaustion", "result-tampering", "other"} {
 		if got := server[n+i].name; got != want {
 			t.Errorf("server row %d is %q, want %q", n+i, got, want)
 		}
@@ -86,7 +85,7 @@ func TestCategoryPrompt_OtherPassesUnchanged(t *testing.T) {
 	for m, d := range want {
 		sum := sha256.Sum256([]byte(categoryPrompt(m)))
 		if got := hex.EncodeToString(sum[:]); got != d {
-			t.Errorf("mode %d: category prompt changed (%s); P-115 and P-118 move only the server table", m, got)
+			t.Errorf("mode %d: category prompt changed (%s); P-115 moves only the server table", m, got)
 		}
 	}
 	// And the one that was meant to move did.
@@ -104,7 +103,7 @@ func TestCategoryPrompt_CatchAllsPointAway(t *testing.T) {
 		valve  string
 		points []string
 	}{
-		{ModeServer, "other", []string{"code-execution", "resource-exhaustion", "result-tampering"}},
+		{ModeServer, "other", []string{"resource-exhaustion", "result-tampering"}},
 	}
 	for _, c := range cases {
 		var what string
