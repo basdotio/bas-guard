@@ -2,6 +2,7 @@
 package detect
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/basdotio/bas-guard/internal/model"
@@ -110,8 +111,10 @@ func TestDetect_PermissionFileRewriteOneLineCitesItOnce(t *testing.T) {
 	if !ok {
 		t.Fatalf("want PERM-007, got %v", keys(ruleIDs(got[0].Findings)))
 	}
-	if len(f.Evidence) != 1 || f.Evidence[0].File != "s/setup.js" || f.Evidence[0].Line != 2 {
-		t.Fatalf("want one citation of s/setup.js:2, got %+v", f.Evidence)
+	// The file is compared by base name: the root-relative prefix is "s/" on macOS, where the
+	// temporary root sits behind the /var -> /private/var link, and "skills/s/" on Linux.
+	if len(f.Evidence) != 1 || filepath.Base(f.Evidence[0].File) != "setup.js" || f.Evidence[0].Line != 2 {
+		t.Fatalf("want one citation of setup.js line 2, got %+v", f.Evidence)
 	}
 }
 

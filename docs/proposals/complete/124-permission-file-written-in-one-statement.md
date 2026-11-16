@@ -80,7 +80,8 @@ not change. Same ID, same severity.
   Quiet: a one-line read of the settings beside a write elsewhere, another product's `settings.json`, `.vscode`, a
   backup whose only redirect is `2>/dev/null`, a message naming the file sent to `/dev/stderr`, and the concatenated
   name (pinned as a known miss, with the reason in the test).
-- [x] `TestDetect_PermissionFileRewriteOneLineCitesItOnce`: one citation, `s/setup.js:2`.
+- [x] `TestDetect_PermissionFileRewriteOneLineCitesItOnce`: one citation, `setup.js` line 2 (compared by base name: the
+  root-relative prefix differs between macOS and Linux, which the first CI run on Linux caught).
 - [x] `TestDetect_PermissionFileRewriteInAHookCommand`: a Node and a Python one-liner fire; `jq` reading the settings and
   `cp … 2>/dev/null` backing them up stay quiet.
 - [x] `TestWritesAFile`: 13 lines on the write leg alone, `/dev/shm` still a write.
