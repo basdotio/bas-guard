@@ -2,8 +2,8 @@
 # 124 — A script that builds the path to Claude Code's settings file and writes it in one statement scored 100/100
 
 - **Source**: new finding, 2026-11-16, reported on v0.33.1 and v0.34.0 (same result); re-measured here on v0.34.0
-- **Depends on**: none. Moves `rulesEpoch` 12 → 13; a concurrent branch also starts from 12, and whichever merges second
-  takes 14
+- **Depends on**: none. Moves `rulesEpoch` 13 → 14: P-123 (PR #149, text in Unicode tag characters) merged first and
+  took 13, and this branch merged `main` after it
 - **Branch**: `p/124-permission-file-written-in-one-statement`
 
 ## Problem
@@ -94,7 +94,7 @@ not change. Same ID, same severity.
 - [x] The seven rows above through the built binary: rows 1 and 3 100/100 → 69/100 at `PERM-007` high; rows 2, 4, 5, 6
   unchanged at 69/100; row 7 unchanged at 100/100.
 - [x] Static over the corpus and the held-out ClawHub set, `main` against the branch (Measured).
-- [x] `rulesEpoch` 12 → 13; `make docs`; `.claude/rules/detect.md`; `make verify` green; `go.mod` line 2 is still
+- [x] `rulesEpoch` 13 → 14 (12 → 13 until P-123 merged first); `make docs`; `.claude/rules/detect.md`; `make verify` green; `go.mod` line 2 is still
   `go 1.23.5` and `go version` does not switch toolchains.
 
 ## Out of scope
@@ -120,7 +120,8 @@ not change. Same ID, same severity.
 ## Measured
 
 Static, threshold high, corpus `24c15d32` (5,042 samples), `main` `4bee868` (v0.34.0, `rules=39b17de88dd4`) against this
-branch (`rules=b9d0a5520737`), both built 2026-11-16: `baselines/results/aguard/2026-11-16-p124-corpus-{main,changed}`.
+branch (`rules=b9d0a5520737`, epoch 13 before P-123 merged), both built 2026-11-16:
+`baselines/results/aguard/2026-11-16-p124-corpus-{main,changed}`.
 The held-out ClawHub set is `agent-skill-malware` (layer 2, the work list P-121 used): `…-p124-heldout-{main,changed}`;
 its scorecards say the samples are not in the corpus, so its figures are read from `ledger.jsonl`.
 
@@ -151,7 +152,7 @@ Samples carrying `PERM-007`: malicious 1 → 1, benign 12 → 13, hard negatives
 
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
-| 1 | The file-level half closes on one line, the write leg in `permfile.go`, `rulesEpoch` 13, regenerated `docs/rules.md` and `.claude/rules/detect.md`; tests written first | `detect: PERM-007 closes on one line that names Claude Code's settings file and writes it (P-124)` |
+| 1 | The file-level half closes on one line, the write leg in `permfile.go`, `rulesEpoch` 13 (14 after merging `main`), regenerated `docs/rules.md` and `.claude/rules/detect.md`; tests written first | `detect: PERM-007 closes on one line that names Claude Code's settings file and writes it (P-124)` |
 | 2 | The four static runs | `baselines: P-124 static runs, main and branch, corpus and held-out ClawHub (P-124)` |
 | 3 | The proposal and its index row | `proposals: P-124 done, measured (P-124)` |
 
