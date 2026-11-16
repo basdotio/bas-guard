@@ -244,7 +244,7 @@ the next was read as two commands. Each is now a quiet row in `TestHookPayloadEg
 ## Done
 
 ```
-Merged: not yet — PR (number filled in when opened; find the sha with git log --grep P-128 after the merge)
+Merged: not yet — PR #154 (find the sha with git log --grep P-128 after the merge)
 Released: (fill in after the release)
 Evidence: TestHookPayloadEgress_TheBriefsRows, _ShellSpellings, _CodeSpellings, _NotifiersStayQuiet, _Destination,
   _Evidence, _OnlyHooks (internal/detect/hookegress_test.go); FuzzHookEgressReaders; via scan: rows 2, 4, 5
