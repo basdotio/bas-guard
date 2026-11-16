@@ -46,7 +46,7 @@ as earlier raw archives were; until then the P-114 and P-115 result directories 
 ## Done
 
 ```
-Merged: PR (number filled in when opened)
+Merged: PR #148 (2026-11-16; find the sha with git log --grep P-122)
 Released: v0.34.0
 Evidence: make verify: all gates passed on the branch
 Evidence: bas-guard version on main before this branch: rules=39b17de88dd4 judge-prompt=9cd57da1a4bd judge-excerpt=9
