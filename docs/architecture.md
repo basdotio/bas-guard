@@ -222,7 +222,11 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   matching, while evidence keeps the raw bytes — printing `curl …` when the file says `cu""rl`
   would tell the user something false about their own machine. Rules run on raw first, then
   normalised, so normalisation can only add findings, never silence one (notably `INJ-004`,
-  whose whole purpose is reporting zero-width characters).
+  whose whole purpose is reporting zero-width characters). Unicode tag characters
+  (U+E0000–E007F) are decoded there to the ASCII they mirror, because that is how a model reads
+  them ([`tags.go`](../internal/detect/tags.go), P-123): a sentence written in them meets every rule,
+  and `INJ-006` reports any tag character outside an emoji flag, with the hidden text decoded in its
+  explanation.
 - **Some checks are structural, not regex.** `EXFIL-001/002/003` and `OBF-004` accumulate
   three legs — credential read, encode, network egress — at two granularities. Two legs
   (credential + egress) complete a chain; encoding is an amplifier. Cross-file only reaches
