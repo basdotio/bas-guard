@@ -22,7 +22,7 @@ read the evidence before acting.
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `e3316fe2f789`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `39b17de88dd4`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
@@ -63,7 +63,7 @@ agree were produced by the same engine rule table.
 | `INJ-002` | medium | Prompt injection: disregard system prompt | Coaxes the agent to drop its safety constraints. |
 | `INJ-003` | medium | Jailbreak persona switch | Classic jailbreak / persona-override pattern. |
 | `INJ-004` | medium | Hidden / Unicode-steganography characters | Zero-width / directional control characters are used to hide injected instructions. |
-| `INJ-005` | high | Fetches remote instructions to act on | The skill downloads a file named like instructions/steps/commands/payload from a remote URL. Whatever that file says, the agent is told to carry out — remote-controlled behaviour delivered after install. |
+| `INJ-005` | high | Fetches remote instructions to act on | The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read. |
 | `LLM-003` | medium · advisory | Hidden prompt injection | A directive aimed at the agent, phrased to dodge keyword rules. Runs on skills, CLAUDE.md, subagents, slash commands and hooks. The severity is the tool's, from the category the model names (exfiltration, credential read, remote execution, safety disable, concealed directive, privilege escalation or sandbox escape → high; other directive → medium). |
 | `LLM-007` | high · advisory | Artifact tried to instruct the analyzer | While being examined, the content addressed the analysis model — telling it what to conclude, or to ignore its instructions. Legitimate content has no reason to talk to a scanner. Unlike every other verdict the SEVERITY IS THE TOOL'S, not the model's: a hijacked model would rate its own capture low. |
 | `LLM-011` | medium · advisory | A required step changes the result the user receives | The result pass (P-068), skills only: the SKILL.md body and the documents it names are asked one question — does a step presented as required make the result false to the user's data or task, in a way the declared purpose does not call for and the user cannot see? The severity is the tool's, from the category the model names (forced value, data tampering → high; unrequested artifact, presentation change, other → medium). The step's own rationale is not evidence; conversions, rounding and filtering for presentation, formatting rules, validation and the skill's own scratch files are not findings. |

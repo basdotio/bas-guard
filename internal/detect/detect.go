@@ -310,6 +310,7 @@ func (e *Engine) unitsFor(root string, a model.ArtifactReport) ([]unit, []model.
 func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 	var findings []model.Finding
 	artifactChain, sameFileChain := chain{}, false
+	inj005, hasInj005 := e.byID("INJ-005")
 	for _, u := range units {
 		rel := relPath(root, u.file)
 		// A1: which lines are entirely comment (real code files only; synthetic JSON blobs
@@ -357,6 +358,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 			at   model.Evidence
 		}
 		exec013Fired := false
+		// File-level half of INJ-005 (P-121): a download kept at a path, another line obeying that path.
+		// Wherever INJ-005 itself runs; a config value is data, not an order.
+		var orders remoteOrders
+		ordersScope := !u.synthetic && hasInj005 && roleAllows(u.role, inj005)
+		inj005Fired := false
 		// A.1: rules see the line an INTERPRETER would run (continuations joined, quoting that
 		// only splits a word folded, invisible characters gone); evidence quotes the line the
 		// FILE contains. See logical.go for why those must not be the same string.
@@ -389,6 +395,12 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				if r.ID == "EXEC-013" {
 					exec013Fired = true
 				}
+				if r.ID == "INJ-005" {
+					inj005Fired = true
+				}
+			}
+			if ordersScope && !ll.comment {
+				orders.observe(ll, func() model.Evidence { return model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)} })
 			}
 			if traceScope && !ll.comment {
 				at := model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
@@ -468,6 +480,12 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				}
 				break
 			}
+		}
+		if ev := orders.evidence(); !inj005Fired && ev != nil {
+			findings = append(findings, model.Finding{
+				RuleID: inj005.ID, Dimension: inj005.Dimension, Severity: inj005.Severity, Title: inj005.Title, Why: inj005.Why,
+				Source: model.SrcStatic, Evidence: ev,
+			})
 		}
 		if fileChain.complete() {
 			sameFileChain = true

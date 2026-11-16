@@ -126,13 +126,13 @@ func builtinRules() []Rule {
 		rule("INJ-002", 1, model.SevMedium, `disregard\s+(the\s+)?(system|developer)\s+prompt`, "Prompt injection: disregard system prompt", "Coaxes the agent to drop its safety constraints.", owaspInj),
 		rule("INJ-003", 1, model.SevMedium, `you\s+are\s+now\s+(a\s+)?(DAN|jailbroken|unrestricted)`, "Jailbreak persona switch", "Classic jailbreak / persona-override pattern.", owaspInj),
 		rule("INJ-004", 1, model.SevMedium, `\x{200b}|\x{200e}|\x{202e}|\x{feff}`, "Hidden / Unicode-steganography characters", "Zero-width / directional control characters are used to hide injected instructions.", owaspInj),
-		// INJ-005: curl/wget/fetch of a URL whose path is named like instructions — instructions, steps,
-		// commands, payload, tasks — as a FILE (a dot extension), so a REST `/command` endpoint on a local
-		// service does not match. A skill that fetches a remote instruction file acts on what it gets, so
-		// the file is remote injection: the author controls what the agent does, from a server, after
-		// install. The path token is what keeps it off ordinary fetches; on the corpus this matched
-		// 0 benign. It does not follow the URL — it flags the fetch, that is all.
-		rule("INJ-005", 1, model.SevHigh, `\b(curl|wget|fetch)\b[^\n|]*https?://[^\s"\x60]*\b(instructions?|steps|commands?|payload|tasks?)\.(md|txt|sh|bash|json|ya?ml|py|js)\b`, "Fetches remote instructions to act on", "The skill downloads a file named like instructions/steps/commands/payload from a remote URL. Whatever that file says, the agent is told to carry out — remote-controlled behaviour delivered after install.", owaspInj),
+		// INJ-005: the agent is made to fetch a remote file and do what it says, so the author controls what
+		// the agent does, from a server, after install. Three spellings (remoteinstr.go, P-121): curl/wget/fetch
+		// of a URL whose FILE is named like instructions (a dot extension, so a REST `/command` endpoint does
+		// not match); a fetch verb, a URL and an obedience phrase in one sentence; an obedience phrase pointed
+		// at a URL. The fourth — a download kept at a path, and another line obeying that path — spans lines
+		// and lives in scanUnits (remoteOrders). It does not follow the URL; it flags the order, that is all.
+		rule("INJ-005", 1, model.SevHigh, remoteOrdersRE, "Fetches remote instructions to act on", "The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read.", owaspInj),
 
 		// 4 — Code execution
 		rule("EXEC-001", 4, model.SevHigh, `\bcurl\b[^|]*\|\s*(sudo\s+)?(ba)?sh\b`, "curl piped to shell", "Fetches a script from the network and runs it directly — arbitrary remote code execution.", owaspSup),

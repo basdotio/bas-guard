@@ -136,6 +136,17 @@ paths:
   print/dumps/write/logger 包裹时算 `EXFIL-004`(W-008,子进程 env 是标准写法;发去网络归外泄链);`atob(` 只归 `OBF-001`
   (W-010,同一行两个维度各报一次会把惩罚加两遍,与 EXFIL-003/001 不同时出是同一条纪律)。**组 C 的每条修法都带一条指向真恶意样本
   的反向断言**,没有反向断言的降噪就是删规则。
+- **`INJ-005` 认的是"取一份远程文件 + 让 agent 照它做"这个组合,不是文件名**(P-121,[remoteinstr.go](../../internal/detect/remoteinstr.go))。
+  以前只认 curl/wget/fetch 一个文件名像 instructions/steps/… 的 URL,改名 `guide.txt` 或写成一句话就是 100 分。现在三种行内写法在规则正则里:
+  原来那条;同一句里"取的动词(download/fetch/get/read/retrieve/pull/load/curl/wget…)+ URL + 服从短语"(follow it/them/the steps、
+  do what it says、carry out、obey、act on/execute the instructions);"服从短语 + in/from/at/on + URL"。第四种跨行,是文件级半边
+  `remoteOrders`(epoch 12):一行下载并留存到路径 P(`-o`/`--output`/`>`/`tee`/`-OutFile`/`urlretrieve`;curl -O 和不带 -O 的 wget 取 URL 末段),
+  **另一行**点名 P 且带服从短语(`read /tmp/guide.txt and do what it says`、`follow ./plan.md`)。行规则已在该文件命中时不再出半边。
+  防护点:**`open`/`visit`/`see`/`go to` 故意不在取的动词里**(那是让人去点网页,"Open https://console… and follow the steps" 是安装指南的写法);
+  **`following` 不算服从**(`the following actions` 是形容词,初稿最大的良性命中);**服从短语必须和 URL 在同一句**(`.`/`!`/`?` 后接空白才断句,
+  `follow the steps below` 在下一句);**下载的留存路径要像文件**(含 `.` 或 `/`;`2>`、行首 `>` 引用块、`-O-`、`/dev/*` 都不算)。
+  **不看 host**:moltbook 式 "Fetch https://<服务>/heartbeat.md and follow it" 照报——那正是规则说的行为,语料良性多出的那一个就是它。
+  别把 `open`/`visit` 加回来,别在这里发明"可信服务"的 host 白名单(归信誉那一步)。
 - **注释感知**([comments.go](../../internal/detect/comments.go))会丢掉整行都是注释的命中,
   但维度 6(混淆)除外。它能识别字符串,且一切歧义都判为"代码"(保留)—— 纯提升精度,不引入漏报。
 - **非常规文件一律不开**(`regularFile`,detect 侧唯一的判据)。FIFO 在 `os.Open`/`os.ReadFile`
