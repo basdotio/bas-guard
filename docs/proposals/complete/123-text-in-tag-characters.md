@@ -170,8 +170,8 @@ the two the maintainer is most likely to want to revisit.
 ## Done
 
 ```
-Merged: not yet — PR #149 (find the sha with git log --grep P-123 after the merge)
-Released: (fill in after the release)
+Merged: PR #149 (2026-11-16; find the sha with git log --grep P-123)
+Released: v0.35.0
 Evidence: TestDetect_TagSmuggledSentence (internal/detect/tags_test.go); row 1 via check 100/100, exit 0 →
   50/100, exit 1 (INJ-001, INJ-006, FS-001); gchan's bad-humanizer PoC 100 → 69; reverse:
   TestDetect_FlagEmojiAreNotHiddenText (7 flag trees, no finding, green on main and here); corpus 24c15d32 and
