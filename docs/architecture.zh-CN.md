@@ -45,6 +45,7 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   单文件 → `SKILL.md` → plugin manifest(整树,外加它的 skill、命令、子 agent)→ 像 root → 其他目录(整棵树当一个 artifact 读掉)。
   目录,以及名为 `settings.json`、`settings.local.json`、`.mcp.json` 的文件,还会读它们声明的 Claude Code 配置——**在整树之外另读,
   绝不代替整树**(`collect.withDeclared`,P-120);读出来的 artifact 在 `Within` 里指回目标,和目标算一个单元(`score.Families`)。
+  目录的 `CLAUDE.md` 也这样另读,用的是扫描它的 `.claude` 时那份清单和那套 `@` 导入展开(`collect.declaredInstructions`,P-125)。
 
 每个包都是围绕 [`internal/model`](../internal/model/model.go) 中不可变类型的一个(近似)纯函数阶段。
 

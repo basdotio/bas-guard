@@ -83,7 +83,7 @@ bas-guard version                                         # 版本 + 与已装�
 | `plugin` | `<root>/plugins/installed_plugins.json` → 各条 `installPath` | 插件打包的 skills/commands/hooks/MCP —— 展开后按对应 kind 再扫(B4,不可整块漏)。**只采「已安装」的那份**:marketplace 镜像不进任何会话,扫了只是噪声。`installPath` 出自配置文件、可被影响,须过 §16.2 边界收敛 |
 | `instruction` | `<root>/CLAUDE.md`、`skills/*/SKILL.md` 正文 | 指令文本(injection 扫描面) |
 | `rule` / `workflow` / `output_style` / `memory` | `<root>/rules/*`、`workflows/*`、`output-styles/*`、`memory/*` | 自动加载的指令面,各自单文件;清单里单列(「你有 14 条 rule 每次会话都进上下文」和「你有一个 CLAUDE.md」是不同的事实)。rule 的名字带 ` (path-scoped)` 当且仅当 Claude Code 会遵守它的 `paths:`:frontmatter 从第一个字节开始,且 `paths` 按逗号切分、花括号展开、去掉结尾的 `/**` 之后至少剩一条非空、不是 `**` 的 glob;否则它每次会话都加载(2.1.107 实测,P-024) |
-| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报。`check <dir>` 另读目录顶层声明的配置:`.claude/settings*.json`、自己的 `settings*.json` 用 `settings.json` 的读取器,`.mcp.json` 用 MCP 的读取器(P-120);这些 artifact 的 `Within` 指回目录,与目录算一个单元(§5.3),hook/权限跟进的脚本按配置文件所在目录解析(`ConfigRoot`),与 `scan --root <那个目录>` 同一个哈希。整树里 `.claude/commands/` 下的 `.md` 按斜杠命令跑全部规则 |
+| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报。`check <dir>` 另读目录顶层声明的配置:`.claude/settings*.json`、自己的 `settings*.json` 用 `settings.json` 的读取器,`.mcp.json` 用 MCP 的读取器(P-120);这些 artifact 的 `Within` 指回目录,与目录算一个单元(§5.3),hook/权限跟进的脚本按配置文件所在目录解析(`ConfigRoot`),与 `scan --root <那个目录>` 同一个哈希。整树里 `.claude/commands/` 下的 `.md` 按斜杠命令跑全部规则。目录的 `CLAUDE.md`、`CLAUDE.local.md` 及 `.claude/` 下的这两个用 `instruction` 的采集器读、跟进 `@` 导入,home 取目录本身——与 `scan --root <目录>/.claude` 同一份清单、同一个解析与边界(P-125) |
 | `connector` | 桌面版会话缓存 `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json` → `remoteMcpServersConfig` | 远程 MCP connector(Figma/Notion/Slack…)向模型**通告的工具清单**:每个工具的 name/description/参数 description。**从不联网连它们**,读的是桌面版已缓存的那份;这是 tool-poisoning 面,也是不联网能拿到工具说明的唯一地方。每个 connector 一个 artifact,哈希覆盖工具清单。只解码 connector 段(会话文件还装着用户会话状态);覆盖=本机会话见过的,报告不说「所有 connector」 |
 | `quarantined` | `<root>/.aguard-trash/` | `clean --apply` 隔离过的东西,仍扫、单列,不计入清单主数 |
 
@@ -316,7 +316,7 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
              overall_effective = min(overall,
                                      round(加权平均(各单元的 score_effective)) + 木桶封顶(含合格 LLM 发现))
 单元:         一个 artifact;插件和它的子项(Plugin 字段指回它的 skill/命令/子 agent)合成一个单元,
-             `check` 目标和它声明的配置(Within 字段指回目标的 hook/权限/env/MCP,P-120)也合成一个单元,
+             `check` 目标和它声明的配置(Within 字段指回目标的 hook/权限/env/MCP/指令文件,P-120、P-125)也合成一个单元,
              单元分 = 把它们的发现合在一起按「每 artifact」那两行算
              木桶封顶:任一 artifact 出现 critical → ≤ 49(高危);任一 high(无 critical)→ ≤ 69(中危)
 风险等级:     ≥85 低危 · 70–84 关注 · 50–69 中危 · <50 高危        // 两个数共用同一张分级表

@@ -374,9 +374,10 @@ Coverage caveats worth knowing:
 - **`check <dir>`** reads the directory as one tree and, in addition, the Claude Code configuration it declares at its
   top level, with the readers a scan uses: `.claude/settings.json` and `settings.local.json` (hooks, permission grants,
   env), its own `settings*.json`, and `.mcp.json`; `check ./.mcp.json` and `check <path>/settings.json` read that file
-  as configuration too. The score counts the directory and that configuration as one item. Skills, agents and rules
-  under a project's `.claude` are read as part of the tree rather than one by one; `scan --root <repo>/.claude` lists
-  them one by one.
+  as configuration too. It also reads the project's `CLAUDE.md` and `CLAUDE.local.md` (and those in its `.claude`) the
+  way `scan` does, following their `@` imports, so an import of `.env` or a key reports `EXFIL-005`. The score counts
+  the directory and that configuration as one item. Skills, agents and rules under a project's `.claude` are read as
+  part of the tree rather than one by one; `scan --root <repo>/.claude` lists them one by one.
 - A **hook script** is followed one level and only inside your home directory. An out-of-home
   reference is not read, and scores as `HOOK-002`.
 - Under a config root, **top-level directories no collector owns are not read** — on a real
