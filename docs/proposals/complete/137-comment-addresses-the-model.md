@@ -161,3 +161,24 @@ no tree outside the corpus carries the rule.
 
 **Read, not gated: the maintainer's own `~/.claude`** (100 artifacts): the same 83 findings on the parent and on the
 branch; the rule does not fire.
+
+## Done
+
+The maintainer said to merge it on 2026-11-18 ("好，都合了"). The three open questions stand as recommended: high,
+comments in fenced code not reported, the corpus figure quoted as measured and named one template wherever it is
+quoted.
+
+```
+Merged: PR #164 (find the date and sha with git log --grep P-137 after the merge)
+Released: (fill in after the release)
+Evidence: TestHiddenComment_AddressesTheModel, TestHiddenComment_OtherInjectionRulesAreUnchanged,
+  TestHiddenComment_SnippetIsRedacted (internal/detect/hiddencomment_test.go); corpus c314e4d9 static, the P-136
+  build 9e8ab98 → branch 0a0dcbc (rulesEpoch 24): the seven trees 0 → 7 at high INJ-007, malicious 238 → 243 of 719
+  with none lost (the five that move are one template spliced into five servers), benign 337 → 337 of 4,534 with
+  INJ-007 on none, hard negatives 4 → 4 of 19; held-out, totals only: malicious 133 → 133 of 243, benign 6 → 6 of
+  216; fresh skills carrying INJ-007 0 of 412; npm packages carrying it 0 of 1,890, 37 flagged at high on both
+  builds; the maintainer's ~/.claude 83 findings → 83, the rule on none
+Evidence: every line was met by the first build; nothing was changed after the run
+Evidence: reverse: TestHiddenComment_OrdinaryCommentsRaiseNothing (thirteen ordinary comments, the phrases in the
+  open, in a fence, and quoted as an example); make verify green
+```
