@@ -367,6 +367,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		// Wherever INJ-005 itself runs; a config value is data, not an order.
 		var orders remoteOrders
 		ordersScope := !u.synthetic && hasInj005 && roleAllows(u.role, inj005)
+		lure := lureScope(u)
 		inj005Fired := false
 		// A.1: rules see the line an INTERPRETER would run (continuations joined, quoting that
 		// only splits a word folded, invisible characters gone); evidence quotes the line the
@@ -406,6 +407,14 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				}
 				if r.ID == "INJ-005" {
 					inj005Fired = true
+				}
+			}
+			// SUP-010 (P-131): a prerequisite offered from a paste site, a password-protected archive or
+			// a platform look-alike. Structural rather than a table rule because each URL of the line is
+			// judged by its own host; on text a reader follows, documents included (lure.go).
+			if lure && !ll.comment {
+				if f, ok := lureFinding(rel, lineNo, u, ll); ok {
+					findings = append(findings, f)
 				}
 			}
 			if ordersScope && !ll.comment {
