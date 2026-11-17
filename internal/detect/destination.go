@@ -257,6 +257,18 @@ func CredentialOverreach(path, text string) bool {
 // counts it, because a settings object is how a server holds the secret it would send.
 var credNameRE = regexp.MustCompile(`(?i)\b\w*(?:password|passwd|secret|token|api_?key|apikey|private_?key|credential)\w*\b`)
 
+// requestLineRE is a line that makes an HTTP request through a client networkActionRE does not name:
+// requests' other verbs, httpx, aiohttp, a session or client object's verbs, got/ky/superagent/needle,
+// XMLHttpRequest, a WebSocket. CredentialSentElsewhere counts only request lines as destinations
+// (P-117): a URL literal anywhere else — an XML namespace, a licence header, an OAuth scope, a
+// message string, a test fixture — is not where a credential goes. Measured on the 76 high
+// credential-read votes on corpus servers: 38 more benign votes lowered, and the 4 malicious ones
+// the old reading also held were all votes describing the server's own key, held by the same
+// mistake. The list only widens what counts as a send; a client it misses makes the file read as
+// sending nothing, so add to it rather than remove from it.
+var requestLineRE = regexp.MustCompile(`(?i)\b(?:requests|httpx|aiohttp|session|client|http_client|httpclient|got|ky|superagent|needle)\s*\.\s*(?:get|post|put|patch|delete|head|request|send|stream)\s*\(` +
+	`|\.(?:post|put|patch)\s*\(|\bXMLHttpRequest\b|\bnew\s+WebSocket\s*\(|\bwebsocket\.(?:create_connection|connect)\s*\(|\burlopen\s*\(|\bhttp\.client\b|\bHTTPS?Connection\s*\(`)
+
 // CredentialSentElsewhere reports whether a file reads a credential and sends to a destination it
 // spells out that is not that credential's service — the theft shape EXFIL-001's destination check
 // keeps high (P-061). A credential is the chain's credential leg or a credNameRE name anywhere in the
@@ -265,7 +277,7 @@ var credNameRE = regexp.MustCompile(`(?i)\b\w*(?:password|passwd|secret|token|ap
 // time is not elsewhere here: unreadable is P-074's ground, and P-098 does not reopen it.
 func CredentialSentElsewhere(path, text string) bool {
 	comments := commentOnlyLines(langForFile(path), text)
-	c := chain{literalIsEgress: true, assigns: urlAssignments(text)}
+	c := chain{assigns: urlAssignments(text), requestLine: requestLineRE}
 	for _, ll := range logicalLines(langForFile(path), text, comments) {
 		if ll.comment {
 			continue
