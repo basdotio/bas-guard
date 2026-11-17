@@ -299,3 +299,6 @@ still prefers the older, broader row for exactly the cases the new one names. A 
 its own measurement, and must not raise `unrequested-artifact` to high.
 
 The raw archive of both branch runs goes on the next release with P-114's.
+
+Merged: PR #141 (2026-11-05). Released: v0.34.0, without the raw archives: they were not on the machine that cut the
+release, and are attached to it when their holder uploads them (P-122).

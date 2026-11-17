@@ -283,6 +283,8 @@ everything on your machine. That trade-off is yours.
   characters — which is how grounding already reads it. Without that, one line padded with a few
   thousand blanks was sent as the omission marker or a prefix of blanks, and the judge never saw the
   directive on it. Padding broken up by a visible character every 128 bytes still counts as content.
+  Unicode tag characters (U+E0000–E007F) are not filler: a sentence written in them is the payload,
+  and it is sent as written (P-123). The static rules read it decoded and `INJ-006` reports it.
 - **The documents a `SKILL.md` names are read too** (P-065). "Read `PREFLIGHT.md` in full before starting"
   makes that file an instruction file, and an agent follows the line. The companion pass sends the `.md`,
   `.txt` and `.pdf` files the body names — by path or by bare name, inside the tree, in the order named,
