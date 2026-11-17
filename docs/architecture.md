@@ -228,10 +228,11 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   and `INJ-006` reports any tag character outside an emoji flag, with the hidden text decoded in its
   explanation. The normalised string is the line as a reader sees it
   ([`ignorable.go`](../internal/detect/ignorable.go), P-138): every character Unicode displays as nothing
-  (variation selectors among them) and every control character that is not whitespace is dropped, and
-  every space but the ASCII one is read as it, so a word split by an unseen character, or a sentence
+  (variation selectors among them) is dropped, and every space but the ASCII one is read as it, so a word split by an unseen character, or a sentence
   whose spaces are no-break spaces, still meets the rules. Those characters are not in
   `detect.Invisible`, which the report layer replaces in names: every emoji carries a selector.
+  Control characters stay in the line: removing them made a table of escapes in an ordinary package
+  read as a base64 blob, so a word split by one is still not found.
 - **Some checks are structural, not regex.** `EXFIL-001/002/003` and `OBF-004` accumulate
   three legs — credential read, encode, network egress — at two granularities. Two legs
   (credential + egress) complete a chain; encoding is an amplifier. Cross-file only reaches

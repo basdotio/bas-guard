@@ -176,9 +176,9 @@ func endsWithContinuation(lang commentLang, line string) bool {
 // Unicode tag characters draw nothing either and are deliberately NOT in this table (tags.go, P-123).
 // Emoji flags are written in them, so a tag present is not text hidden; and the judge's padding fold
 // reads this table, so a sentence of more than 32 tag characters would be sent to it as nothing.
-// Neither are variation selectors, the other default-ignorable characters or control characters
-// (ignorable.go, P-138): the normalized view drops them through drawsNothing, and this table stays
-// what report.Sanitize may replace in a name without turning every emoji into U+FFFD.
+// Neither are variation selectors and the other default-ignorable characters (ignorable.go, P-138):
+// the normalized view drops them through drawsNothing, and this table stays what report.Sanitize may
+// replace in a name without turning every emoji into U+FFFD.
 func Invisible(r rune) bool { return invisible(r) }
 
 func invisible(r rune) bool {
@@ -202,10 +202,10 @@ func invisible(r rune) bool {
 // the ASCII they mirror — the reader there is the model, which reads them, and a sentence written in
 // them is otherwise invisible to every rule (P-123).
 //
-// "Invisible characters" is wider than invisible(): every character Unicode displays as nothing and
-// every control character goes, and a space that is not the ASCII one becomes it, so a word split by
-// a variation selector, or a sentence whose spaces are no-break spaces, is read as the reader sees it
-// (ignorable.go, P-138).
+// "Invisible characters" is wider than invisible(): every character Unicode displays as nothing
+// goes, and a space that is not the ASCII one becomes it, so a word split by a variation selector,
+// or a sentence whose spaces are no-break spaces, is read as the reader sees it (ignorable.go,
+// P-138). Control characters stay: removing them invented a finding (ignorable.go says where).
 //
 // It DOES fold homoglyphs, via a small hand-written confusables table (see confusable). The table
 // is deliberately not the full Unicode confusables data: the goal is not general homoglyph detection,

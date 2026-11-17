@@ -8,17 +8,14 @@ package detect
 // draws nothing stayed in the line, between the letters of whatever word it was put in, and a rule
 // reads letters:
 //
-//	Ignore all prev<U+FE00>ious instructions      a variation selector; the sentence scored 100
-//	Ignore all prev<U+007F>ious instructions      a control character; the same
+//	Ignore all prev<U+FE00>ious instructions         a variation selector; the sentence scored 100
 //	Ignore<U+00A0>all<U+00A0>previous instructions   no-break spaces; `\s` in a pattern is ASCII
 //
 // Every character Unicode says to display as nothing (Default_Ignorable_Code_Point) that the table
-// does not hold did this, and so did every control character that is not whitespace and every space
-// a pattern's \s does not read. Two functions close it, both read by foldCharacters and by nothing
-// else:
+// does not hold did the first, and every space a pattern's \s does not read did the second. Two
+// functions close it, both read by foldCharacters and by nothing else:
 //
-//	drawsNothing   dropped: the rest of Default_Ignorable_Code_Point, and the control characters
-//	               that are not whitespace
+//	drawsNothing   dropped: the rest of Default_Ignorable_Code_Point
 //	readsAsBlank   read as one ASCII space: Unicode's White_Space outside ASCII, the vertical tab,
 //	               and five characters that are not spaces and draw a blank cell (the four Hangul
 //	               fillers, default-ignorable on paper, and the braille blank)
@@ -36,16 +33,26 @@ package detect
 // TestIgnorable_IsUnicodesList compares them, code point by code point, with the property as the
 // toolchain's Unicode tables derive it, so a range mistyped here or a Unicode version that moved
 // is a red test, not a quiet gap.
+//
+// CONTROL CHARACTERS ARE NOT DROPPED, and the first build of this did drop them. One inside a word
+// hides it the same way (`prev<U+007F>ious`), but no Unicode property says a control character is
+// displayed as nothing, an editor draws a placeholder for it, and source files hold tables of them: a
+// lexer table in prettier's flow plugin opens `z0("<U+0001>\0<U+0001><U+0001>\0\0\0…`, thousands
+// of escapes on one line. The quote fold reads the escapes as a run of zeros either way; with the
+// control characters gone the run starts right after the opening quote, which is where OBF-002
+// looks for a base64 blob, and three versions of an ordinary package gained a finding. Removing a
+// character makes neighbours of what it stood between, so "stripping can only remove a match" holds
+// for the rule that reports the character and for no other. Dropping them only inside a word leaves
+// the end of a word open (`ignore<U+007F> all`), and dropping them wherever a word is next to them
+// is the first build again. It needs its own answer, most likely by where the line is read (an
+// instruction file has a model for a reader; a script has an interpreter, which does not run
+// `cu<U+007F>rl` as curl).
 
 // drawsNothing reports whether r is displayed as nothing and is not already handled: not in
 // invisible(), not a tag character (decoded by foldCharacters before this is asked), not one of the
-// characters readsAsBlank turns into a space.
+// characters readsAsBlank turns into a space. No control character is one.
 func drawsNothing(r rune) bool {
 	switch {
-	case r < 0x20: // C0 controls; tab, LF, FF and CR are whitespace a pattern's \s reads, VT is a blank
-		return r != '\t' && r != '\n' && r != '\v' && r != '\f' && r != '\r'
-	case r >= 0x7F && r <= 0x9F: // DEL and the C1 controls; NEL is a blank
-		return r != 0x85
 	case r == 0x034F, r == 0x061C: // combining grapheme joiner, Arabic letter mark
 		return true
 	case r == 0x17B4, r == 0x17B5: // Khmer inherent vowels

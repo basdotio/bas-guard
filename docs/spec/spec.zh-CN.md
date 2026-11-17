@@ -183,9 +183,10 @@ type Rule struct {
   它们**不进** `detect.Invisible` 那张表:emoji 旗帜(U+1F3F4 + 1–6 个小写/数字 tag + U+E007F)正是用它们写的,而判官的垫料折叠读那张表,
   一句 tag 写的指令会被折成空。"非旗帜的 tag"由 `INJ-006`(high)报告,`report.Sanitize` 对同一谓词(`detect.HidesTagText`)成立的字符串把 tag 换成 U+FFFD。
   **norm 读的是读者看到的样子**(P-138,`detect/ignorable.go`):Unicode 规定显示为空的每个字符(Default_Ignorable_Code_Point:变体选择符、组合字形连接符、蒙古文自由变体选择符、保留码位……)
-  和不是空白的控制字符在 norm 里**去掉**;ASCII 之外的每个空白(NBSP、U+2000–U+200A、U+2028/U+2029、U+3000、垂直制表符、NEL……)以及画成一个空格子的五个字符(四个韩文填充符、盲文空格)**读成一个 ASCII 空格**。
+  在 norm 里**去掉**;ASCII 之外的每个空白(NBSP、U+2000–U+200A、U+2028/U+2029、U+3000、垂直制表符、NEL……)以及画成一个空格子的五个字符(四个韩文填充符、盲文空格)**读成一个 ASCII 空格**。
   此前词中间插一个变体选择符(`prev<U+FE00>ious`)、或把句子里的空格换成 NBSP,`INJ-001` 就看不见这句话 —— Go 正则的 `\s` 只认 ASCII。它们同样**不进** `detect.Invisible`:
   每个带文本形态的 emoji 后面都跟一个 U+FE0F,进了那张表报告里就全是 U+FFFD;`OBF-008` 数的选择符串也会被判官的垫料折叠折掉。手写的区间由 `TestIgnorable_IsUnicodesList` 逐码位对照工具链的 Unicode 表。
+  **控制字符不去**(第一版去了,量出来不干净):prettier 的 flow 插件里一张词法表是 `z0("<U+0001>\0<U+0001><U+0001>\0\0\0…`,去掉控制字符后那串 `\0` 紧跟在引号后面,`OBF-002` 把它读成 base64;词中间夹一个控制字符(`prev<U+007F>ious`)因此仍然查不到,留给单独的提案。
   **仍然缺的是真语法树才能给的东西**:链式表达式(`Buffer.from(secret).toString('base64')`)、跨语句的取值追踪,以及同形异义字折叠(需要 Unicode confusables 表)。
   这三项记在 ROADMAP,**不得在文档中含糊为已完成**。要补,前提是先决定是否接受一个 parser 依赖 —— 那是交付形态的决定,不是实现细节。
 - **structural**:内置检查器(非文本模式),如「读 env/凭证 AND 有外连 host」= exfil 链、「hook command 含 shell 元字符」、「MCP env 里疑似明文 secret」。
