@@ -214,8 +214,8 @@ committed as a second set of result directories; the lists and the script are in
 The maintainer said to ship it on 2026-11-17, with the one line recorded as not met as written.
 
 ```
-Merged: PR #155 (find the date and sha with git log --grep P-129 after the merge)
-Released: (fill in after the release)
+Merged: PR #155 (2026-11-17; find the sha with git log --grep P-129)
+Released: v0.37.0
 Evidence: TestInstallScript_High, TestInstallScript_Medium, TestInstallScript_WrongCaseIsReportedAndSaysSo
   (internal/detect/installscript_test.go); corpus c314e4d9 static, main 17d7bb0 → branch: the five missed install
   scripts 0 → 5 at high SUP-008, malicious 226 → 231 of 719 with none lost, benign 342 → 342 of 4,534 with SUP-008 on

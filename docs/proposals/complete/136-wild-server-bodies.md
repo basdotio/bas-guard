@@ -191,3 +191,25 @@ npm package reads, and it is recorded here because nothing else in the repositor
 
 **Read, not gated: the maintainer's own `~/.claude`** (100 artifacts): the same 83 findings on both builds; neither
 rule fires.
+
+## Done
+
+The maintainer said to merge it on 2026-11-18 ("好，都合了"). The three open questions stand as recommended:
+`OBF-009` at high, a run of four selectors that differ, the wallet list as written.
+
+```
+Merged: PR #163 (find the date and sha with git log --grep P-136 after the merge)
+Released: (fill in after the release)
+Evidence: TestSelectorRun_IsACarrier, TestObfuscatorNames, TestWalletStore_IsACredential
+  (internal/detect/unreviewable_test.go); corpus c314e4d9 static, main f28029f → branch 9e8ab98 (rulesEpoch 23): the
+  three missed trees 0 → 3 at high (OBF-008, EXFIL-003, OBF-009), malicious 235 → 238 of 719 with none lost, benign
+  337 → 337 of 4,534 with neither rule on any, hard negatives 4 → 4 of 19; held-out, totals only: malicious 133 → 133
+  of 243, benign 6 → 6 of 216; fresh skills carrying either rule 0 of 412; npm packages carrying either rule 0 of
+  1,890, 37 flagged at high on both builds; the maintainer's ~/.claude 83 findings → 83, neither rule on any
+Evidence: the first build (5d40013) failed the npm line on one package (focus-trap@7.6.0, U+FE0F four times running
+  in a README); the rule was narrowed to selectors that differ, every branch-side run repeated, no line changed
+  (Readings, "Changed after a reading")
+Evidence: reverse: TestSelectorRun_OrdinaryTextRaisesNothing (emoji with their selectors, the README's repeated
+  selector at four and at forty), the below-threshold, document and minified cases of TestObfuscatorNames, a wallet
+  store named with nothing sent and a keystore of another kind in TestWalletStore_IsACredential; make verify green
+```

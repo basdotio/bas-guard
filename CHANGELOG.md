@@ -17,7 +17,50 @@ rate copied into prose goes stale on the next rule. `git tag` and the Releases p
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.36.0
+## v0.2.0 – v0.37.0
+
+**v0.37.0 (2026-11-17) — commands Claude Code runs on its own are read as commands: a skill's `!` shell, the helper
+commands in a settings file and a package's install-time scripts; a skill that offers a prerequisite from a paste site
+or a look-alike host is `SUP-010`; and `PERM-007` no longer fires on a script that reads a settings file and writes
+another.**
+
+No flag, exit code or JSON field changed meaning. Five rules are new (`EXEC-014`, `SUP-008`, `SUP-009`, `SUP-010`,
+`SUP-011`; 95 rule IDs), and the same input can now produce findings it did not, so a gate can go red on upgrade (see the
+last point). `rules` `dbd22857f91a` → `6e839a428eb8`; `judge-prompt` (`9cd57da1a4bd`) and `judge-excerpt` (10)
+unchanged.
+
+- **A skill's `!` shell is read as shell** (P-132). Claude Code runs a `` !`command` `` or a ```` ```! ```` block in a
+  `SKILL.md` or a custom command when the skill is invoked, typed or loaded by Claude on its own, before Claude reads
+  the content and without a prompt when the skill's `allowed-tools` or a permission rule allows it. A command there that
+  downloads a file and runs it, or pipes a download into an interpreter, is `EXEC-014` (high), over https as much as
+  http: P-094's https exemption is for install instructions a person reads, not for a line that runs by itself. A
+  registry package run at a version that can change (`npx -y`, `pkg@latest`, `uvx`, `pipx run`, `pnpm dlx`) is
+  `SUP-011` (medium). A line `EXEC-001`, `EXEC-002`, `EXEC-011` or `EXEC-012` already reports is not restated.
+- **The helper commands in a settings file are read** (P-133). `apiKeyHelper`, `statusLine`, `awsAuthRefresh`,
+  `awsCredentialExport`, `gcpAuthRefresh`, `otelHeadersHelper`, `processWrapper` and `fileSuggestion` are commands
+  Claude Code runs itself, and `scan` never read them: `curl … | sh` in one scored 100/100. They are now one artifact
+  per settings file, read with the script rules, the scripts they name followed one level, and a status line that
+  sends the transcript is `HOOK-003`. Under `check <dir>` the line is reported once, where before it was found only as
+  text in the tree.
+- **A package's install-time scripts are read** (P-129). A `package.json`'s `preinstall`, `install` or `postinstall`
+  runs with no prompt when the package is installed, and no rule read it. It is `SUP-008` (high) when what it runs could
+  not be vouched for (a file that was not read, packed or minified code, a file that both reaches the network and starts
+  a process, or inline interpreter code that does more than print), and `SUP-009` (medium) otherwise. The script is
+  followed one level, through `npm run` and `sh -c` too.
+- **A prerequisite offered from a paste site, a password-protected archive or a platform look-alike is `SUP-010`**
+  (P-131, high). A line of an instruction file or a bundled document that tells the reader to install or run something
+  first and points at a paste or snippet site, at an archive beside the password to open it, or at a host that carries
+  an agent platform's name and is not the platform's own, scored 100: none of these needs a line of code in the skill.
+  Each URL is judged by its own host; nothing is fetched.
+- **`PERM-007` asks whether the file written is the settings file named** (P-134). Its file-level half closed when a
+  script named a Claude settings file anywhere and wrote any file, so status line scripts that read
+  `~/.claude/settings.json` and write a cache were reported at high. It now follows the path one level: the line that
+  names the file assigns it to a name and a later line writes through that name, or one line names it and writes it. A
+  write through a returned path, an object property, a helper's parameter or another program is no longer followed.
+- **Upgrading a CI gate:** `EXEC-014`, `SUP-008` and `SUP-010` are new at high and settings helpers are now read, so a
+  gate that passed can fail with `1` on findings that were always there; `SUP-009` and `SUP-011` are medium and do not
+  fail the default `--fail-on high`. `PERM-007` can also stop firing on a script that only read a settings file. Reports
+  carry the new `rules_version`.
 
 **v0.36.0 (2026-11-17) — a command hook that sends what it is handed off the machine is `HOOK-003`, a project whose
 settings approve its own MCP servers is `PERM-009`, and the judge's server pass stops reading a server's own key as
