@@ -134,7 +134,7 @@ func skillShellFindings(rel string, u unit, already []model.Finding) []model.Fin
 			out = append(out, model.Finding{
 				RuleID: "SUP-011", Dimension: 5, Severity: model.SevMedium, Source: model.SrcStatic,
 				Title:    skillShellRunnerTitle,
-				Why:      fmt.Sprintf("`%s` runs through %s at %s. %s", redactClip(rn.spec), rn.tool, rn.version, skillShellRunnerWhy),
+				Why:      redactClip(fmt.Sprintf("`%s` runs through %s at %s.", rn.spec, rn.tool, rn.version)) + " " + skillShellRunnerWhy,
 				Evidence: []model.Evidence{at(c.start + rn.at)},
 			})
 		}
