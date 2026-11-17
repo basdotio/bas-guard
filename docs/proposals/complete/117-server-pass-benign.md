@@ -239,3 +239,6 @@ does not name), and the server pass leaves out `.github/`. Excerpt version 10. S
 trees. Next, as decided in open question 4: a separate proposal for direction 2 (the question separating a fixed
 program from arbitrary execution), measured on Cisco's 127 first; after it, P-116 can be measured again against its
 own lines as written. The raw archive goes on the next release with P-114's, P-115's and P-116's.
+
+Merged: PR #143 (2026-11-17). Released: v0.36.0, without the raw archives: they were not on the machine that cut the
+release, and are attached to it when their holder uploads them (P-130).
