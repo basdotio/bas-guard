@@ -60,11 +60,11 @@ costs nothing. The line to design: the five missed rows at high with none of the
 
 Code:
 
-- [ ] The tree reader raises one finding per install-time script of every `package.json` it reads (not under
+- [x] The tree reader raises one finding per install-time script of every `package.json` it reads (not under
   `node_modules/`, which stays unread): `scripts` keys equal to `preinstall`, `install` or `postinstall` ignoring case.
   `SUP-008` (high, dimension 5) when a reason below holds, otherwise `SUP-009` (medium, dimension 5). Never both for
   one script.
-- [ ] `SUP-008`'s reasons, each named in the finding:
+- [x] `SUP-008`'s reasons, each named in the finding:
   1. the script runs a local file that is in the tree and was **not read** (over the 1 MiB cap, or not a text file
      the scan reads);
   2. it runs a local file with **a line of 4,096 bytes or more** (the longest line in any file a benign script runs
@@ -73,35 +73,39 @@ Code:
      (`networkCapableRE`, and `EXEC-004`'s pattern: no second word list);
   4. it is **inline interpreter code** (`node -e`, `python -c`, …) that loads a module or touches files, the network,
      the environment or processes. Inline code that only prints is `SUP-009`.
-- [ ] A local file is a word with a script extension (`scriptRefs`), a `./` word, or the word after an interpreter,
+     **Changed after the reading (2026-11-17, see Readings)**: narrowed to inline code that reads or writes files,
+     reads the environment, opens the network, starts a process or evaluates code. A bare `require(` or `fs.` is no
+     longer a reason; all four runs were repeated on the narrowed build.
+- [x] A local file is a word with a script extension (`scriptRefs`), a `./` word, or the word after an interpreter,
   resolved against the `package.json`'s directory, with Node's `.js`/`.mjs`/`.cjs` fallback. One hop through
   `npm run <name>` (also `yarn`, `pnpm`, `bun run`) to another script of the same file. A file outside the tree or
   absent from it is not followed and not opened; the `SUP-009` says it was not read.
-- [ ] A key that differs from npm's name only by case (`postInstall`) is reported the same, and the finding says npm
+- [x] A key that differs from npm's name only by case (`postInstall`) is reported the same, and the finding says npm
   runs only the lowercase name.
-- [ ] Reverse assertions: `prepare`, `build`, `test`, `start` never raise either rule; `playwright install chromium`
+- [x] Reverse assertions: `prepare`, `build`, `test`, `start` never raise either rule; `playwright install chromium`
   and a readable `install.sh` are `SUP-009`; a `package.json` under `node_modules/` raises nothing; two identical
   `package.json` files in two directories are each judged against their own directory; the check opens no file the
   walk did not already read.
-- [ ] `rulesEpoch` 16 → 17, `make docs` regenerates `docs/rules.md` with both IDs, `TestEveryRuleIDIsDocumented` green.
-- [ ] `make verify` green, read from its own exit code.
+- [x] `rulesEpoch` 16 → 17, `make docs` regenerates `docs/rules.md` with both IDs, `TestEveryRuleIDIsDocumented` green.
+- [x] `make verify` green, read from its own exit code.
 
 Measurement (static, threshold high, corpus `c314e4d9`, `main` at `17d7bb0` against the branch). Lines set before the
 run:
 
-- [ ] **Target**: each of the five missed samples carries a high `SUP-008`: `dd-npm-fixthis-exchange-exfil`,
+- [x] **Target**: each of the five missed samples carries a high `SUP-008`: `dd-npm-fixthis-exchange-exfil`,
   `dd-npm-knowledge-graph-workflow-exfil`, `dd-npm-redhat-kessel-mcp-worm`, `dd-npm-squawk-mcp-router-worm`,
   `sc-T9-supply-chain-easy`. Five of five.
-- [ ] **Malicious**: no sample flagged on `main` is unflagged on the branch.
+- [x] **Malicious**: no sample flagged on `main` is unflagged on the branch.
 - [ ] **Benign**: no benign sample, alert-justified ones included, carries `SUP-008`, and the count flagged at high is
   the same as on `main`. The four benign install scripts carry `SUP-009`.
-- [ ] **Hard negatives**: the same samples flagged as on `main`.
-- [ ] **Held-out** (`heldout-all`, totals only, never read per sample): malicious flagged not lower than `main`;
+  (Met except the last sentence: three of four, see Readings.)
+- [x] **Hard negatives**: the same samples flagged as on `main`.
+- [x] **Held-out** (`heldout-all`, totals only, never read per sample): malicious flagged not lower than `main`;
   benign flagged at most one more than `main`.
-- [ ] **Read, not gated**: a measurement-only build that treats every script name as install-time, on the benign
+- [x] **Read, not gated**: a measurement-only build that treats every script name as install-time, on the benign
   trees: how many would carry `SUP-008`, by reason. The offline proxy said none for reasons 1 and 2 and 3 of 56 for
   reason 3.
-- [ ] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch differs only by
+- [x] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch differs only by
   `SUP-008`/`SUP-009` findings, and their count is reported.
 
 ## Out of scope
@@ -161,3 +165,42 @@ All asked at once (2026-11-17). Each had a recommended answer.
   17. Not in the tree (`node dist/index.js` before a build): 46.
 - Longest line in a file a script runs: benign 466 characters (151 files); malicious 4.3 MB, 3.7 MB, 498 KB, 13 KB,
   then 512.
+
+## Readings
+
+Static, threshold high, corpus `c314e4d9` (5,272 samples), `main` at `17d7bb0` (`rules=400eaf0b1400`) against the
+branch at `9ac04b6` (`rules=dbd22857f91a`), both built 2026-11-17:
+`baselines/results/aguard/2026-11-17-p129-corpus-{main,changed}`; held-out is the `heldout-all` list (243 malicious, 216
+benign; layer 2, not in the corpus): `…-p129-heldout-{main,changed}`. `compare.txt` in `corpus-changed` has every line
+and every sample carrying either rule.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| the five missed samples carry a high `SUP-008` | 0 | **5** | 5 of 5 ✓ |
+| malicious flagged, of 719; none lost | 226 | **231** | ✓ (the five targets, nothing else moved) |
+| benign carrying `SUP-008`, of 4,534 | — | 0 | 0 ✓ |
+| benign flagged at high, of 4,534 (4,467 without alert-justified: 326 → 326) | 342 | 342 | same samples ✓ |
+| the four benign install scripts carry `SUP-009` | — | **3** | 4 ✗ as written, see below |
+| hard negatives flagged, of 19 | 4 | 4 | same samples ✓ |
+| held-out malicious flagged, of 243 | 80 | 80 | not lower ✓ |
+| held-out benign flagged, of 216 | 6 | 6 | at most one more ✓ |
+
+**The line that is not met as written.** `ben-mcp-gh-bradleygolden-hexdocs-mcp` has no `SUP-009` in the run. The
+benchmark places that sample as an `.mcp.json` entry in a fake home, so its tree is not read on either build and no
+rule sees its `package.json`. Handed to `check` as a directory the same tree gets `SUP-009` (medium, "Not in this tree,
+so not read: dist/index.js"). The rule behaves as designed on it; the line assumed the run would read the tree.
+
+**All ten malicious install scripts.** Eight are `SUP-008` (the five targets, and `antv`, `postman-shai-hulud`,
+`sc-T9-supply-chain-medium`, already flagged by other rules); two are `SUP-009`: `lanyer640` (the script is a reverse
+shell, flagged by `BD-004` on that line) and `namecheap` (`node -e "console.log(…)"`, flagged by `EXFIL-001` elsewhere).
+Held-out: no sample carries either rule.
+
+**Read, not gated: every script name as install-time** (`any-script-reading.txt` in `corpus-changed`; a build with
+that one line changed, never committed; each of the 163 benign trees with a `package.json` handed to `check`). First
+build: `SUP-008` on 12 trees, 15 of its 23 findings one idiom, `node -e "require('fs').chmodSync('build/index.js', '755')"`
+after a build, reached through `npm run build`. That is what a `postinstall` of `npm run build` would have hit, so
+reason 4 was narrowed (above) and everything was run again: `SUP-008` on **4 of 163**, all by reason 3 (a test file or
+a CLI script that fetches and starts a process); reasons 1, 2 and 4: none. The gated lines are the same on both builds.
+
+**Read, not gated: the maintainer's own `~/.claude`** (99 artifacts): 83 findings on `main` and 83 on the branch, the
+same ones; neither rule fires.
