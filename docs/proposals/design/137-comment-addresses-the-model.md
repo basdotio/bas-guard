@@ -52,7 +52,7 @@ dimension), outside fenced code, with the two reasons above. Measured on the sta
 
 Code:
 
-- [ ] `INJ-007` (high, dimension 1): an HTML comment in an instruction file or a document (`SKILL.md`, `CLAUDE.md`,
+- [x] `INJ-007` (high, dimension 1): an HTML comment in an instruction file or a document (`SKILL.md`, `CLAUDE.md`,
   a `README.md`, any bundled `.md`/`.txt`), outside fenced code, whose text carries one of:
   1. **override**: the header `SYSTEM OVERRIDE`;
   2. **conceal**: an order to keep the agent's instructions or an action from the user: `never` / `do not` /
@@ -60,35 +60,35 @@ Code:
      action; `do not` / `never` / `without` + `tell` / `mention` / `inform` / `notify` / `alert` + `the user`;
      `hidden instructions`.
   One finding per comment, at the line the comment opens on; the reason is named in the finding.
-- [ ] A comment may span lines (its whitespace is folded before matching), and an unterminated comment runs to the
+- [x] A comment may span lines (its whitespace is folded before matching), and an unterminated comment runs to the
   end of the file, as a renderer treats it.
-- [ ] The comment is matched as written and as normalized, like every rule, so a zero-width character inside
+- [x] The comment is matched as written and as normalized, like every rule, so a zero-width character inside
   `OVERRIDE` does not hide it.
-- [ ] Reverse: the same sentence outside a comment raises no `INJ-007`; a comment inside a code fence (shown to the
+- [x] Reverse: the same sentence outside a comment raises no `INJ-007`; a comment inside a code fence (shown to the
   reader as text) raises none; a generated-file banner ("AUTO-GENERATED — do not edit"), a note to agents that hides
   nothing ("Agents: read this first and do not ask again"), a spell-check or lint directive, and a comment that
   quotes the phrase in order to have it reported raise none; a comment in a script raises none.
-- [ ] What `INJ-001` to `INJ-006` report is unchanged.
-- [ ] `rulesEpoch` 23 → 24, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
+- [x] What `INJ-001` to `INJ-006` report is unchanged.
+- [x] `rulesEpoch` 23 → 24, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
   code.
 
 Measurement (static, threshold high, corpus `c314e4d9`; the parent is the P-136 branch at `0bc9544`, against this
 branch). Lines set before the run:
 
-- [ ] **Target**: each of the seven trees carries a high `INJ-007`: the five `mcp-mv-prompt-injection-attack--*`
+- [x] **Target**: each of the seven trees carries a high `INJ-007`: the five `mcp-mv-prompt-injection-attack--*`
   trees, `skill-sc-T1-direct-injection-hard`, `skill-sg-hidden-html-comment-instruction`. Seven of seven; the five
   that are not flagged on the parent are flagged.
-- [ ] **Malicious**: no sample flagged on the parent is unflagged on the branch.
-- [ ] **Benign**: no benign sample, alert-justified ones included, carries `INJ-007`; the samples flagged at high
+- [x] **Malicious**: no sample flagged on the parent is unflagged on the branch.
+- [x] **Benign**: no benign sample, alert-justified ones included, carries `INJ-007`; the samples flagged at high
   are the same as on the parent.
-- [ ] **Hard negatives**: the same samples flagged as on the parent.
-- [ ] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on the parent; benign flagged not
+- [x] **Hard negatives**: the same samples flagged as on the parent.
+- [x] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on the parent; benign flagged not
   more.
-- [ ] **Fresh benign skills** (`fresh216`, `fresh200`, 412 trees): none carries `INJ-007`; the trees flagged at high
+- [x] **Fresh benign skills** (`fresh216`, `fresh200`, 412 trees): none carries `INJ-007`; the trees flagged at high
   are the same as on the parent.
-- [ ] **Ordinary npm packages** (1,890, each given to `check` as a directory): none carries `INJ-007`, and none is
+- [x] **Ordinary npm packages** (1,890, each given to `check` as a directory): none carries `INJ-007`, and none is
   flagged at high on the branch that is not on the parent.
-- [ ] **Read, not gated**: a scan of the maintainer's own `~/.claude` on the parent and on the branch; what differs
+- [x] **Read, not gated**: a scan of the maintainer's own `~/.claude` on the parent and on the branch; what differs
   is reported.
 
 ## Out of scope
@@ -128,3 +128,36 @@ Decided by the recommended answer unless the maintainer says otherwise:
    hidden, and that is where a document about attacks quotes one.
 3. **Counting the template.** Recommended: report the corpus figure as measured (five trees) and say in every place
    it is quoted that they are one template.
+
+## Readings
+
+Static, threshold high. The parent is the P-136 branch as built at `9e8ab98` (`rules=fbe3f98553bb`; the commits after
+it on that branch change no behaviour), against this branch at `0a0dcbc` (`rules=fb0adc43e915`), both built
+2026-11-18. Corpus `c314e4d9` (5,272 samples), the `heldout-all` list (459), two pools of fresh skills (212 and 200
+trees), and the 1,890 npm packages of a developer machine. The parent side is P-136's own result directories
+(`baselines/results/aguard/2026-11-18-p136-*-changed`); the branch side is
+`baselines/results/aguard/2026-11-18-p137-{corpus,heldout,fresh216,fresh200}-changed`, and `compare.txt` in
+`corpus-changed` has every line.
+
+| line (set before the run) | parent | branch | |
+|---|---:|---:|---|
+| the seven trees carry a high `INJ-007` | 0 | **7** | 7 of 7 ✓; the five not flagged on the parent are flagged |
+| malicious flagged, of 719; none lost | 238 | **243** | ✓ (the five template trees, nothing else moved) |
+| benign carrying `INJ-007`, of 4,534 | — | 0 | 0 ✓ |
+| benign flagged at high, of 4,534 | 337 | 337 | same samples ✓ |
+| hard negatives flagged, of 19 | 4 | 4 | same samples ✓ |
+| held-out malicious flagged, of 243 | 133 | 133 | not fewer ✓ |
+| held-out benign flagged, of 216 | 6 | 6 | not more ✓ |
+| fresh skills carrying `INJ-007`, of 412; flagged | — ; 33 | 0 ; 33 | same trees ✓ |
+| npm packages carrying `INJ-007`, of 1,890; flagged at high | — ; 37 | 0 ; 37 | none newly flagged, no (rule, severity) pair differs ✓ |
+
+Every line was met by the first build; nothing was changed after the run.
+
+**What the five are.** The five trees that move are one template, spliced into five real servers by the authors of
+the `mcp-variants` collection: malicious 238 → 243 is one decision made five times. The two other trees that carry
+the rule (`sc-T1-direct-injection-hard`, `sg-hidden-html-comment-instruction`) come from two other collections and
+were flagged before, for the command inside the comment; they now also say what the comment is. No held-out tree and
+no tree outside the corpus carries the rule.
+
+**Read, not gated: the maintainer's own `~/.claude`** (100 artifacts): the same 83 findings on the parent and on the
+branch; the rule does not fire.
