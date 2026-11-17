@@ -126,5 +126,7 @@
    内容是 `curl|bash` 的脚本,在终端里显示成 `pay2:hs.png`——带 high 发现的 `.sh` 把自己呈现成审阅者一眼跳过的 PNG(W-011,
    2026-09-15)。现在 Sanitize 复用 `detect.Invisible`(INJ-004 在文件**内容**里报的就是这张表,以前没有任何东西读文件**名**),
    替换成 U+FFFD 而不是删掉,让"清掉了"和"本来没有"分得开。**HTML 也要清**:`html/template` 只转义标记,不转义 bidi,所以
-   HTML 从 `sanitizeResult` 的副本构建。**JSON/SARIF 不清**,那是给机器的,字节必须是磁盘上的字节。
+   HTML 从 `sanitizeResult` 的副本构建。**JSON/SARIF 不清**,那是给机器的,字节必须是磁盘上的字节。Unicode tag 字符(U+E0000–E007F)
+   同样不显示,`setup<tags "-evil">.sh` 印成 `setup.sh`(P-123):Sanitize 对 `detect.HidesTagText`(`INJ-006` 的谓词)成立的字符串
+   把每个 tag 换成 U+FFFD,旗帜(只含旗帜的字符串)原样印。**tag 不进 `detect.Invisible`**,理由见 detect.md。
 
