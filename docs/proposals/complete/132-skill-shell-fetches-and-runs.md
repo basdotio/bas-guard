@@ -250,7 +250,7 @@ neither ID fires. Both scans took the same time (about three minutes).
 ## Done
 
 ```
-Merged: PR (to be filled in)
+Merged: PR #158 (find the date and sha with git log --grep P-132 after the merge)
 Released: (fill in after the release)
 Evidence: TestSkillShell_FetchAndRun, _FetchAndRunQuiet, _AlreadyReportedIsNotRestated, _PackageRunner,
   _PackageRunnerQuiet, _Evidence, _OneFindingPerCommand, _CommandFiles, _WhyIsRedacted,
