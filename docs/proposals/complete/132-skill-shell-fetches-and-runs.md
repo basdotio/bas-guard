@@ -189,6 +189,8 @@ Each with a recommended answer; the branch implements the recommendation.
    `SUP-003` (low) in the same dimension — if a finding on the vendor's own skill in this many projects is judged to
    teach people to skip the line. High is not
    on the table: it would fail `check` for every project with the shadcn skill.
+   **Decided (2026-11-17)**: medium, as recommended — the maintainer said to keep `SUP-011` at medium. The branch
+   already implements it; nothing changed.
 2. **A bare Bash grant beside `!` commands** (Out of scope). Recommended: not a finding (6 benign carriers, no
    malicious one the grant explains). If wanted later, a low dimension-2 note on the combination is the narrowest
    form.
