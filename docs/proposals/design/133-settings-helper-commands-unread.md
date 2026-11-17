@@ -3,7 +3,8 @@
 
 - **Source**: new finding, 2026-11-17, found while checking a guide to the places in Claude Code that run things on
   their own against v0.36.0
-- **Depends on**: none. Moves `rulesEpoch` 19 → 20 (rules version `cbaa8a115ff1`): it was 18 → 19 until P-132
+- **Depends on**: P-134 (a narrower `PERM-007` file-level half) lands first, by Open question 1's decision. Moves
+  `rulesEpoch` 19 → 20 (rules version `cbaa8a115ff1`): it was 18 → 19 until P-132
   (PR #158) merged first and took 19, and this branch merged `main` after it (merge commit `96632b2`). P-131 (PR #157)
   also takes 19 on its branch
 - **Branch**: `p/133-settings-helper-commands-unread`
@@ -171,11 +172,13 @@ names is followed under the same boundary. One artifact per settings file holds 
 | 3 | `.claude/rules`, the architecture and README pairs, the audit skill's references | `docs: settings helper commands (P-133)` |
 | 4 | The static runs | `baselines: P-133 static runs, main and branch, corpus and held-out ClawHub (P-133)` |
 | 4a | `main` merged after P-132: `rulesEpoch` 20, the static runs repeated on the merged code | `Merge remote-tracking branch 'origin/main' into p/133-settings-helper-commands-unread` |
-| 5 | Measured and the open questions. The file stays in `design/` until the maintainer answers them; the move to `complete/`, the Done block and the index row come with that answer | `proposals: P-133 measured, five open questions (P-133)` |
+| 5 | Measured and the open questions. The file stays in `design/` until the maintainer says ship it, which waits for P-134 (Open question 1); the move to `complete/`, the Done block and the index row come then | `proposals: P-133 measured, five open questions (P-133)` |
+| 6 | The five answers | `proposals: P-133 open questions decided, waits for P-134 (P-133)` |
 
 ## Open questions
 
-All asked at once (2026-11-17), each with a recommended answer.
+All asked at once (2026-11-17), each with a recommended answer. The maintainer took every recommendation the same day
+("all as recommended", relayed by the session that started this one).
 
 1. **Running every rule on the scripts helpers name** (decision 4). Measured: a status line script in a subdirectory of
    the config root, which `main` does not read, newly gives 159 of 1,100 public status line scripts a high — 106 of them
@@ -185,17 +188,23 @@ All asked at once (2026-11-17), each with a recommended answer.
    Recommended: (b). Following is what keeps a file name from hiding a payload, as for hooks, and the false positives
    belong to `PERM-007`, which hook and skill scripts meet too; but shipping before it would make roughly one status
    line in seven read as high.
+   **Decided (2026-11-17)**: (b). The narrower `PERM-007` file-level half lands first in a proposal of its own (P-134);
+   this branch's every-rule reading of helper scripts follows it.
 2. **A helper's script outside `HOME`** (decision 4). Recommended: a note, as for a permission grant's script. A
    scored finding like `HOOK-002` would mark the reference's own `/bin/generate_temp_api_key.sh` example medium.
+   **Decided (2026-11-17)**: a note, not scored.
 3. **`HOOK-003` for the status line, or a new ID** (decision 5). Recommended: `HOOK-003`, for the parity P-128 chose
    between the two hook forms; Claude Code gates the status line with the hooks.
+   **Decided (2026-11-17)**: `HOOK-003`, no new ID.
 4. **`processWrapper` from a project file** (decision 1). Recommended: read it; the alternative needs collect to know a
    user root from a project root, which `scan --root` does not tell it.
+   **Decided (2026-11-17)**: read from project settings files too.
 5. **A clean helpers artifact is one more unit in the average.** 21 of 721 real settings files move from Watch to Low,
    and 7 of the 26 corpus samples rise 1 to 6 points, with no finding changed — the effect `issues/008` describes,
    though here the bytes were never read before rather than read twice. It is what a clean hook or a `settings env`
    block already does. Recommended: keep, for that consistency; the alternative is to join the helpers to the unit of
    another artifact of the same file through `score.Families`, which needs a link field of its own.
+   **Decided (2026-11-17)**: keep; a clean helpers artifact stays in the average.
 
 ## Measured
 
