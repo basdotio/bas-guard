@@ -59,6 +59,7 @@ type codeEval struct {
 	vars    map[string]taint
 	reqs    map[string][]string // request objects (https.request, Request(…)) -> the hosts their constructor names
 	sends   []hookSend
+	stdin   hookFlow // what stdin holds: the event for a hook, the session status for a status line (P-133)
 }
 
 func pythonSends(rel string, idx int, u unit, lines []logicalLine, view func(logicalLine) string) []hookSend {
@@ -70,7 +71,7 @@ func nodeSends(rel string, idx int, u unit, lines []logicalLine, view func(logic
 }
 
 func codeSends(lang codeLang, rel string, idx int, u unit, lines []logicalLine, view func(logicalLine) string) []hookSend {
-	e := &codeEval{lang: lang, unit: idx, assigns: urlAssignments(u.text), vars: map[string]taint{},
+	e := &codeEval{lang: lang, unit: idx, stdin: stdinFlow(u), assigns: urlAssignments(u.text), vars: map[string]taint{},
 		reqs: map[string][]string{}}
 	readline := lang.node && readlineStdinRE.MatchString(u.text)
 	for _, s := range codeStatements(lines, view, lang.node) {
@@ -102,11 +103,11 @@ func (e *codeEval) bind(s codeStmt, at model.Evidence, readline bool) {
 		}
 	}
 	if m := pyStdinLoopRE.FindStringSubmatch(s.first); m != nil && !e.lang.node {
-		set(m[1], taint{flow: flowEvent})
+		set(m[1], taint{flow: e.stdin})
 	}
 	for _, m := range accumulateRE.FindAllStringSubmatch(s.text, -1) {
 		if chunks[m[2]] {
-			set(m[1], taint{flow: flowEvent})
+			set(m[1], taint{flow: e.stdin})
 		}
 	}
 	for _, name := range paramNames(s.text, e.lang.node) {
@@ -184,7 +185,7 @@ func (e *codeEval) expr(text string) taint {
 	var t taint
 	for _, loc := range e.lang.stdin.FindAllStringIndex(text, -1) {
 		if !inStr[loc[0]] {
-			t = t.or(use(taint{flow: flowEvent}, text[afterCall(text, loc[1]):]))
+			t = t.or(use(taint{flow: e.stdin}, text[afterCall(text, loc[1]):]))
 		}
 	}
 	names := make([]string, 0, len(e.vars))

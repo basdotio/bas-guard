@@ -42,11 +42,15 @@ import (
 type hookFlow uint8
 
 const (
-	flowNone       hookFlow = iota
-	flowPath                // the PATH of a file holding the conversation (the transcript, or a file the hook wrote the payload to)
-	flowContent             // a content field of the event, or anything selected out of one
-	flowEvent               // the event JSON as a whole
-	flowTranscript          // the transcript's text, whole or in part
+	flowNone hookFlow = iota
+	flowPath          // the PATH of a file holding the conversation (the transcript, or a file the hook wrote the payload to)
+	// flowStatus is a status line's stdin as a whole (P-133): session metadata — model, cost, workspace, session_id —
+	// and transcript_path. No conversation is in it, so it is not sendable; transcript_path selected out of it is a
+	// path, as out of a hook's event.
+	flowStatus
+	flowContent    // a content field of the event, or anything selected out of one
+	flowEvent      // the event JSON as a whole
+	flowTranscript // the transcript's text, whole or in part
 )
 
 // sendable reports whether sending a value of this flow is what HOOK-003 reports.
@@ -62,10 +66,23 @@ func selected(from taint, sel string) taint {
 			return taint{flow: f, src: from.src}
 		}
 		return taint{}
+	case flowStatus:
+		if fieldFlow(sel) == flowPath {
+			return taint{flow: flowPath, src: from.src}
+		}
+		return taint{}
 	case flowContent, flowTranscript:
 		return from
 	}
 	return taint{}
+}
+
+// stdinFlow is what a stage's stdin holds: the event for a hook's stages, the session status for a status line's.
+func stdinFlow(u unit) hookFlow {
+	if u.statusInput {
+		return flowStatus
+	}
+	return flowEvent
 }
 
 // taint is a value's flow and the line that last assigned it (nil when the value was read in place).
@@ -134,14 +151,14 @@ func unitSends(root string, idx int, u unit) []hookSend {
 	}
 	rel := relPath(root, u.file)
 	lang := langForFile(u.file)
-	if u.role == roleHookCmd {
+	if commandLine(u) {
 		lang = langHash // a command line is shell, whatever file it was stored in
 	}
 	lines := logicalLines(lang, u.text, commentOnlyLines(lang, u.text))
 	// The second view is the interpreter's: for shell, logicalLines' norm; for Python and Node, the raw line
 	// with characters folded but quotes kept, because there a quote inside a word is a string literal.
 	second := func(ll logicalLine) string { return ll.norm }
-	if u.role != roleHookCmd && !isShellScript(u.file) {
+	if !commandLine(u) && !isShellScript(u.file) {
 		second = func(ll logicalLine) string { return foldCharacters(ll.raw) }
 	}
 	norm := read(rel, idx, u, lines, second)
@@ -172,7 +189,7 @@ func unitSends(root string, idx int, u unit) []hookSend {
 
 // egressReader picks the reader for a stage by its language; nil means the stage is not read for this.
 func egressReader(u unit) func(rel string, idx int, u unit, lines []logicalLine, view func(logicalLine) string) []hookSend {
-	if u.role == roleHookCmd || isShellScript(u.file) {
+	if commandLine(u) || isShellScript(u.file) {
 		return shellSends
 	}
 	switch strings.ToLower(filepath.Ext(u.file)) {
@@ -182,6 +199,12 @@ func egressReader(u unit) func(rel string, idx int, u unit, lines []logicalLine,
 		return nodeSends
 	}
 	return nil
+}
+
+// commandLine reports whether u is a command line stored in a config file — a hook's, or a status line's (P-133;
+// its other stages are files, never synthetic) — which a shell runs.
+func commandLine(u unit) bool {
+	return u.role == roleHookCmd || (u.statusInput && u.synthetic)
 }
 
 func isShellScript(path string) bool {

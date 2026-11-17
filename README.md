@@ -283,6 +283,12 @@ Two surfaces get extra treatment, because both hand over execution while looking
   a notification field (`message`, `cwd`) to ntfy or Slack is not reported. A hook command that
   chains shell (`;` `&&` `||` `|` backticks `$(`) is `HOOK-001` — unremarkable in a script,
   telling in a hook, so that rule runs on hook commands only.
+- **Helper commands** in a settings file are commands too: `apiKeyHelper`, `awsAuthRefresh`,
+  `awsCredentialExport`, `gcpAuthRefresh`, `otelHeadersHelper`, `processWrapper`, and the `command`
+  of `statusLine` and `fileSuggestion` run every script rule, and a local script they name is read
+  inside your home directory (outside it, a `COV-000` note). A status line receives the session's
+  metadata and its `transcript_path` on stdin: sending the transcript is `HOOK-003`, sending the
+  rest is not reported.
 - **Permission allowlists** are checked against an escapable-binary list (`PERM-006`):
   `Bash(git *)` is arbitrary execution (`git -c core.pager=…`) wearing a narrow-looking
   disguise, and so are open-ended grants over `find` `awk` `tar` `docker` `ssh` `npm` `make`

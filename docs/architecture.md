@@ -236,7 +236,14 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   structural: they score a surface the line-oriented rules cannot see. `HOOK-003` has a command
   half (`internal/detect/hookegress*.go`, P-128): a reading of the hook command and the shell,
   Python or Node scripts it runs that follows the event (stdin), its content fields and the
-  transcript forward through one file to a sender — not an interpreter.
+  transcript forward through one file to a sender — not an interpreter. The same reading runs on a
+  settings file's status line, whose stdin is session metadata, so there only the transcript counts
+  (P-133).
+- **A settings file's helper commands are commands** (`collect.SettingsHelpers`, `detect.helperUnits`,
+  P-133): `apiKeyHelper`, `awsAuthRefresh`, `awsCredentialExport`, `gcpAuthRefresh`, `otelHeadersHelper`,
+  `processWrapper`, and the `command` of `statusLine` and `fileSuggestion` are one `settings helpers`
+  artifact per file, beside `settings env`. Each command runs the script rules with its evidence on the
+  line of its value; a local script it names is followed inside the boundary, or noted.
 - **Advisory means "we cannot confirm this."** Dimensions 7 and 8 are advisory by
   construction, and the report must say *not confirmed*. A tool that distinguishes suspicion
   from certainty is one you can put in CI.

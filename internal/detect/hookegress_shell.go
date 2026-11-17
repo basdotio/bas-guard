@@ -42,7 +42,7 @@ const (
 
 func shellSends(rel string, idx int, u unit, lines []logicalLine, view func(logicalLine) string) []hookSend {
 	e := &shellEval{unit: idx, assigns: urlAssignments(u.text), vars: map[string]taint{}, files: map[string]taint{}}
-	stdin := taint{flow: flowEvent}
+	stdin := taint{flow: stdinFlow(u)}
 	for i := 0; i < len(lines); i++ {
 		ll := lines[i]
 		if ll.comment {
@@ -50,7 +50,7 @@ func shellSends(rel string, idx int, u unit, lines []logicalLine, view func(logi
 		}
 		lineNo := ll.start
 		if u.synthetic {
-			lineNo = 0
+			lineNo = u.line
 		}
 		e.line, e.at = i, model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
 		text := view(ll)
