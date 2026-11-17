@@ -2,8 +2,8 @@
 # 128 — A command hook that posts its input or the transcript off the machine scored 100/100, while the same destination as an http hook is `HOOK-003` high
 
 - **Source**: new finding, 2026-11-17, reproduced on v0.34.0 and v0.35.0 (same result)
-- **Depends on**: none. Moves `rulesEpoch` 15 → 16; if another open pull request also moves it, whichever merges
-  second takes the next number
+- **Depends on**: none. Moves `rulesEpoch` 16 → 17: P-127 (PR #153, `PERM-009`) merged first and took 16, and this
+  branch merged `main` after it
 - **Branch**: `p/128-command-hook-sends-its-input`
 
 ## Problem
@@ -129,7 +129,7 @@ sender the event, a field of it that carries the conversation, or the transcript
   8 notes, no `HOOK-003`.
 - [x] Static over the corpus and the held-out ClawHub set, `main` against the branch, and over real hooks from public
   repositories (Measured).
-- [x] `rulesEpoch` 15 → 16; `make docs`; `.claude/rules/detect.md`, README and architecture pairs, the plugin's
+- [x] `rulesEpoch` 16 → 17 (15 → 16 until P-127 merged first); `make docs`; `.claude/rules/detect.md`, README and architecture pairs, the plugin's
   triage and remediation references; `make verify` green; `go.mod` line 2 is still `go 1.23.5` and `go version` does
   not switch toolchains.
 
@@ -162,7 +162,9 @@ sender the event, a field of it that carries the conversation, or the transcript
 ## Measured
 
 Static, threshold high. Corpus `24c15d32` (5,042 samples), `main` `bf7f8fb` (v0.35.0, `rules=35dbd6adf202`) against
-this branch: `baselines/results/aguard/2026-11-17-p128-corpus-{main,changed}`. The held-out ClawHub set is P-121's
+this branch at `4c74605` (`rules=400eaf0b1400`, epoch 16 before P-127 merged):
+`baselines/results/aguard/2026-11-17-p128-corpus-{main,changed}`. Every figure in this section is P-128 alone on
+v0.35.0, taken before this branch merged `main` (P-127 and P-118), and was not repeated after the merge. The held-out ClawHub set is P-121's
 `agent-skill-malware` work list (118 malicious, 208 benign): `…-p128-heldout-{main,changed}`; its figures are read
 from `ledger.jsonl`.
 
@@ -227,7 +229,7 @@ the next was read as two commands. Each is now a quiet row in `TestHookPayloadEg
 
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
-| 1 | The command half of `HOOK-003` (`hookegress*.go`), `foldCharacters`, `rulesEpoch` 16, regenerated `docs/rules.md`, `.claude/rules/detect.md`, README and architecture pairs, plugin references; tests written first | `detect: HOOK-003 reports a command hook that sends its input or the transcript (P-128)` |
+| 1 | The command half of `HOOK-003` (`hookegress*.go`), `foldCharacters`, `rulesEpoch` 16 (17 after merging `main`), regenerated `docs/rules.md`, `.claude/rules/detect.md`, README and architecture pairs, plugin references; tests written first | `detect: HOOK-003 reports a command hook that sends its input or the transcript (P-128)` |
 | 2 | The four static runs | `baselines: P-128 static runs, main and branch, corpus and held-out ClawHub (P-128)` |
 | 3 | The proposal and its index row | `proposals: P-128 done, measured (P-128)` |
 

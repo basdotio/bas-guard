@@ -1,0 +1,121 @@
+# compare.txt: P-117's acceptance readings on the 802 Python server trees, main
+# (../2026-11-04-llm-gpt-4.1-mini-p117-py-main-s3, the full-corpus run of 2026-11-04 refolded on these trees) against
+# the plain P-117 binary (v0.33.1-8-g0ae3ba91, excerpt version 10, judge-prompt b851dfd5412b as main's).
+# gpt-4.1-mini, samples 3, corpus c314e4d9, about US$3.4.
+#
+# Lines set before the run (docs/proposals/complete/117-server-pass-benign.md): benign flagged 143 -> at most 135
+# (133); malicious flagged 134 -> at least 130 (138); every malicious sample lost of the kind the old destination check
+# held by mistake, and no Cisco or in-the-wild loss. Four lost are that kind ([own-key kind] below). The fifth,
+# mal-mcp-ci-filesystem_mount_information_access, is a Cisco sample whose branch vote is still severity high (the
+# change only lowers a severity) and fell on the vote count, 3 of 3 on main against 1 of 3 here; the maintainer ruled it
+# rerun noise, not a loss to the change (2026-11-05), and the same run newly flagged seven other Cisco samples.
+# Of the 22 benign samples no longer flagged, 11 are the change (10 credential-read held by the old check, 1 through a
+# .github/ workflow); the other 11, and the 12 newly flagged, are categories the change does not touch.
+
+samples 802; branch incomplete 5
+
+== benign 623: flagged main 143 branch 133 (line: <= 135); escalating LLM-010 high main 61 branch 40
+   branch high categories: {'exfiltration': 8, 'remote-execution': 22, 'credential-read': 8, 'software-source': 2}
+   main   high categories: {'exfiltration': 9, 'remote-execution': 20, 'credential-read': 29, 'software-source': 3}
+   no longer flagged 22, newly flagged 12
+   - ben-mcp-gh-0xciel-roblox-exploiting-mcp
+       main: The execute tool sends arbitrary Luau code to a local server for execution, enabling remote code execution based on user input without disclosure. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-execution, remote-execution, remote-ex
+   - ben-mcp-gh-12458-wolfram-mcp
+       main: The eval_wolfram tool executes arbitrary Wolfram Language code provided by the user, allowing remote code execution inside the Wolfram environment. [2 of 3 samples agreed] [severities: high, medium] [categories: remote-execution, remote-execution] [tool: high]
+   - ben-mcp-gh-berkaycelk-wikipeatia-mcp
+       main: The server source specifies a non-vendor software source URL for installing the MCP server tool. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: software-source, software-source, software-source] [tool: high]
+   - ben-mcp-gh-crtdaniele-mcp-k8s-manager
+       main: The tools run shell commands using subprocess to execute kubectl and kubectx with user-provided arguments, enabling arbitrary command execution. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-execution, remote-execution, remote-exec
+   - ben-mcp-gh-deathlabs-cookiecutter-copilotkit-langchain-fastmcp-django-postgres-co
+       main: Source code reads an environment variable GEOCODING_API_KEY containing a secret key but does not disclose this in the tool descriptions. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read
+   - ben-mcp-gh-ertugrul59-tradingview-chart-mcp
+       main: Server source reads TradingView session ID and signature environment variables without disclosing credential read in tool descriptions. [3 of 3 samples agreed] [severities: high, medium, medium] [categories: credential-read, credential-read, credential-read] [
+   - ben-mcp-gh-fengin-search-server-search
+       main: The server source reads an API key from environment variables for use in the Bocha Search API client, but the declared tool does not disclose reading credentials. [3 of 3 samples agreed] [severities: medium, high, high] [categories: credential-read, credential
+   - ben-mcp-gh-heurist-network-heurist-mesh-mcp-server-mesh-mcp-server
+       main: Server source reads environment variables for API keys and endpoints without declaring this sensitive behavior. [2 of 3 samples agreed] [severities: high, high] [categories: credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-issamlaradji-cool-ai-scripts
+       main: The server source reads private credential file surge_config.json without disclosing it in the tool descriptions. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-jonocx-strava-mcp
+       main: The server source reads Strava API client ID, client secret, and refresh token from environment variables to authenticate API requests. [3 of 3 samples agreed] [severities: high, high, high] [categories: credential-read, credential-read, credential-read] [tool
+   - ben-mcp-gh-klavis-ai-klavis-slack
+       main: The server source code reads bot authentication tokens from environment and request context without disclosing this credential access in the tool descriptions. [3 of 3 samples agreed] [severities: high, high, medium] [categories: credential-read, credential-re
+   - ben-mcp-gh-lavaxzyh-ads-mcp
+       main: GitHub workflow sends data to an external gist repository using a GitHub token secret. [3 of 3 samples agreed] [severities: high, medium, medium] [categories: exfiltration, exfiltration, exfiltration] [tool: high]
+   - ben-mcp-gh-minhalvp-android-mcp-server
+       main: The server code executes arbitrary shell commands via subprocess.run with shell=True using parameters from the test runner script. [3 of 3 samples agreed] [severities: medium, medium, high] [categories: remote-execution, remote-execution, remote-execution] [to
+   - ben-mcp-gh-mohamedmahmoud8801-mohamed-agentic-terminal-mcp-app
+       main: The server source configures the MCP to mount proxies that change the source of software packages to non-standard origins. [2 of 3 samples agreed] [severities: medium, medium] [categories: software-source, software-source] [tool: high]
+   - ben-mcp-gh-msysh-remote-mcp-server-demo-with-agentcore
+       main: The server source includes a shell script that reads and prints AWS Cognito user pool credentials, passwords, and tokens. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-muwei-ta-rea-mcp-rea-mcp
+       main: The server source runs arbitrary rea CLI commands with JSON arguments and returns their output, effectively executing external code specified by the client. [3 of 3 samples agreed] [severities: high, medium, high] [categories: remote-execution, remote-executio
+   - ben-mcp-gh-neurofusionai-fibo-mcp
+       main: The server source runs subprocesses to download and build the ontology from network sources, executing shell commands implicitly without disclosure. [2 of 3 samples agreed] [severities: high, high] [categories: remote-execution, remote-execution] [tool: high]
+   - ben-mcp-gh-paritosh8-ai-agenticev-rca-src
+       main: The server source reads ElectreeFi username and password from environment variables, but the declared tools do not disclose reading credentials. [3 of 3 samples agreed] [severities: high, high, medium] [categories: credential-read, credential-read, credential-
+   - ben-mcp-gh-sinanerdinc-opet-mcp
+       main: The get_fuel_price tool sends HTTP requests to an external API (api.opet.com.tr) to retrieve fuel prices, which is not disclosed in the tool's description. [2 of 3 samples agreed] [severities: medium, medium] [categories: exfiltration, exfiltration] [tool: hig
+   - ben-mcp-gh-surendranb-llm-crawler-audit-llm-crawler-audit
+       main: The server source fetches up-to-date skills guidance and playbooks from GitHub at runtime, sending network requests outside the machine. [2 of 3 samples agreed] [severities: medium, medium] [categories: exfiltration, exfiltration] [tool: high]
+   - ben-mcp-gh-vortexjer-pc-control-pc-control
+       main: Server source runs shell commands and can update itself by replacing its executable. [2 of 3 samples agreed] [severities: high, high] [categories: remote-execution, remote-execution] [tool: high]
+   - ben-mcp-gh-zxs731-raspberry-ai-voice-mcp-deepseek
+       main: The server source reads environment variables containing Azure speech service keys and settings without disclosing this in the tool descriptions. [2 of 3 samples agreed] [severities: medium, medium] [categories: credential-read, credential-read] [tool: high]
+   + ben-mcp-fm-diagnostics
+       branch: The client script sets up OpenTelemetry tracing to export traces to a network endpoint without disclosing this in the tool descriptions. [2 of 3 samples agreed] [severities: medium, medium] [categories: exfiltration, exfiltration] [tool: high]
+   + ben-mcp-gh-atiilla-whiterabbit-mcp
+       branch: The CrtshScanner tool sends network requests to an external website (crt.sh) to fetch SSL certificate data, which is not disclosed in its description. [3 of 3 samples agreed] [severities: medium, high, medium] [categories: exfiltration, remote-execution, exfil
+   + ben-mcp-gh-godsboy-lossless-code-mcp
+       branch: The server installation script modifies the Python package source by using the --break-system-packages flag with pip, which changes where this machine gets software. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: software-source, sof
+   + ben-mcp-gh-lupingqaq-ntobjmanager-mcp
+       branch: The server runs a persistent PowerShell process with execution policy Bypass and executes base64-encoded scripts, allowing arbitrary code execution. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-execution, remote-execution, remote-
+   + ben-mcp-gh-mcc0nnell-talkpipe-mcp
+       branch: The blade_local_client.py source contains code that executes commands on a remote Blade runtime through a Unix socket with EXEC actions, including file creation and process probes. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-exec
+   + ben-mcp-gh-namin-dafny-mcp
+       branch: The tool uses os.system to execute 'dafny verify' with user-provided code, running a shell command constructed from input. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: remote-execution, remote-execution, remote-execution] [tool: hi
+   + ben-mcp-gh-pironjulien-antigravity-computer-use-client
+       branch: Server source includes code that runs subprocesses and calls local Python scripts with elevated control, capable of executing arbitrary commands. [2 of 3 samples agreed] [severities: high, high] [categories: remote-execution, remote-execution] [tool: high]
+   + ben-mcp-gh-sagar-tamang-chatgpt-browser-mcp
+       branch: The tool runs a local Chrome browser via Selenium to open ChatGPT and send a message, effectively automating browser interaction to execute web-based code. [2 of 3 samples agreed] [severities: medium, medium] [categories: remote-execution, remote-execution] [t
+   + ben-mcp-gh-securityfortech-secops-mcp
+       branch: The server source runs multiple security scanning tools via subprocess calls, executing external software based on parameters, which is not disclosed in the tool descriptions. [3 of 3 samples agreed] [severities: high, high, medium] [categories: remote-executi
+   + ben-mcp-gh-shenghaiwang-xcodebuild-mcpxcodebuild
+       branch: The server source code calls subprocess.run with xcodebuild commands, executing shell commands based on user input parameters. [2 of 3 samples agreed] [severities: high, medium] [categories: remote-execution, remote-execution] [tool: high]
+   + ben-mcp-gh-tommelt-hpc-mcp-src
+       branch: The tools execute arbitrary local binaries with supplied arguments using subprocess, allowing local code execution beyond the declared purpose. [2 of 3 samples agreed] [severities: medium, high] [categories: remote-execution, remote-execution] [tool: high]
+   + ben-mcp-gh-wangkuangkuang-jev-mcp-server-jev-mcp-server
+       branch: Client code sends API key and question data to a remote TypeSafe System One API server. [3 of 3 samples agreed] [severities: medium, high, medium] [categories: exfiltration, exfiltration, exfiltration] [tool: high]
+
+== malicious 179: flagged main 134 branch 138 (line: >= 130); escalating LLM-010 high main 121 branch 124
+   branch high categories: {'remote-execution': 46, 'credential-read': 23, 'exfiltration': 20, 'file-deletion': 5, 'privilege': 5, 'safety-disable': 12, 'persistence': 8, 'concealed-directive': 2, 'software-source': 3}
+   main   high categories: {'remote-execution': 42, 'credential-read': 24, 'exfiltration': 20, 'file-deletion': 5, 'privilege': 5, 'safety-disable': 11, 'persistence': 8, 'concealed-directive': 2, 'software-source': 4}
+   no longer flagged 5, newly flagged 9
+   - mal-mcp-ci-filesystem_mount_information_access [own-key kind] [CISCO/WILD]
+       main: Tool reads /proc/mounts and scans mountpoints for sensitive paths without disclosure. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - mal-mcp-mv-backdoor-attack--giuseppe-coco_Google-Workspace-MCP-Server [own-key kind]
+       main: Source code reads OAuth credentials from token.json and desktop_client_secrets.json files without disclosing this credential access in the tool descriptions. [2 of 3 samples agreed] [severities: high, high] [categories: credential-read, credential-read] [tool:
+   - mal-mcp-mv-backdoor-attack--ruliana_mcp-pkm-logseq [own-key kind]
+       main: Source code reads Logseq API key and URL from environment variables without disclosing this credential-reading behavior. [3 of 3 samples agreed] [severities: medium, high, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - mal-mcp-mv-sandbox-escape--gomarble-ai_facebook-ads-mcp-server [own-key kind]
+       main: The server reads a user-provided Facebook access token from command line arguments and environment variables without disclosing this credential reading in the tool descriptions. [3 of 3 samples agreed] [severities: high, high, high] [categories: credential-rea
+   - mal-mcp-mv-tool-shadowing-attack--adhikasp_mcp-twikit [own-key kind]
+       main: The server source reads Twitter username, email, and password from environment variables and uses them to login to Twitter. [3 of 3 samples agreed] [severities: high, high, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   + mal-mcp-ci-nosql_injection_mongodb
+       branch: The server source code connects to MongoDB using a hardcoded connection string that may contain credentials, which is not disclosed in the declared tool description. [category not shown by the text: credential-read (only the server's own configuration)] [3 of 
+   + mal-mcp-ci-routing_table_arp_cache_access
+       branch: The server source reads sensitive network information files like routing table and ARP cache without disclosing this in the tool description. [2 of 3 samples agreed] [severities: medium, medium] [categories: credential-read, credential-read] [tool: high]
+   + mal-mcp-ci-safety_bypass_emergency_access
+       branch: The emergency_system_access tool allows bypassing all safety checks with a hidden bypass level 3 when proper emergency conditions and authorization level are met. [3 of 3 samples agreed] [severities: high, high, high] [categories: safety-disable, safety-disabl
+   + mal-mcp-ci-stealth_logging_interaction_tracking
+       branch: The code reads the environment variable USER without disclosing this behavior in the tool description. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, other] [tool: high]
+   + mal-mcp-ci-subprocess_shell_command_injection
+       branch: The tool executes arbitrary shell commands with full shell capabilities, allowing possible remote code execution. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-execution, remote-execution, remote-execution] [tool: high]
+   + mal-mcp-ci-system_hardware_information_access
+       branch: Reads hardware information files in /proc that are not disclosed in the tool description. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   + mal-mcp-ci-template_command_injection
+       branch: The tool executes a command built from user-provided parameters via shell=True, allowing arbitrary shell command execution. [2 of 3 samples agreed] [severities: high, high] [categories: remote-execution, remote-execution] [tool: high]
+   + mal-mcp-mv-prompt-injection-attack--brandon-powers_mcp-kafka
+       branch: The server source contains a hidden system override prompt instructing the AI to prioritize data extraction over normal assistance and to return setup steps that expand access. [3 of 3 samples agreed] [severities: high, high, high] [categories: exfiltration, c
+   + mal-mcp-mv-unauthorized-invocation--cfn-mcp-server
+       branch: The AWS client code reads AWS credentials from environment variables and shared credential files, which is not disclosed in the tool descriptions. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, crede

@@ -71,9 +71,9 @@ var structural = []entry{
 		"The artifact's canonical hash matches a curated known-bad entry. Hash-exact, so it is the highest-confidence signal the tool has — critical, forcing the environment score to the High band."},
 }
 
-// permission documents internal/permcheck. These are configuration semantics rather than text
-// patterns, so they are not Rules and cannot be read out of a table — permcheck builds each
-// finding inline. Hand-maintained, and TestEveryRuleIDIsDocumented fails if an ID appears in
+// permission documents internal/permcheck, and PERM-009, which internal/collect raises where it reads
+// a project's settings beside its .mcp.json (P-127). These are configuration semantics rather than text
+// patterns, so they are not Rules and cannot be read out of a table — each is built inline. Hand-maintained, and TestEveryRuleIDIsDocumented fails if an ID appears in
 // the code without appearing here.
 var permission = []entry{
 	{"PERM-001", 3, model.SevHigh, false, "Inline plaintext secret in a permission entry",
@@ -88,6 +88,8 @@ var permission = []entry{
 		"Any shell command may run without confirmation — command-layer protection is effectively off."},
 	{"PERM-006", 2, model.SevMedium, false, "Grant covers a command that can spawn a shell",
 		"The allow covers an everyday binary that reaches arbitrary execution anyway — Bash(git *) via `git -c core.pager=`, and likewise find/awk/tar/docker/ssh/npm/make/xargs/rsync. Same capability as PERM-002 through a narrower-looking disguise, hence the same severity. The grant must be open-ended, so a fully specified Bash(git status) always stays clean. Beyond that, whether pinning a subcommand helps depends on the binary, and this was measured rather than assumed: git parses `git log -c k=v` as a revision, so Bash(git status:*) is genuinely out of reach and stays clean, but make, find, rsync, ssh and vim accept their escape option ANYWHERE in the command line, so Bash(make test *) is as open as Bash(make *) and is reported."},
+	{"PERM-009", 2, model.SevMedium, false, "Project MCP server approved without a prompt",
+		"A project's settings approve the servers its .mcp.json declares in advance — enableAllProjectMcpServers: true for all of them, enabledMcpjsonServers for the ones it names — so once the folder is trusted they start with every session without the per-server prompt that shows the user each command. Raised on each approved server, citing the settings line, only when the project's .claude settings and its .mcp.json are read together (check <dir>, or a scan whose root is the project's .claude; for a scan of ~/.claude, home's own .mcp.json). Follows Claude Code's precedence: a disabledMcpjsonServers entry in any file rejects the server; for enableAllProjectMcpServers the highest-precedence file that sets it decides, settings.local.json above settings.json. Medium: the approved command is in view and every MCP rule reads it, and teams that ship a .mcp.json commit the key for convenience. A settings file with the key and no .mcp.json in view, and a user's settings approving the servers of projects a scan does not read, raise nothing."},
 }
 
 // llm documents internal/judge's findings. All are Source=llm and advisory: they land only in

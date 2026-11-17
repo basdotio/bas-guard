@@ -64,7 +64,7 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   `Within` 指回目标(`score.Families` 并成一个单元、同一条发现只印一次);hook/权限带 `ConfigRoot`(配置文件所在目录),脚本按它解析、哈希也按它算,
   **`$CLAUDE_PROJECT_DIR` 才是项目目录而不是项目的上一级**。项目的 `CLAUDE.md` 同理另读(`collect.declaredInstructions`,P-125):scan 的 `instructionFiles` +
   `expandImports`,home 取目标,与 `scan --root <目标>/.claude` 同一解析与边界(树读不跟 `@`,`@.env` 的 `EXFIL-005` 曾漏)。**别给单文件 `check CLAUDE.md` 跟导入**:
-  下载目录对散落的 `CLAUDE.md` 跑的就是 `check`,会读到非候选的兄弟文件。**别把"另读"改成"改道到 `CollectAll`"**,也别让任何 `Within` 的东西少读整树一个字节。同理,**`check` 的目标
+  下载目录对散落的 `CLAUDE.md` 跑的就是 `check`,会读到非候选的兄弟文件。**项目 MCP 预批准**(`PERM-009`,P-127,[collect/mcpapproval.go](../../internal/collect/mcpapproval.go)):`settingsFrom` 顺带读三个 key(按精确键名,和 `mcpServerMap` 同一理由),`CollectAll` 拿 root 的 settings 配 home 的 `.mcp.json`、`withDeclared` 拿 `<目录>/.claude` 的 settings 配 `<目录>/.mcp.json`,发现挂在**被批准的 server** 上。三条防护点:**只有 key 不报**(语料 65 个良性样本是只截了 settings 的项目配置,P-016 当年按 34/387 否掉的就是这一版);**不升 high**(这 65 个里能查到上游的 62 个,38 个仓库根上真有 `.mcp.json`,high 等于让大多数用 `.mcp.json` 的团队 `check` 失败);**别在 detect/permcheck 里按路径重读 settings**——读不读由 collect 的 `readableInTree` 定,另读一遍就绕开了软链出目标的拒绝。`<目录>/settings*.json`(另一个名字的配置根)不配 `<目录>/.mcp.json`:它的项目是上一级。**别把"另读"改成"改道到 `CollectAll`"**,也别让任何 `Within` 的东西少读整树一个字节。同理,**`check` 的目标
   读不出来必须报错(退出码 2)**,不能返回空结果 —— 空结果会渲染成 100/100 + 退出码 0。
 - **`scan`/`clean` 的 root 同样先校验再采集**(`collect.ValidateRoot`,在 `main.scanEnv` 里调用)。
   各 collector 把 ENOENT 当成"这个布局不存在"是对的,但对 root 本身就是灾难:一个打错的 `--root`
