@@ -13,8 +13,9 @@ package detect
 //	Ignore<U+00A0>all<U+00A0>previous instructions   no-break spaces; `\s` in a pattern is ASCII
 //
 // Every character Unicode says to display as nothing (Default_Ignorable_Code_Point) that the table
-// does not hold did this, and so did every control character and every space but the ASCII one. Two
-// functions close it, both read by foldCharacters and by nothing else:
+// does not hold did this, and so did every control character that is not whitespace and every space
+// a pattern's \s does not read. Two functions close it, both read by foldCharacters and by nothing
+// else:
 //
 //	drawsNothing   dropped: the rest of Default_Ignorable_Code_Point, and the control characters
 //	               that are not whitespace
