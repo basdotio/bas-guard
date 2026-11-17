@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: MIT -->
-# 135 — Three in-the-wild npm MCP servers score 76 to 100: a payload written in invisible characters, a wallet file sent away, and a file run through an obfuscator
+# 136 — Three in-the-wild npm MCP servers score 76 to 100: a payload written in invisible characters, a wallet file sent away, and a file run through an obfuscator
 
 - **Source**: the maintainer, 2026-11-18 ("好": the small static blocks left after P-131); the in-the-wild misses
   read sample by sample
 - **Depends on**: none
-- **Branch**: `p/135-wild-server-bodies`
+- **Branch**: `p/136-wild-server-bodies`
 
 ## Problem
 
@@ -125,12 +125,14 @@ the run:
 
 | W | In one sentence | Commit message |
 |---|---|---|
-| 1 | `OBF-008`, the wallet stores in the credential leg, `OBF-009`, tests, epoch, generated rules doc | `detect: a run of variation selectors is OBF-008, obfuscator-renamed identifiers are OBF-009, and a wallet key store is a credential (P-135)` |
-| 2 | `.claude/rules/detect.md` and the spec line | `docs: three shapes of a server body nobody can read (P-135)` |
+| 1 | `OBF-008`, the wallet stores in the credential leg, `OBF-009`, tests, epoch, generated rules doc | `detect: a run of variation selectors is OBF-008, obfuscator-renamed identifiers are OBF-009, and a wallet key store is a credential (P-136)` |
+| 2 | `.claude/rules/detect.md` and the spec line | `docs: three shapes of a server body nobody can read (P-136)` |
 | 1a | The lure test of P-131 held a literal zero-width character; written as an escape, as `logical.go` asks | `detect: the lure test writes its zero-width character as an escape (P-131)` |
-| 1b | After the first run: a selector run counts only when its selectors differ | `detect: OBF-008 needs a run whose selectors differ; one selector repeated carries nothing (P-135)` |
-| 3 | Static runs: corpus, held-out, fresh skills, the npm packages; main and branch | `baselines: P-135 static runs, main and branch (P-135)` |
-| 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-135 done (P-135)` |
+| 1b | After the first run: a selector run counts only when its selectors differ | `detect: OBF-008 needs a run whose selectors differ; one selector repeated carries nothing (P-136)` |
+| 3 | Static runs: corpus, held-out, fresh skills, the npm packages; main and branch | `baselines: P-136 static runs, main and branch (P-136)` |
+| 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-136 done (P-136)` |
+
+**Numbering.** This proposal was opened as P-135 on the same day the release record of v0.37.0 took that number (PR #161, opened first). It is P-136 from the commit `proposals: P-135 is the release record of v0.37.0, this proposal is P-136 (P-136)` on; the five commits before it that say `(P-135)` in their messages are this proposal's. Nothing was rewritten.
 
 ## Open questions
 
@@ -153,7 +155,7 @@ Static, threshold high, `main` at `f28029f` (`rules=6e839a428eb8`) against the b
 (`rules=fbe3f98553bb`), both built 2026-11-18. Corpus `c314e4d9` (5,272 samples), the `heldout-all` list (459, layer
 2, not in the corpus), two pools of fresh skills (212 and 200 trees), and the 1,890 distinct npm packages installed
 on a developer machine, each given to `check` as a directory:
-`baselines/results/aguard/2026-11-18-p135-{corpus,heldout,fresh216,fresh200}-{main,changed}`; `compare.txt` in
+`baselines/results/aguard/2026-11-18-p136-{corpus,heldout,fresh216,fresh200}-{main,changed}`; `compare.txt` in
 `corpus-changed` has every line, the npm one included (its per-package results name a machine's packages and are not
 committed).
 

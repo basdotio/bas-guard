@@ -387,7 +387,7 @@ var (
 	// along.)
 	credFileRE = regexp.MustCompile(`(?i)(\.ssh/|\.aws/|/etc/passwd|id_rsa)`)
 
-	// walletStoreRE — where a crypto wallet keeps its keys (P-135): Bitcoin Core's wallet.dat, geth's
+	// walletStoreRE — where a crypto wallet keeps its keys (P-136): Bitcoin Core's wallet.dat, geth's
 	// keystore, the Solana CLI's keypair, Electrum's and Exodus's wallet files, and the browser stores of
 	// the MetaMask and Phantom extensions, which are named by extension id. The same kind of name as
 	// `.ssh/`: nothing reads one by accident, and what is in it spends money. An in-the-wild todo server

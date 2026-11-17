@@ -9,7 +9,7 @@ import (
 	"github.com/basdotio/bas-guard/internal/model"
 )
 
-// Two more shapes of a file (P-135), beside the ones in shape.go: arrangements that leave the dangerous
+// Two more shapes of a file (P-136), beside the ones in shape.go: arrangements that leave the dangerous
 // part where no reviewer reads it. Both come from MCP servers captured on npm that scored 76 and 88.
 //
 //	OBF-008  a run of Unicode variation selectors: bytes written in characters that draw nothing
@@ -63,7 +63,7 @@ var selectorPrefixes = [2]string{"\xef\xb8", "\xf3\xa0"}
 // at the first run; the snippet names the run instead of quoting it, because quoting it shows nothing.
 //
 // It reports the carrier, not what it carries, and only a run: a payload spread one selector at a time
-// between visible characters is not seen (P-135, Out of scope).
+// between visible characters is not seen (P-136, Out of scope).
 func selectorRun(rel, text string) (model.Finding, bool) {
 	if !strings.Contains(text, selectorPrefixes[0]) && !strings.Contains(text, selectorPrefixes[1]) {
 		return model.Finding{}, false
@@ -154,7 +154,7 @@ const obfuscatorNamesMin = 20
 // Scripts only: a document that quotes such code is describing it.
 //
 // One naming scheme, the default of the most used obfuscator. A file renamed to a, b, c reads as
-// minified code and is left alone (P-135, Must not claim).
+// minified code and is left alone (P-136, Must not claim).
 func obfuscatorNames(rel, text string) (model.Finding, bool) {
 	if !strings.Contains(text, "_0x") {
 		return model.Finding{}, false
