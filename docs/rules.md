@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**92 rule IDs** in this build — 50 engine rules + 16 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **82 score** and 10 never do (dimension 0).
+**94 rule IDs** in this build — 50 engine rules + 18 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **84 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `2997414a2a16`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `cbaa8a115ff1`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 16 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 18 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -44,8 +44,8 @@ agree were produced by the same engine rule table.
 - [1 — Prompt injection](#1--prompt-injection) (12)
 - [2 — Excessive permissions](#2--excessive-permissions) (8)
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
-- [4 — Code execution](#4--code-execution) (16)
-- [5 — Supply chain](#5--supply-chain) (10)
+- [4 — Code execution](#4--code-execution) (17)
+- [5 — Supply chain](#5--supply-chain) (11)
 - [6 — Obfuscation](#6--obfuscation) (8)
 - [7 — Backdoor](#7--backdoor) (4)
 - [8 — Resource abuse](#8--resource-abuse) (3)
@@ -119,6 +119,7 @@ agree were produced by the same engine rule table.
 | `EXEC-011` | high | Decoded payload executed | A base64 payload is decoded and run in the same step — piped into a shell, or eval/exec of a decode. What executes is hidden inside the blob, so the line rules see only the decode. Not confirmed malicious (decoding has uses), but decode-straight-into-execution is the obfuscated-execution shape. |
 | `EXEC-012` | high | Downloaded script executed via substitution | The same shape as curl piped to a shell, spelled with command or process substitution: eval/sh -c/python -c of "$(curl …)", or bash <(curl …). What runs is whatever the URL serves at that moment — arbitrary remote code execution. |
 | `EXEC-013` | high | Script hooked into every new shell | A shell startup file (.bashrc, .profile, …) is made to source a script this artifact writes itself, or one in a world-writable temporary directory. From then on that script runs in every shell the user or the agent opens, after the skill has finished and without anyone invoking it again. |
+| `EXEC-014` | high | Skill shell command downloads code and runs it | A `` !`command` `` or a `` ```! `` block in a SKILL.md or a custom command (commands/, .claude/commands/) downloads a file with curl or wget and a later stage of the same command runs it — with an interpreter, by `source`, or as the command itself — or pipes the download into an interpreter that reads its program from standard input. Claude Code runs these commands when the skill is invoked, typed or loaded by Claude on its own, before Claude reads the content and without a prompt when the skill's allowed-tools or a permission rule allows them. Over https as much as http: the https exemption P-094 makes for install instructions a person reads does not hold for a line that runs by itself. A line EXEC-001, EXEC-002, EXEC-011 or EXEC-012 already reports is not restated. One per command (P-132). |
 | `HOOK-001` | medium | Hook command chains extra shell | This hook command uses shell chaining/substitution (; && \|\| \| ` $()), so what actually runs is not just the command registered for this event; hooks execute silently on every matching tool call, so keep them to a single command (a script file, if it needs logic). Runs on hook commands only: unremarkable in a script, telling in a hook. |
 | `HOOK-002` | medium | Hook second stage is outside HOME and was not read | A hook command names a script that resolves outside the scan home. Spec §16.2 still forbids reading it; this finding scores the refusal itself, because an unaudited payload at a silent intercept is a risk, not just a coverage gap. Raised to high on PermissionRequest, which takes the authorization decision. The matching COV-000 note is kept: coverage and scoring are different facts. |
 | `HOOK-003` | high | Hook forwards event payload over HTTP | type=http posts the full event (tool inputs, command lines, permission prompts) to a URL. A command hook that does the same is the same finding (P-128): the hook command, or a shell, Python or Node script it runs, hands a sender (curl, wget, nc, socat, httpie, /dev/tcp, fetch, requests, urllib, https.request …) its stdin, a field that carries the conversation (prompt, tool_input, tool_response, tool_calls, last_assistant_message, compact_summary, custom_instructions), or the transcript file transcript_path names — read in place or through names followed forward in the same file. A fixed message and the notification fields (message, title, cwd, session_id, …) are not reported, nor is the transcript's path sent as text. Ordinary events to loopback are low (a local sidecar). PermissionRequest to loopback is high (it still takes allow/deny). Any non-loopback destination, or one the file does not name, is high, because the operation stream is leaving the machine. A settings file's status line is read the same way (P-133), with one difference: its stdin is session metadata, so only the transcript transcript_path names is a payload there; sending the stdin itself, session_id or cwd is not reported. |
@@ -137,6 +138,7 @@ agree were produced by the same engine rule table.
 | `SUP-007` | high | Code downloaded over plaintext HTTP | A script or source file is fetched over http:// (not https) and saved where a later step runs or imports it. Nothing authenticates the server or the bytes, so whoever controls the host or the network path decides what code the agent runs. |
 | `SUP-008` | high | Install-time script runs unread, packed, inline or self-fetching code | A package.json's `preinstall`, `install` or `postinstall` script runs on the installing machine with no prompt, before any of the package's code is used. Raised when what it runs could not be vouched for: a file in the tree that was not read (over the 1 MiB cap, or not text), a file with a line of 4,096 bytes or more (packed or minified), a file that both reaches the network and starts a process, or inline interpreter code (`node -e`, `python -c`) that reads or writes files, reads the environment, opens the network, starts a process or evaluates code (printing a notice, or a chmod after a build, is not that). The script is followed one level, through `npm run <name>` and `sh -c` too; a name that differs from npm's only by case (`postInstall`) is reported and the finding says npm does not run it. Says what was not reviewed, not that it is malicious: a package whose install script runs its own minified bundle gets it too. `prepare`, dependencies under node_modules and other package managers are not read. |
 | `SUP-009` | medium | Package runs a script at install time | A package.json has a `preinstall`, `install` or `postinstall` script and none of SUP-008's reasons holds: the file it runs was read and is ordinary, it is absent from the tree (a build output not built yet; the finding names it), or the script runs a tool. Reported because it runs with no prompt; it does not fail `check` at the default threshold. One finding per script, never together with SUP-008. |
+| `SUP-011` | medium | Skill shell command runs a registry package at a moving version | A `` !`command` `` or a `` ```! `` block in a SKILL.md or a custom command runs a package from a registry at a version that can change: npx or npm exec with -y, --package or a tag or range (`pkg@latest`), bunx with a tag, pnpm or yarn dlx, uvx, uv tool run or pipx run without `==`, go run of a remote module at a branch. The package's code is not in the tree and runs on every invocation, before Claude reads the content. An exact version, a local path, a git URL at a full commit and `npx <tool>` with no -y and no version (a project's own copy, when installed) are not reported. One per command (P-132). |
 
 ## 6 — Obfuscation
 
