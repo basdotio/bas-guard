@@ -47,8 +47,8 @@ Whoever holds them attaches them afterwards (`gh release upload <tag> <archive>`
 ## Done
 
 ```
-Merged: not yet — PR pending
-Released: (fill in after the release)
+Merged: PR #156 (2026-11-17; find the sha with git log --grep P-130)
+Released: v0.36.0
 Evidence: make verify: all gates passed on the branch
 Evidence: bas-guard version on main before this branch: rules=dbd22857f91a judge-prompt=9cd57da1a4bd judge-excerpt=10
 ```
