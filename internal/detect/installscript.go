@@ -30,7 +30,8 @@ import (
 //
 //	SUP-008 (high)   the script runs a file that was not read, a file with a line too long to
 //	                 review, a file that both reaches the network and starts a process, or inline
-//	                 interpreter code that does more than print
+//	                 interpreter code that reads or writes files, reads the environment, opens the
+//	                 network, starts a process or evaluates code
 //	SUP-009 (medium) any other install-time script
 //
 // One finding per script, never both. Measured on the corpus at c314e4d9: ten malicious trees have
@@ -82,13 +83,17 @@ var shells = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true
 // second word may be left out for yarn and pnpm (`yarn build`).
 var packageRunners = map[string]bool{"npm": true, "yarn": true, "pnpm": true, "bun": true}
 
-// inlineTouches is inline code that does more than print: it loads a module, or names a file,
-// network, environment, process or eval API. Case-sensitive on purpose: a printed notice saying
-// "IMPORTANT: set your API key" is not an import. One list for JavaScript and one for the others,
-// because `import x` is a statement only outside JavaScript's -e.
+// inlineTouches is inline code that takes data in, sends it out or runs something: it reads or writes
+// a file, reads the environment, opens the network, starts a process or evaluates code. Loading a
+// module is not on the list by itself, and neither is file housekeeping: every benign script with
+// inline code in the corpus (ten, under any script name) is `require('fs').chmodSync('build/index.js',
+// '755')` after a build or `require('./package.json').version`, and with a bare `require(` here a
+// `postinstall` of `npm run build` would have been high on seven MCP servers' templates. Case-
+// sensitive on purpose: a printed notice saying "IMPORTANT: set your API key" is not an import. One
+// list for JavaScript and one for the others.
 var (
-	inlineTouchesJS    = regexp.MustCompile(`\brequire\s*\(|\bimport\s*\(|\bprocess\.(env|binding|dlopen|argv)|child_process|\bfs\.|\b(read|write|append)File|createWriteStream|\bexec(File)?(Sync)?\s*\(|\bspawn(Sync)?\s*\(|\bfetch\s*\(|XMLHttpRequest|\bhttps?\.(get|request)|\bnet\.|\bdgram\.|\beval\s*\(|\bFunction\s*\(|\bBuffer\.from|\batob\s*\(|\bBun\.|\bDeno\.`)
-	inlineTouchesOther = regexp.MustCompile(`\bimport\s+\w|\bfrom\s+\w+\s+import\b|__import__|\brequire\b|\bopen\s*\(|\bsystem\s*\(|\bexec\w*\s*\(|\beval\s*\(|\bsubprocess\b|\bsocket\b|\burllib\b|\brequests\.|\bos\.|\bFile\.|\bIO\.|\bNet::|\bfile_(get|put)_contents|\bcurl_|\bfopen\s*\(|` + "`")
+	inlineTouchesJS    = regexp.MustCompile(`\b(read|write|append)File|\bcreate(Read|Write)Stream\b|\breaddir|\bprocess\.(env|binding|dlopen)|child_process|\bexec(File)?(Sync)?\s*\(|\bspawn(Sync)?\s*\(|\bfetch\s*\(|XMLHttpRequest|\bhttps?\.(get|request)|\brequire\s*\(\s*['"](node:)?(https?|net|dgram|tls|child_process)['"]|\bnet\.|\bdgram\.|\beval\s*\(|\bFunction\s*\(|\bimport\s*\(|\bBuffer\.from|\batob\s*\(|\bos\.(homedir|userInfo)|\bBun\.(spawn|file|write|\$)|\bDeno\.(run|Command|readFile|readTextFile|writeFile|writeTextFile|env)`)
+	inlineTouchesOther = regexp.MustCompile(`\bopen\s*\(|\bos\.(system|popen|environ|getenv|exec\w*|spawn\w*|remove|unlink)|\bsubprocess\b|\bsocket\b|\burllib\b|\brequests\b|\bhttp\.client\b|\beval\s*\(|\bexec\s*\(|__import__|\bsystem\s*\(|\bFile\.(read|open|write)|\bIO\.(read|popen)|\bNet::|\bENV\b|\bfile_(get|put)_contents|\bcurl_|\bfopen\s*\(|\bgetenv\s*\(|` + "`")
 )
 
 // spawnRule is EXEC-004, the rule table's own "starts a process" pattern, so reason 3 has no second
@@ -192,7 +197,7 @@ func installFinding(dir, pkg, key string, scripts map[string]string, tf treeFile
 			via = " (through the `" + Redact(st.via) + "` script)"
 		}
 		if inlineCodeTouches(st.cmd) {
-			reasons = append(reasons, installReason{text: "the script" + via + " is inline code that loads a module or touches files, the network, the environment or processes"})
+			reasons = append(reasons, installReason{text: "the script" + via + " is inline code that reads or writes files, reads the environment, opens the network, starts a process or evaluates code"})
 		}
 		for _, ref := range installRefs(st.cmd) {
 			file, ok := resolveInTree(dir, filepath.Dir(pkg), ref, tf)
@@ -385,8 +390,9 @@ func inlineCodeWords(words []string) map[string]bool {
 	return out
 }
 
-// inlineCodeTouches reports whether a command hands an interpreter inline code that does more than
-// print. `node -e "console.log('installed')"` is a notice; reading `.env` two directories up is not.
+// inlineCodeTouches reports whether a command hands an interpreter inline code that takes data in,
+// sends it out or runs something (inlineTouches). `node -e "console.log('installed')"` is a notice and
+// a chmod after a build is housekeeping; reading `.env` two directories up is neither.
 func inlineCodeTouches(cmd string) bool {
 	words := shellWords(cmd)
 	for i, w := range words {

@@ -59,10 +59,16 @@ func TestInstallScript_High(t *testing.T) {
 			"`setup.mjs` both reaches the network and starts a process"},
 		{"inline JavaScript that reads files", map[string]string{
 			"package.json": pkg(`    "postinstall": "node -e \"const fs=require('fs');fs.writeFileSync('.log',fs.readFileSync('../../.env'))\""`)},
-			"inline code that loads a module"},
+			"inline code that reads or writes files"},
 		{"inline Python that imports", map[string]string{
 			"package.json": pkg(`    "install": "python3 -c \"import os; os.system('id')\""`)},
-			"inline code that loads a module"},
+			"inline code that reads or writes files"},
+		{"inline JavaScript that reads the environment", map[string]string{
+			"package.json": pkg(`    "preinstall": "node -e \"console.log(JSON.stringify(process.env))\""`)},
+			"inline code that reads or writes files"},
+		{"inline JavaScript that starts a process", map[string]string{
+			"package.json": pkg(`    "preinstall": "node -e \"require('child_process').execSync('id')\""`)},
+			"inline code that reads or writes files"},
 		{"through npm run", map[string]string{
 			"package.json": pkg("    \"postinstall\": \"npm run setup\",\n    \"setup\": \"node bundle.js\""), "bundle.js": overCap},
 			"`bundle.js` (through the `setup` script) was not read"},
@@ -124,6 +130,14 @@ func TestInstallScript_Medium(t *testing.T) {
 			"install.sh":   "#!/bin/bash\nset -e\nmkdir -p \"$HOME/.tool/logs\"\nchmod +x scripts/*.js\necho done\n"}, ""},
 		{"inline code that only prints", map[string]string{
 			"package.json": pkg(`    "postinstall": "node -e \"console.log('Installed. IMPORTANT: set your API key at https://example.com')\""`)}, ""},
+		{"inline chmod after a build", map[string]string{
+			"package.json": pkg(`    "postinstall": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\""`)}, ""},
+		{"npm run build with the chmod idiom", map[string]string{
+			"package.json": pkg("    \"postinstall\": \"npm run build\",\n    \"build\": \"tsc && node -e \\\"require('fs').chmodSync('build/index.js', '755')\\\"\"")}, ""},
+		{"inline read of the manifest's version", map[string]string{
+			"package.json": pkg(`    "postinstall": "echo $(node -p \"require('./package.json').version\")"`)}, ""},
+		{"inline Python that prints a version", map[string]string{
+			"package.json": pkg(`    "postinstall": "python3 -c \"import sys; print(sys.version)\""`)}, ""},
 		{"a build output that is not in the tree", map[string]string{
 			"package.json": pkg(`    "postinstall": "test -f dist/index.js && node dist/index.js --check-binary || echo skipped"`)},
 			"Not in this tree, so not read: dist/index.js"},
