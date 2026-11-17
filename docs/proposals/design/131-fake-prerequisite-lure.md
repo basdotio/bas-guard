@@ -54,7 +54,7 @@ not excuse a look-alike. Measured on the static bench, which costs nothing.
 
 Code:
 
-- [ ] `SUP-010` (high, dimension 5), one finding per line, raised on instruction files and documents (`SKILL.md`,
+- [x] `SUP-010` (high, dimension 5), one finding per line, raised on instruction files and documents (`SKILL.md`,
   `CLAUDE.md`, a `README.md`, any bundled `.md`/`.txt`), not on scripts, hook commands or tool descriptions. The
   reason is named in the finding:
   1. **paste**: a URL on a paste or snippet host, and on the same line a word for running or installing (`run`,
@@ -67,31 +67,31 @@ Code:
      Anthropic, OpenAI, ChatGPT, Codex, Cursor) and is not one of that platform's own hosts, and on the same line a
      phrase that makes it a prerequisite or a download ("must be installed", "is required", "prerequisite", "download
      and install", "install from", "quick setup", "set up here", "get it here").
-- [ ] Each URL on a line is judged by its own host: an official link beside a look-alike does not clear the line.
-- [ ] Rules see both the raw and the normalized line, as every rule does, so a zero-width character in the host does
+- [x] Each URL on a line is judged by its own host: an official link beside a look-alike does not clear the line.
+- [x] Rules see both the raw and the normalized line, as every rule does, so a zero-width character in the host does
   not hide it.
-- [ ] Reverse assertions: an official install page (`https://docs.anthropic.com/…`, `https://openclaw.ai/install`)
+- [x] Reverse assertions: an official install page (`https://docs.anthropic.com/…`, `https://openclaw.ai/install`)
   with "must be installed" raises nothing; "Install jq from https://stedolan.github.io/jq/" raises nothing; a zip
   download with "extract with `unzip`" raises nothing; a paste link with no word for running raises nothing; the same
   lure line in a `.py` or `.sh` file raises nothing.
-- [ ] `rulesEpoch` 18 → 19, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
+- [x] `rulesEpoch` 18 → 19, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
   code.
 
 Measurement (static, threshold high, corpus `c314e4d9`, `main` at `1943194` against the branch). Lines set before
 the run:
 
-- [ ] **Target**: each of the four missed trees carries a high `SUP-010`: `dd-openclaw-hightower6eu-autoupdate`,
+- [x] **Target**: each of the four missed trees carries a high `SUP-010`: `dd-openclaw-hightower6eu-autoupdate`,
   `dd-openclaw-stveenli-browserautomation-skill`, `dd-openclaw-stveenli-shieldphenix`,
   `dd-openclaw-thiagoruss0-n8nsk`. Four of four.
-- [ ] **Malicious**: no sample flagged on `main` is unflagged on the branch.
-- [ ] **Benign**: no benign sample, alert-justified ones included, carries `SUP-010`; the samples flagged at high are
+- [x] **Malicious**: no sample flagged on `main` is unflagged on the branch.
+- [x] **Benign**: no benign sample, alert-justified ones included, carries `SUP-010`; the samples flagged at high are
   the same as on `main`.
-- [ ] **Hard negatives**: the same samples flagged as on `main`.
-- [ ] **Held-out** (`heldout-all`, totals only): malicious flagged at least **40 more** than `main` (the prototype
+- [x] **Hard negatives**: the same samples flagged as on `main`.
+- [x] **Held-out** (`heldout-all`, totals only): malicious flagged at least **40 more** than `main` (the prototype
   said 53; the built rule is tighter in three places, so the line is set below it); benign flagged at most one more
   than `main`.
-- [ ] **Fresh benign skills** (`fresh216`, `fresh200`, 416 trees): none carries `SUP-010`.
-- [ ] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch differs only by
+- [x] **Fresh benign skills** (`fresh216`, `fresh200`, 416 trees): none carries `SUP-010`.
+- [x] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch differs only by
   `SUP-010` findings, and their count is reported.
 
 ## Out of scope
@@ -131,3 +131,35 @@ figures):
    OpenAI, ChatGPT, Codex, Cursor). The wider list was the one measured.
 3. **Dimension.** Supply chain (5), beside `SUP-001` and `SUP-007`, but raised on documents too: the lure in one of
    the four trees is in the README its `SKILL.md` tells the agent to read.
+
+## Readings
+
+Static, threshold high, `main` at `1943194` (`rules=0352af8d2690`) against the branch at `aed5cbe`
+(`rules=2997414a2a16`), both built 2026-11-17. Corpus `c314e4d9` (5,272 samples), the `heldout-all` list (459, layer 2,
+not in the corpus) and two pools of fresh skills (212 and 200 trees; four of the 216 are no longer on disk):
+`baselines/results/aguard/2026-11-17-p131-{corpus,heldout,fresh216,fresh200}-{main,changed}`. `compare.txt` in
+`corpus-changed` has every line.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| the four missed trees carry a high `SUP-010` | 0 | **4** | 4 of 4 ✓ |
+| malicious flagged, of 719; none lost | 231 | **235** | ✓ (the four targets, nothing else moved) |
+| benign carrying `SUP-010`, of 4,534 | — | 0 | 0 ✓ |
+| benign flagged at high, of 4,534 | 342 | 342 | same samples ✓ |
+| hard negatives flagged, of 19 | 4 | 4 | same samples ✓ |
+| **held-out malicious flagged, of 243** | 80 | **133** | at least 40 more ✓ (+53) |
+| held-out benign flagged, of 216 | 6 | 6 | at most one more ✓ |
+| fresh skills carrying `SUP-010`, of 412 | — | 0 | 0 ✓ |
+
+**Held-out, by collection** (totals only; no held-out sample was read). The ClawHub trees: 68 → **121 of 123**;
+`SUP-010` is on 112 of them, by reason archive 79, paste 35, platform 27 (a tree can carry more than one). The
+SkillHarm trees: 12 → 12 of 120, none carries the rule. Benign: none carries it. The built rule is tighter than the
+prototype in three places (the password cue, the paste cue without "copy", the prerequisite phrase on the same line)
+and lands on the same 112 trees.
+
+**Corpus.** Eight malicious trees carry the rule: the four targets; the two flagged before for an unrelated line
+(`hightower6eu-clawhubcli`, `thiagoruss0-jirayb4nt`), which now have the lure as a reason; and two more DataDog trees
+with a locked zip (`boomsystel…nanopdf`, `…yahoo-f…`), flagged before.
+
+**Read, not gated: the maintainer's own `~/.claude`** (99 artifacts): the same 83 findings on both builds; the rule
+does not fire.
