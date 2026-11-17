@@ -17,7 +17,40 @@ rate copied into prose goes stale on the next rule. `git tag` and the Releases p
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.35.0
+## v0.2.0 – v0.36.0
+
+**v0.36.0 (2026-11-17) — a command hook that sends what it is handed off the machine is `HOOK-003`, a project whose
+settings approve its own MCP servers is `PERM-009`, and the judge's server pass stops reading a server's own key as
+theft.**
+
+No flag, exit code or JSON field changed meaning. One rule is new (`PERM-009`, 90 rule IDs), and the same input can now
+produce findings it did not, so a gate can go red on upgrade (see the last point). `rules` `35dbd6adf202` →
+`dbd22857f91a`; `judge-excerpt` 9 → 10; `judge-prompt` (`9cd57da1a4bd`) unchanged.
+
+- **A command hook that sends what it is handed is `HOOK-003`** (P-128). An `http` hook to an outside address was
+  `HOOK-003` high, but the same destination written as a command hook (`curl --data-binary @- https://…`,
+  `cat | curl -d @- …`, or a script that uploads the file `transcript_path` names) scored 100/100, or `HOOK-001` only.
+  `HOOK-003` now also reads the hook command and the shell, Python and Node scripts it runs, and reports a sender handed
+  the event on stdin, a content field of it (the prompt, a tool's input or output, the assistant's last message) or the
+  transcript: high to a host that is not loopback or that the file does not name, low to loopback (high on
+  `PermissionRequest`, where the local service takes the decision). A hook that sends a fixed message, or a
+  notification field such as `message` or `cwd`, is not reported. A plugin's hook scripts, a payload handed to a second
+  program and variables set through `eval` are not followed.
+- **A project whose settings approve the MCP servers it declares is `PERM-009`** (P-127). `enableAllProjectMcpServers:
+  true`, or `enabledMcpjsonServers` naming a server, in a project's `.claude` settings means that once the folder is
+  trusted the servers in its `.mcp.json` start without a prompt, and a repository can ship both files. The approval was
+  never read. `PERM-009` (medium) is now raised on each approved server, minus `disabledMcpjsonServers`, when one run
+  reads both files: `check <dir>`, `check <dir>/.claude` or `scan --root <dir>/.claude`. A settings file holding only the
+  key reports nothing.
+- **The judge's server pass stops reading a server's own key as theft** (P-117). A server that read its own API key and
+  had a URL literal anywhere in the file (an XML namespace, a licence header, an OAuth scope) counted as sending the key
+  elsewhere, which kept the model's `credential-read` vote high. Only lines that make a request now count as a
+  destination, and the server pass no longer reads `.github/`: a publish workflow runs on GitHub, not where the server
+  is installed. The static rules do not use this check, and the rules still read `.github/`.
+- **Upgrading a CI gate:** `HOOK-003` reads command hooks and `PERM-009` is new, so a gate that passed can fail on
+  findings that were always there: with `1` under the default `--fail-on high` for a command hook that sends off the
+  machine, and under `--fail-on medium` for an approved project server. Reports carry the new `rules_version`, and judge
+  results the new `judge-excerpt`.
 
 **v0.35.0 (2026-11-16) — text written in Unicode tag characters is read and reported, `PERM-007` closes on a settings
 file written in one statement, and `check` on a project reads its `CLAUDE.md` files.**
