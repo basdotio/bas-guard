@@ -387,6 +387,16 @@ var (
 	// along.)
 	credFileRE = regexp.MustCompile(`(?i)(\.ssh/|\.aws/|/etc/passwd|id_rsa)`)
 
+	// walletStoreRE — where a crypto wallet keeps its keys (P-135): Bitcoin Core's wallet.dat, geth's
+	// keystore, the Solana CLI's keypair, Electrum's and Exodus's wallet files, and the browser stores of
+	// the MetaMask and Phantom extensions, which are named by extension id. The same kind of name as
+	// `.ssh/`: nothing reads one by accident, and what is in it spends money. An in-the-wild todo server
+	// globbed $HOME for wallet.dat, base64-encoded it and POSTed it, and scored 100 because the chain had
+	// an egress leg and nothing it recognised as a credential. Measured: none of these names occurs in
+	// any benign tree of the corpus, the fresh skills or the held-out set; a wallet API, a `wallets`
+	// endpoint and a Java `.keystore` are not on it.
+	walletStoreRE = regexp.MustCompile(`(?i)\bwallet\.dat\b|\.ethereum[/\\]keystore|\bkeystore[/\\]UTC--|\.config[/\\]solana[/\\]id\.json|electrum[/\\]wallets|\bexodus\.wallet\b|nkbihfbeogaeaoehlefnkodbefgpgknn|bfnaelmomeimhlpmgjnjophhpkkoljpa`)
+
 	// credShellVarRE — the `$VAR` half of the above, CASE-SENSITIVE and upper-case on purpose
 	// (P-061). Shell exports secrets as `$GITHUB_TOKEN`; a JavaScript template interpolates
 	// locals as `${key}` and `${totalTokens(project)}`, and under (?i) both of those were
@@ -546,7 +556,7 @@ var (
 // raw only — it is the one branch a substitution can falsely satisfy.
 func credentialLine(raw, norm string) bool {
 	for _, v := range [2]string{norm, raw} {
-		if credFileRE.MatchString(v) || credShellVarRE.MatchString(v) || credReadFileRE.MatchString(v) {
+		if credFileRE.MatchString(v) || walletStoreRE.MatchString(v) || credShellVarRE.MatchString(v) || credReadFileRE.MatchString(v) {
 			return true
 		}
 		// A whole-environment read is a leg unless it is the child-process copy idiom and nothing on
