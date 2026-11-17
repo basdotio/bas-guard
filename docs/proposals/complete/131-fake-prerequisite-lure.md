@@ -74,8 +74,8 @@ Code:
   with "must be installed" raises nothing; "Install jq from https://stedolan.github.io/jq/" raises nothing; a zip
   download with "extract with `unzip`" raises nothing; a paste link with no word for running raises nothing; the same
   lure line in a `.py` or `.sh` file raises nothing.
-- [x] `rulesEpoch` 18 → 19, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
-  code.
+- [x] `rulesEpoch` 18 → 19, then 22 after the merge with P-132, P-134 and P-133 (which took 19, 20 and 21);
+  `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit code.
 
 Measurement (static, threshold high, corpus `c314e4d9`, `main` at `1943194` against the branch). Lines set before
 the run:
@@ -119,6 +119,7 @@ the run:
 | 1 | The line check, `SUP-010`, tests, epoch, generated rules doc | `detect: a prerequisite offered from a paste site, a password-protected archive or a platform look-alike is SUP-010 (P-131)` |
 | 2 | `.claude/rules/detect.md` and the spec line | `docs: the prerequisite-lure check (P-131)` |
 | 3 | Static runs, corpus and held-out and fresh skills, main and branch | `baselines: P-131 static runs, main and branch, corpus, held-out and fresh skills (P-131)` |
+| 3a | `main` merged after P-132, P-134 and P-133: `rulesEpoch` 22, `SUP-010` beside P-132's `SUP-011`; the eight static runs and the `~/.claude` reading repeated on the merged code | `Merge remote-tracking branch 'origin/main' into p/131-fake-prerequisite-lure` |
 | 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-131 done (P-131)` |
 
 ## Open questions
@@ -163,3 +164,32 @@ with a locked zip (`boomsystel…nanopdf`, `…yahoo-f…`), flagged before.
 
 **Read, not gated: the maintainer's own `~/.claude`** (99 artifacts): the same 83 findings on both builds; the rule
 does not fire.
+
+**After the merge with P-132, P-134 and P-133** (`main` at `a66838b`, `rules=8cb81aaaae50`, against the branch at
+`c9d91b8`, `rules=6e839a428eb8`, both built 2026-11-18): the eight runs repeated, and every line holds with the same
+difference between the two sides. The merged proposals had moved `main`'s own figures on both sides alike (benign
+flagged 342 → 337 of 4,534, the fresh skills flagged 34 → 33 of 412); nothing else moved. The four targets 0 → 4,
+malicious 231 → 235 of 719 with none lost, benign 337 → 337 with `SUP-010` on none, hard negatives 4 → 4, held-out
+malicious 80 → 133 of 243 (ClawHub 68 → 121 of 123, the rule on the same count of 112: archive 79, paste 35, platform
+27) and held-out benign 6 → 6 of 216, fresh skills carrying the rule 0 of 412. The maintainer's `~/.claude` (100
+artifacts): 83 findings on both builds, none of them `SUP-010`. Not committed as a second set of result directories.
+
+## Done
+
+The maintainer said to ship and merge it on 2026-11-18 ("好，发吧，合了"). The three open questions stand as
+recommended: high, the platform list as written, documents read as well as `SKILL.md`.
+
+```
+Merged: PR #157 (find the date and sha with git log --grep P-131 after the merge)
+Released: (fill in after the release)
+Evidence: TestLureReason, TestLure_WhereItIsRead, TestLure_HiddenCharactersDoNotHideTheHost, TestLure_LineIsRedacted
+  (internal/detect/lure_test.go); corpus c314e4d9 static, main 1943194 → branch aed5cbe: the four missed trees 0 → 4
+  at high SUP-010, malicious 231 → 235 of 719 with none lost, benign 342 → 342 of 4,534 with SUP-010 on none, hard
+  negatives 4 → 4 of 19; held-out, totals only: malicious 80 → 133 of 243 (ClawHub 68 → 121 of 123), benign 6 → 6 of
+  216; fresh skills carrying SUP-010 0 of 412; the maintainer's ~/.claude 83 findings → 83, the rule on none
+Evidence: after the merge with P-132, P-134 and P-133 (main a66838b → branch c9d91b8, rulesEpoch 22): the eight runs
+  repeated, the same difference on every line (benign 337 → 337; P-134 had moved main's own figure)
+Evidence: reverse: the benign twin of each reason in TestLureReason (the platform's own install page, a tool's own
+  project page, a zip with an extraction tool, a paste link nobody is told to run), the code-file cases of
+  TestLure_WhereItIsRead, TestLure_OrdinaryPrerequisitesRaiseNothing; make verify green
+```
