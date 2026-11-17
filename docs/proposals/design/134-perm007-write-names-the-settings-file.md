@@ -112,8 +112,12 @@ through that name. One line that both names the file and writes stays as P-124 m
 | 3 | `.claude/rules/detect.md` | `docs: PERM-007's file-level half follows the name it assigns (P-134)` |
 | 4 | The static runs | `baselines: P-134 static runs, main and branch, corpus and held-out ClawHub (P-134)` |
 | 5 | Design and measurement | `proposals: P-134 design and measured (P-134)` |
+| 6 | The two answers. The file stays in `design/` until the maintainer says ship it; the move to `complete/`, the Done block and the index row come then | `proposals: P-134 open questions decided (P-134)` |
 
 ## Open questions
+
+Both asked at once (2026-11-17), each with a recommended answer. The maintainer took both recommendations the same day
+("all as recommended", relayed by the session that started this one).
 
 1. **Installers that write `~/.claude.json` through a returned path or an object property** (decision 4) are no
    longer reported: five benign corpus samples and five of the real hooks (Measured). Recommended: accept it. The
@@ -121,9 +125,12 @@ through that name. One line that both names the file and writes stays as P-124 m
    backup copy as the write — and following a returned path, a property or a helper's parameter is a reading of the
    language that FS-005 and P-061 also decline. A malicious script written that way is the miss to name; none is in the
    corpus or the held-out set.
+   **Decided (2026-11-17)**: accepted. Installers that write `~/.claude.json` through a returned path, an object
+   property, a helper's parameter or another program are no longer reported.
 2. **A test file that writes a fixture settings file** under a temporary home still gets `PERM-007` high (eight of
    the status line sample, and test files in the hook sample). Recommended: keep; it does write a file of that name,
    and telling a fixture from the real one is a guess about the path.
+   **Decided (2026-11-17)**: kept high.
 
 ## Measured
 
