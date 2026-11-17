@@ -39,9 +39,9 @@ func writesAFile(line string) bool {
 // to read the model from it, and writes a cache file, was "rewriting the permission settings". On 1,100 public status
 // line scripts that was 118 of 136 PERM-007 findings, every one read wrong; in the corpus, 17 of 21. So the half now
 // asks whether the file written is the file named: the naming line assigns the path to a name, and a later line writes
-// THROUGH that name — one level in the same file, as FS-005's file-level half follows a log's name (P-092). A name
-// handed to a function that writes, copied into a second name, or a path a function returns is not followed
-// (TestPERM007_OneLevelOnly).
+// THROUGH that name — one level in the same file, as FS-005's file-level half follows a log's name (P-092). A later
+// assignment of the name to anything else ends it (`path` is reused across functions). A name handed to a function
+// that writes, copied into a second name, or a path a function returns is not followed (TestPERM007_OneLevelOnly).
 var (
 	// settingsAssignRE — a line that assigns to a name: shell `NAME=…` (export, local, readonly, declare), Python
 	// `name = …` (an annotation allowed, `self.x = …` included), Node `const|let|var name = …`. The value is the
@@ -86,6 +86,19 @@ func writesName(name string) *regexp.Regexp {
 // settingsName is a name a line assigned a Claude settings path to, the pattern of a line that writes through it, and
 // the assigning line.
 type settingsName struct {
+	name  string
 	write *regexp.Regexp
 	at    model.Evidence
+}
+
+// forgetName returns names without the one called name: a later assignment gave it another value. A new slice; names
+// is not modified.
+func forgetName(names []settingsName, name string) []settingsName {
+	out := make([]settingsName, 0, len(names))
+	for _, n := range names {
+		if n.name != name {
+			out = append(out, n)
+		}
+	}
+	return out
 }

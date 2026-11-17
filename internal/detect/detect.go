@@ -450,7 +450,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 					perm007Ev = []model.Evidence{at} // one line is the whole story
 				case names:
 					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil {
-						settingsNames = append(settingsNames, settingsName{write: writesName(m[1]), at: at})
+						settingsNames = append(forgetName(settingsNames, m[1]), settingsName{name: m[1], write: writesName(m[1]), at: at})
 					}
 				default:
 					for _, sn := range settingsNames {
@@ -458,6 +458,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 							perm007Ev = []model.Evidence{sn.at, at}
 							break
 						}
+					}
+					// The name now holds something else (`path = os.path.join(MIX_DIR, …)` in the next
+					// function): a write through it later is not a write of the settings.
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil {
+						settingsNames = forgetName(settingsNames, m[1])
 					}
 				}
 			}

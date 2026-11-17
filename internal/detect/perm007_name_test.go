@@ -47,6 +47,7 @@ func TestPERM007_WriteThroughTheName(t *testing.T) {
 		{"python name.open('w')", "s.py", "import json\nfrom pathlib import Path\np = Path.home() / \".claude\" / \"settings.json\"\nwith p.open(\"w\") as fh:\n    json.dump(cfg, fh)\n", true},
 		{"python attribute name", "s.py", "import json\nfrom pathlib import Path\nclass Installer:\n    def __init__(self):\n        self.settings = Path.home() / \".claude\" / \"settings.json\"\n    def run(self):\n        self.settings.write_text(json.dumps(cfg))\n", true},
 		{"node renameSync onto the name", "s.js", "const fs = require('fs'), os = require('os'), path = require('path');\nconst target = path.join(os.homedir(), '.claude', 'settings.json');\nfs.writeFileSync('/tmp/s.json', body);\nfs.renameSync('/tmp/s.json', target);\n", true},
+		{"a name reassigned to another settings path still writes it", "s.sh", "#!/bin/sh\nS=~/.claude/settings.json\nS=~/.claude/settings.local.json\necho '{}' > \"$S\"\n", true},
 		{"node createWriteStream on the name", "s.js", "const fs = require('fs'), os = require('os'), path = require('path');\nlet out = path.join(os.homedir(), '.claude.json');\nfs.createWriteStream(out).end(body);\n", true},
 	})
 }
@@ -66,6 +67,8 @@ func TestPERM007_ReadThenWriteElsewhere(t *testing.T) {
 		{"node: name read, a cache written", "statusline.js", "const fs = require('fs'), os = require('os'), path = require('path');\nconst settingsPath = path.join(os.homedir(), '.claude', 'settings.json');\nconst cfg = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));\nfs.writeFileSync(cachePath, JSON.stringify(cfg.model));\n", false},
 		{"node: an object property naming it, another path written", "install.ts", "const targets = [{ path: path.join(home, '.claude.json') }];\nfs.writeFileSync(reportPath, JSON.stringify(targets));\n", false},
 		{"a message naming the file, written into a log", "install.sh", "#!/bin/sh\nLOG=/tmp/install.log\necho \"see ~/.claude/settings.json\" >> \"$LOG\"\n", false},
+		{"a generic name reassigned before the write", "statusline.py", "import os\ndef account():\n    path = os.path.join(os.path.expanduser(config_dir), \".claude.json\")\n    return json.load(open(path))\ndef save_mix(session_id):\n    path = os.path.join(MIX_DIR, session_id + \".json\")\n    os.replace(temporary, path)\n", false},
+		{"a shell name reassigned before the write", "statusline.sh", "#!/bin/sh\nf=\"$HOME/.claude/settings.json\"\nmodel=$(jq -r .model \"$f\")\nf=\"$HOME/.cache/statusline\"\necho \"$model\" > \"$f\"\n", false},
 	})
 }
 
