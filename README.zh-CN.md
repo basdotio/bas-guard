@@ -251,6 +251,10 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(用户作用域、本地作用�
   往 ntfy 或 Slack 发一条固定消息或通知字段(`message`、`cwd`)的 hook 不报。
   hook command 里出现 shell 串联(`;` `&&` `||` `|` 反引号 `$(`)
   报 `HOOK-001` —— 脚本里有管道再正常不过,hook 里才说明问题,所以这条规则只在 hook command 上跑。
+- settings 里的 **helper 命令**也是命令:`apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、
+  `gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,以及 `statusLine`、`fileSuggestion` 的 `command`,
+  每条都跑全部脚本规则,它们点名的本地脚本在 home 目录内会被读进来(越界的出 `COV-000` 说明)。
+  status line 的 stdin 是会话元数据和 `transcript_path`:把 transcript 发出去是 `HOOK-003`,发其余的不报。
 - **权限白名单**会比对"可逃逸二进制"清单(`PERM-006`):`Bash(git *)` 就是套着窄外衣的任意执行
   (`git -c core.pager=…`),`find` `awk` `tar` `docker` `ssh` `npm` `make` `xargs` `rsync`
   这类开放参数的授权同理。参数写全的授权(`Bash(git status)`)不会被报。授权指向**你自己的脚本**时

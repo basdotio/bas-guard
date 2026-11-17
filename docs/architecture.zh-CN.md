@@ -190,7 +190,12 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
   同一档,避免本机 sidecar 把环境封顶在 69。`HOOK-002`(脚本在 HOME 外)和 `HOOK-003`(HTTP hook)
   同样是结构化检查:它们给行级规则看不见的面打分。`HOOK-003` 有一个 command 半边
   (`internal/detect/hookegress*.go`,P-128):读 hook 命令和它跑的 shell、Python、Node 脚本,把事件(stdin)、
-  它的内容字段和 transcript 在一个文件里往前追到发送方 —— 是读,不是解释执行。
+  它的内容字段和 transcript 在一个文件里往前追到发送方 —— 是读,不是解释执行。settings 里的 status line
+  也这样读,它的 stdin 是会话元数据,所以那里只有 transcript 算数(P-133)。
+- **settings 里的 helper 命令就是命令**(`collect.SettingsHelpers`、`detect.helperUnits`,P-133):
+  `apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、`gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,
+  以及 `statusLine`、`fileSuggestion` 的 `command`,每个 settings 文件一个 `settings helpers` artifact,和
+  `settings env` 并列。每条命令跑脚本规则,证据落在值所在的那一行;它点名的本地脚本在边界内就跟进去读,否则出说明。
 - **advisory 的意思是"我们无法确认"。** 维度 7、8 在构造上就是 advisory,报告必须写明
   *not confirmed*。**会区分"我确定"和"我怀疑"的工具,才敢接进 CI。**
 
