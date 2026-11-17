@@ -790,8 +790,8 @@ func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport
 	return out, notes, approvals
 }
 
-// settingsFrom reads one settings file: its hooks per (event, matcher, command), its permission list
-// and its env block, each an artifact. An absent file yields nothing; one that cannot be read, a note;
+// settingsFrom reads one settings file: its hooks per (event, matcher, command), its permission list,
+// its env block and its helper commands (P-133), each an artifact. An absent file yields nothing; one that cannot be read, a note;
 // one that does not parse, an artifact carrying PARSE-000. The third result is what the file says about
 // the servers of a project's .mcp.json (mcpApprovalFrom); it is never an artifact of its own.
 func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding, mcpApproval) {
@@ -825,6 +825,11 @@ func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.Artif
 	}
 	if len(doc.Env) > 0 {
 		out = append(out, artifact(model.KindPermission, SettingsEnvName+nameSuffix, path, ""))
+	}
+	// The commands Claude Code runs for this file on its own, outside hooks (P-133): presence is decided here,
+	// detect.helperUnits reads them.
+	if len(SettingsHelpers(b)) > 0 {
+		out = append(out, artifact(model.KindPermission, SettingsHelpersName+nameSuffix, path, ""))
 	}
 	return out, notes, mcpApprovalFrom(path, b)
 }

@@ -100,6 +100,9 @@ func TestContentHashGolden(t *testing.T) {
 	quoted := writeAt(t, filepath.Join(home, "proj", ".claude", "settings.json"),
 		`{"permissions":{"allow":["Bash(mytool --token 'correct horse' *)"]}}`)
 	keyedEnv := writeAt(t, filepath.Join(home, "proj2", ".claude", "settings.json"), `{"env":{"API_TOKEN":"correct horse"}}`)
+	helpers := writeAt(t, filepath.Join(home, "proj3", ".claude", "settings.json"),
+		`{"apiKeyHelper":"sh ~/.claude/hooks/pre.sh --password hunter2-xyz","model":"opus",`+
+			`"statusLine":{"type":"command","command":"jq -r .model.display_name","padding":0}}`)
 
 	cases := []struct {
 		name, input, hash string
@@ -178,6 +181,17 @@ func TestContentHashGolden(t *testing.T) {
 				`{"type":"http","url":"https://hooks.example/x","headers":{"Authorization":"Bearer abcd1234 efgh5678"}}`)),
 			input: `{"entry":{"headers":{"Authorization":"Bearer <REDACTED>"},"type":"http","url":"https://hooks.example/x"},"event":"PostToolUse","matcher":""}`,
 			hash:  "ff64dd634dc0f86dc7505361c4a93cbdd175c5a06ce25064dd6a9af8a10e26b2",
+		},
+		{
+			// P-133: the helper members as written — the command in the shell view, its flag-announced secret
+			// forgotten; the status line object as a hook entry — and the script the command names. Not "model":
+			// it is not a helper. The apiKeyHelper string is viewed without its key, which names a credential.
+			name: "settings helpers",
+			a:    permArtifact(helpers, collect.SettingsHelpersName),
+			input: `{"helpers":{"apiKeyHelper":"sh ~/.claude/hooks/pre.sh --password <REDACTED>",` +
+				`"statusLine":{"command":"jq -r .model.display_name","padding":0,"type":"command"}},` +
+				`"scripts":["sha256:299001868fb8c02fd431c336c6d058f5558c5dff5b5af5e6fe04b870a6a9cbba"]}`,
+			hash: "677b1588a26d0e4e36e52d3b8d2d46164a6815ee58ac6a6d53a03ba19d1e2fe4",
 		},
 		{
 			name:  "settings env, a credential-keyed value holding a space",

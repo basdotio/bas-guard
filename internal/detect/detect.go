@@ -67,6 +67,13 @@ type unit struct {
 	// patterns stop reading at its first space, or whose key is not on the line at all (memberView, P-042). Nil
 	// for every other unit.
 	views map[string]string
+	// line is, for a synthetic unit that is one value of a config file, the line of file that value starts on, and
+	// every finding on the unit cites it instead of 0: a settings helper's command (P-133) is the same line the tree
+	// read of `check .` cites, so the report can print it once. 0 for every other unit.
+	line int
+	// statusInput marks a status line's stages (P-133): their stdin is the session JSON, metadata plus
+	// transcript_path, so HOOK-003's reading takes only the transcript as payload (statusLineEgress).
+	statusInput bool
 }
 
 // evidence is the snippet a finding on the logical line raw quotes: the unit's view of that line, bounded, or
@@ -120,6 +127,10 @@ func (e *Engine) Run(root string, arts []model.ArtifactReport) ([]model.Artifact
 				if a.Kind == model.KindHook {
 					// HOOK-003's command half (P-128): only a hook's own stages have the event on stdin.
 					a.Findings = append(a.Findings, hookPayloadEgress(root, a, units)...)
+				}
+				if a.Kind == model.KindPermission && strings.HasPrefix(a.Name, collect.SettingsHelpersName) {
+					// The status line's stages have the session status on stdin (P-133).
+					a.Findings = append(a.Findings, statusLineEgress(root, a, units)...)
 				}
 				// unitsFor mostly reports coverage gaps, which are scan-level notes. It can
 				// also produce a real SCORING finding — a structural one only the reader is
@@ -196,6 +207,11 @@ func coalesceCoverageNotes(notes []model.Finding) []model.Finding {
 				"missing is the attribution: those findings do not record that a hook runs the file on every "+
 				"matching tool call, which is the difference between a script existing and a script running. "+
 				"Each reference is listed with the file it resolved to.", n)
+		},
+		helperRefNoteTitle: func(n int, whys []string) string {
+			return fmt.Sprintf("%d script reference(s) in settings helper commands (apiKeyHelper, statusLine and the "+
+				"like) were NOT read: %s. Claude Code runs these on its own, so an unread script is a real gap; the "+
+				"command lines themselves were scanned.", n, reasonBreakdown(whys, helperRefPrefix))
 		},
 		permRefNoteTitle: func(n int, whys []string) string {
 			return fmt.Sprintf("%d script reference(s) in permission grants were NOT read: %s. A grant is only "+
@@ -303,6 +319,9 @@ func (e *Engine) unitsFor(root string, a model.ArtifactReport) ([]unit, []model.
 		if strings.HasPrefix(a.Name, collect.SettingsEnvName) {
 			return settingsEnvUnit(a.Path), nil
 		}
+		if strings.HasPrefix(a.Name, collect.SettingsHelpersName) {
+			return helperUnits(root, a)
+		}
 		return permissionUnits(root, a)
 	default:
 		return nil, nil
@@ -374,7 +393,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		for _, ll := range logicalLines(langForFile(u.file), u.text, commentLines) {
 			lineNo := ll.start
 			if u.synthetic {
-				lineNo = 0 // JSON value: per-line numbers are not meaningful
+				lineNo = u.line // JSON value: its own line numbers mean nothing; the value's line, when known (P-133)
 			}
 			for _, r := range e.rules {
 				if !roleAllows(u.role, r) || !r.matches(ll) {
