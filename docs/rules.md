@@ -22,7 +22,7 @@ read the evidence before acting.
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `400eaf0b1400`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `dbd22857f91a`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
@@ -121,7 +121,7 @@ agree were produced by the same engine rule table.
 | `EXEC-013` | high | Script hooked into every new shell | A shell startup file (.bashrc, .profile, …) is made to source a script this artifact writes itself, or one in a world-writable temporary directory. From then on that script runs in every shell the user or the agent opens, after the skill has finished and without anyone invoking it again. |
 | `HOOK-001` | medium | Hook command chains extra shell | This hook command uses shell chaining/substitution (; && \|\| \| ` $()), so what actually runs is not just the command registered for this event; hooks execute silently on every matching tool call, so keep them to a single command (a script file, if it needs logic). Runs on hook commands only: unremarkable in a script, telling in a hook. |
 | `HOOK-002` | medium | Hook second stage is outside HOME and was not read | A hook command names a script that resolves outside the scan home. Spec §16.2 still forbids reading it; this finding scores the refusal itself, because an unaudited payload at a silent intercept is a risk, not just a coverage gap. Raised to high on PermissionRequest, which takes the authorization decision. The matching COV-000 note is kept: coverage and scoring are different facts. |
-| `HOOK-003` | high | Hook forwards event payload over HTTP | type=http posts the full event (tool inputs, command lines, permission prompts) to a URL. Ordinary events to loopback are low (a local sidecar). PermissionRequest to loopback is high (it still takes allow/deny). Any non-loopback destination is high, because the operation stream is leaving the machine. |
+| `HOOK-003` | high | Hook forwards event payload over HTTP | type=http posts the full event (tool inputs, command lines, permission prompts) to a URL. A command hook that does the same is the same finding (P-128): the hook command, or a shell, Python or Node script it runs, hands a sender (curl, wget, nc, socat, httpie, /dev/tcp, fetch, requests, urllib, https.request …) its stdin, a field that carries the conversation (prompt, tool_input, tool_response, tool_calls, last_assistant_message, compact_summary, custom_instructions), or the transcript file transcript_path names — read in place or through names followed forward in the same file. A fixed message and the notification fields (message, title, cwd, session_id, …) are not reported, nor is the transcript's path sent as text. Ordinary events to loopback are low (a local sidecar). PermissionRequest to loopback is high (it still takes allow/deny). Any non-loopback destination, or one the file does not name, is high, because the operation stream is leaving the machine. |
 
 ## 5 — Supply chain
 

@@ -117,6 +117,10 @@ func (e *Engine) Run(root string, arts []model.ArtifactReport) ([]model.Artifact
 				// under (ConfigRoot, P-120); evidence is still named from the scan's root.
 				units, cn := e.unitsFor(resolveRoot(root, a), a)
 				a.Findings = append(a.Findings, e.scanUnits(root, units)...)
+				if a.Kind == model.KindHook {
+					// HOOK-003's command half (P-128): only a hook's own stages have the event on stdin.
+					a.Findings = append(a.Findings, hookPayloadEgress(root, a, units)...)
+				}
 				// unitsFor mostly reports coverage gaps, which are scan-level notes. It can
 				// also produce a real SCORING finding — a structural one only the reader is
 				// in a position to notice, like instructions pointing into a tree the reader

@@ -246,6 +246,9 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(用户作用域、本地作用�
   越界的不读(`COV-000`)并另报 `HOOK-002`(计分):覆盖缺口和"静默执行点上有一段审不了的第二阶段"
   是两回事。`PermissionRequest` 升为 high,因为它拿走的是授权决定权。`type: http` 的 hook 是正式
   审计对象:转到本机是 `HOOK-003` low,`PermissionRequest` 转到本机或任何非回环目标都是 high。
+  command hook 把它拿到的东西发出去 —— stdin(`curl --data-binary @-`、`cat | nc`)、承载对话的字段
+  (prompt、工具的输入或输出)、或 transcript 文件 —— 同样是 `HOOK-003`,无论写在命令行里还是它跑的脚本里;
+  往 ntfy 或 Slack 发一条固定消息或通知字段(`message`、`cwd`)的 hook 不报。
   hook command 里出现 shell 串联(`;` `&&` `||` `|` 反引号 `$(`)
   报 `HOOK-001` —— 脚本里有管道再正常不过,hook 里才说明问题,所以这条规则只在 hook command 上跑。
 - **权限白名单**会比对"可逃逸二进制"清单(`PERM-006`):`Bash(git *)` 就是套着窄外衣的任意执行

@@ -242,7 +242,12 @@ var punctFold = map[rune]rune{
 	'’': '\'', '‘': '\'', '“': '"', '”': '"',
 }
 
-func normalizeForMatch(s string) string {
+func normalizeForMatch(s string) string { return foldWordQuoting(foldCharacters(s)) }
+
+// foldCharacters is normalizeForMatch without the quote folding: invisibles dropped, tags decoded,
+// homoglyphs and punctuation folded. It is the second view of a line of Python or Node (P-128), where a
+// quote that sits inside a word is a string literal (`data.get("cwd")`), not shell word-splitting.
+func foldCharacters(s string) string {
 	var stripped strings.Builder
 	stripped.Grow(len(s))
 	for _, r := range s {
@@ -263,7 +268,7 @@ func normalizeForMatch(s string) string {
 			stripped.WriteRune(r)
 		}
 	}
-	return foldWordQuoting(stripped.String())
+	return stripped.String()
 }
 
 // foldWordQuoting removes quoting used INSIDE a word (`cu""rl`, `cur'l'`, `c\url`) — a form
