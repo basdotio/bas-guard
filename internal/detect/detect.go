@@ -317,6 +317,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 	inj005, hasInj005 := e.byID("INJ-005")
 	for _, u := range units {
 		rel := relPath(root, u.file)
+		unitStart := len(findings)
 		// A1: which lines are entirely comment (real code files only; synthetic JSON blobs
 		// and unknown languages → nil = nothing dropped). Used to drop comment-only mentions.
 		var commentLines map[int]bool
@@ -460,6 +461,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 					return model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
 				})
 			}
+		}
+		// The shell Claude Code runs on invocation (P-132): after the line rules, so a line one of them
+		// already reports as a download run in one step is not restated.
+		if skillShellScope(u) {
+			findings = append(findings, skillShellFindings(rel, u, findings[unitStart:])...)
 		}
 		// The two legs may close on one line (P-124). Before, they had to be different lines, so a
 		// path built and written in one statement passed both halves — and in a hook command, a
