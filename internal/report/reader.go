@@ -26,11 +26,12 @@ import (
 var JudgeLineSuffix func(*model.JudgeSummary) string
 
 // target returns the artifact a result is about when it is about one target — `check <path>`: the
-// artifact whose path is the result's root, and which is not a plugin's child. A root (scan, or a
+// artifact whose path is the result's root, and which is neither a plugin's child nor configuration
+// the target declares (Within, P-120: a lone .mcp.json's servers share its path). A root (scan, or a
 // check of a directory laid out as one) has no artifact at its own path.
 func target(r model.ScanResult) (model.ArtifactReport, bool) {
 	for _, a := range r.Artifacts {
-		if a.Plugin == "" && a.Path != "" && a.Path == r.Root {
+		if a.Plugin == "" && a.Within == "" && a.Path != "" && a.Path == r.Root {
 			return a, true
 		}
 	}
@@ -189,7 +190,7 @@ func approveCommand(r model.ScanResult, g Group) string {
 			return ""
 		}
 	}
-	if a.Path == r.Root && a.Plugin == "" {
+	if a.Path == r.Root && a.Plugin == "" && a.Within == "" {
 		return "bas-guard approve " + cmdline.Arg(a.Path)
 	}
 	if !filepath.IsAbs(r.Root) || !within(r.Root, a.Path) {

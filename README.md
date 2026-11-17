@@ -264,7 +264,7 @@ the question by itself. Full contract, including what it deliberately does *not*
 
 ## What it scans
 
-skills (SKILL.md + scripts + resources) · MCP config (statically: injection text and interpreter-preload `env` such as `NODE_OPTIONS`; an unpinned package or a credential written into `env` is reported only by the optional LLM judge, `LLM-009`) · **hooks** (settings.json — can silently run shell, a focus area) · **permission allowlists** · subagents · slash commands · installed **plugins** · CLAUDE.md · **Claude Desktop's own store** (plugins added in Customize → Plugins and the skills in Customize → Skills live under `~/Library/Application Support/Claude/`, not `~/.claude`, and are handed to the CLI as `--plugin-dir`; they are collected and marked "via Claude Desktop"). The default root honours `$CLAUDE_CONFIG_DIR`. **Downloads** are checked too: agent-shaped items under `~/Downloads` (a skill folder, a plugin, an MCP config, an instructions file, or a `.zip` holding one) are each checked on their own and listed in a separate Downloads section — they are not installed, so they never enter the score; everything else in the folder is counted, never read, never named. `--inbox <dir>` points elsewhere, `--inbox off` disables. `bas-guard check foo.zip` checks a downloaded archive directly. Install-symlink skills (e.g. `~/.agents/skills/*`) are resolved to their real target and audited; a symlink escaping to a system path is skipped with a warning.
+skills (SKILL.md + scripts + resources) · MCP config (user scope, local scope — the default of `claude mcp add`, kept per project in `~/.claude.json` — and a project's `.mcp.json`; statically: injection text and interpreter-preload `env` such as `NODE_OPTIONS`; an unpinned package or a credential written into `env` is reported only by the optional LLM judge, `LLM-009`) · **hooks** (settings.json — can silently run shell, a focus area) · **permission allowlists** · subagents · slash commands · installed **plugins** · CLAUDE.md · **Claude Desktop's own store** (plugins added in Customize → Plugins and the skills in Customize → Skills live under `~/Library/Application Support/Claude/`, not `~/.claude`, and are handed to the CLI as `--plugin-dir`; they are collected and marked "via Claude Desktop"). The default root honours `$CLAUDE_CONFIG_DIR`. **Downloads** are checked too: agent-shaped items under `~/Downloads` (a skill folder, a plugin, an MCP config, an instructions file, or a `.zip` holding one) are each checked on their own and listed in a separate Downloads section — they are not installed, so they never enter the score; everything else in the folder is counted, never read, never named. `--inbox <dir>` points elsewhere, `--inbox off` disables. `bas-guard check foo.zip` checks a downloaded archive directly. Install-symlink skills (e.g. `~/.agents/skills/*`) are resolved to their real target and audited; a symlink escaping to a system path is skipped with a warning.
 
 Two surfaces get extra treatment, because both hand over execution while looking narrow:
 
@@ -371,6 +371,13 @@ Coverage caveats worth knowing:
   as one item, and a finding both carry is printed once), its hooks per (event, command), its MCP servers per server.
   Its output styles and inline manifest commands are read only as text in the tree; `check <plugin>` does not split
   its hooks and MCP servers the way `scan` does.
+- **`check <dir>`** reads the directory as one tree and, in addition, the Claude Code configuration it declares at its
+  top level, with the readers a scan uses: `.claude/settings.json` and `settings.local.json` (hooks, permission grants,
+  env), its own `settings*.json`, and `.mcp.json`; `check ./.mcp.json` and `check <path>/settings.json` read that file
+  as configuration too. It also reads the project's `CLAUDE.md` and `CLAUDE.local.md` (and those in its `.claude`) the
+  way `scan` does, following their `@` imports, so an import of `.env` or a key reports `EXFIL-005`. The score counts
+  the directory and that configuration as one item. Skills, agents and rules under a project's `.claude` are read as
+  part of the tree rather than one by one; `scan --root <repo>/.claude` lists them one by one.
 - A **hook script** is followed one level and only inside your home directory. An out-of-home
   reference is not read, and scores as `HOOK-002`.
 - Under a config root, **top-level directories no collector owns are not read** — on a real

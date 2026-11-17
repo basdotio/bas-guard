@@ -151,7 +151,8 @@ func singleFileKind(path string) model.ArtifactKind {
 //   - a dir containing a plugin manifest  → one plugin artifact (whole-tree scanned), plus its skills,
 //     commands and agents as artifacts of their own (P-044)
 //   - a dir that looks like a root        → CollectAll (see looksLikeRoot)
-//   - any other dir                       → one directory artifact (whole-tree scanned)
+//   - any other dir                       → one directory artifact (whole-tree scanned), plus the
+//     Claude Code configuration it declares at its top level (withDeclared, P-120)
 //
 // The last branch used to fall through to CollectAll, which finds only known sub-layouts:
 // a bare directory yielded ZERO artifacts and ZERO notes, so a malicious install.sh at its
@@ -170,8 +171,10 @@ func CollectTarget(path string) (Result, error) {
 	}
 	if !fi.IsDir() {
 		// Single file: one unit; detect picks the rule set from the kind, or by name for an
-		// instruction file.
-		return single(singleFileKind(path), FileHash(path), model.EnvSummary{})
+		// instruction file. A settings file or a .mcp.json is also read as the configuration it is
+		// (withDeclared, P-120).
+		res, _ := single(singleFileKind(path), FileHash(path), model.EnvSummary{})
+		return withDeclared(res, path, false), nil
 	}
 	if _, serr := os.Stat(filepath.Join(path, "SKILL.md")); serr == nil {
 		return single(model.KindSkill, TreeHash(path, path), model.EnvSummary{Skills: 1})
@@ -189,10 +192,14 @@ func CollectTarget(path string) (Result, error) {
 	if looksLikeRoot(path) {
 		return CollectAll(path), nil
 	}
+	kind := model.KindDirectory
 	if LooksLikeServerSource(path) {
-		return single(model.KindServer, TreeHash(path, path), model.EnvSummary{})
+		kind = model.KindServer
 	}
-	return single(model.KindDirectory, TreeHash(path, path), model.EnvSummary{})
+	// The tree, whole, and then the Claude Code configuration it declares at its top level, read by
+	// the readers a scan uses — in addition to the tree, never instead of it (withDeclared, P-120).
+	res, _ := single(kind, TreeHash(path, path), model.EnvSummary{})
+	return withDeclared(res, path, true), nil
 }
 
 // serverImport and serverTool are what makes a Python file an MCP server's source (P-053): it
@@ -421,7 +428,7 @@ func CollectAll(root string) Result {
 
 	// The root's own MCP configs, under every spelling of the root; see RootMCPConfigs.
 	for _, p := range RootMCPConfigs(root, home) {
-		rm, rmn := mcpServersFrom(p, "", &res.Env)
+		rm, rmn := rootMCPServers(p, &res.Env)
 		res.Artifacts = append(res.Artifacts, rm...)
 		res.Notes = append(res.Notes, rmn...)
 	}
@@ -637,11 +644,11 @@ func collectNestedSkills(dir, home, group string, extraDepth int, env *model.Env
 }
 
 func collectMCP(home string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
-	return mcpServersFrom(filepath.Join(home, ".claude.json"), "", env)
+	return claudeJSONServers(filepath.Join(home, claudeJSONName), env)
 }
 
 // rootMCPFiles are the MCP configs read at the top of the ROOT as well as in home, in home's order.
-var rootMCPFiles = []string{".claude.json", ".mcp.json"}
+var rootMCPFiles = []string{claudeJSONName, ".mcp.json"}
 
 // RootMCPConfigs returns the MCP configs at the top of root that CollectAll reads besides home's: each
 // of rootMCPFiles that is there and is not the very file home's copy is (a symlink to it, or a root
@@ -769,58 +776,79 @@ func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport
 	var out []model.ArtifactReport
 	var notes []model.Finding
 	for _, sc := range settingsScopes {
-		path := filepath.Join(root, sc.file)
-		b, err := safeio.ReadFile(path, safeio.MaxConfigBytes)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			notes = append(notes, ioNote(path, err))
-			continue
-		}
-		var doc struct {
-			Hooks       map[string]json.RawMessage `json:"hooks"`
-			Permissions struct {
-				Allow []string `json:"allow"`
-				Deny  []string `json:"deny"`
-			} `json:"permissions"`
-			// Env used to be dropped here entirely, so ANTHROPIC_BASE_URL, NODE_OPTIONS and a
-			// plaintext key in the block never reached a rule. Only its presence is
-			// decided here; detect renders the block as KEY=VALUE lines.
-			Env map[string]json.RawMessage `json:"env"`
-		}
-		if json.Unmarshal(b, &doc) != nil {
-			out = append(out, withParseError(model.KindHook, sc.file, path))
-			continue
-		}
-		// No OwnerRoot: a settings.json hook ships in no tree, so there is nothing to resolve
-		// a relative reference against beyond the root and home candidates hookUnits already tries.
-		hooks, hn := collectHooks(path, sc.nameSuffix, "", doc.Hooks, env)
-		out = append(out, hooks...)
-		notes = append(notes, hn...)
-		if perms := len(doc.Permissions.Allow) + len(doc.Permissions.Deny); perms > 0 {
-			out = append(out, artifact(model.KindPermission, "permissions"+sc.nameSuffix, path, ""))
-			env.Permissions += perms
-		}
-		if len(doc.Env) > 0 {
-			out = append(out, artifact(model.KindPermission, SettingsEnvName+sc.nameSuffix, path, ""))
-		}
+		arts, n := settingsFrom(filepath.Join(root, sc.file), sc.nameSuffix, env)
+		out = append(out, arts...)
+		notes = append(notes, n...)
 	}
 	return out, notes
 }
 
-func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
-	candidates := []struct{ path, name string }{
+// settingsFrom reads one settings file: its hooks per (event, matcher, command), its permission list
+// and its env block, each an artifact. An absent file yields nothing; one that cannot be read, a note;
+// one that does not parse, an artifact carrying PARSE-000.
+func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
+	b, err := safeio.ReadFile(path, safeio.MaxConfigBytes)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, []model.Finding{ioNote(path, err)}
+	}
+	var doc struct {
+		Hooks       map[string]json.RawMessage `json:"hooks"`
+		Permissions struct {
+			Allow []string `json:"allow"`
+			Deny  []string `json:"deny"`
+		} `json:"permissions"`
+		// Env used to be dropped here entirely, so ANTHROPIC_BASE_URL, NODE_OPTIONS and a
+		// plaintext key in the block never reached a rule. Only its presence is
+		// decided here; detect renders the block as KEY=VALUE lines.
+		Env map[string]json.RawMessage `json:"env"`
+	}
+	if json.Unmarshal(b, &doc) != nil {
+		return []model.ArtifactReport{withParseError(model.KindHook, filepath.Base(path), path)}, nil
+	}
+	// No OwnerRoot: a settings.json hook ships in no tree, so there is nothing to resolve
+	// a relative reference against beyond the root and home candidates hookUnits already tries.
+	out, notes := collectHooks(path, nameSuffix, "", doc.Hooks, env)
+	if perms := len(doc.Permissions.Allow) + len(doc.Permissions.Deny); perms > 0 {
+		out = append(out, artifact(model.KindPermission, "permissions"+nameSuffix, path, ""))
+		env.Permissions += perms
+	}
+	if len(doc.Env) > 0 {
+		out = append(out, artifact(model.KindPermission, SettingsEnvName+nameSuffix, path, ""))
+	}
+	return out, notes
+}
+
+// instructionFile is an instruction file Claude Code loads for a config root: where it is, and the
+// name the report gives it.
+type instructionFile struct{ path, name string }
+
+// instructionFiles lists the instruction files of root and of home (the project, when root is a
+// project's .claude), in order. A scan reads them under its root (collectInstruction) and `check`
+// reads them under a directory target as a project's (withDeclared, P-125): one list, so the two
+// commands read the same files under the same names.
+func instructionFiles(root, home string) []instructionFile {
+	return []instructionFile{
 		{filepath.Join(root, "CLAUDE.md"), "CLAUDE.md"},
 		{filepath.Join(root, "CLAUDE.local.md"), "CLAUDE.local.md"},
 		{filepath.Join(home, "CLAUDE.md"), "CLAUDE.md (project)"},
 		{filepath.Join(home, "CLAUDE.local.md"), "CLAUDE.local.md (project)"},
 	}
+}
+
+// isFile reports whether p exists and is not a directory, following a symlink.
+func isFile(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
 	var out []model.ArtifactReport
 	var refused []model.Finding
-	for _, c := range candidates {
-		fi, err := os.Stat(c.path)
-		if err != nil || fi.IsDir() {
+	for _, c := range instructionFiles(root, home) {
+		if !isFile(c.path) {
 			continue
 		}
 		if !withinDir(home, c.path) {
