@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 package detect
 
-import "regexp"
+import (
+	"regexp"
+
+	"github.com/basdotio/bas-guard/internal/model"
+)
 
 // The write leg of PERM-007's file-level half (P-124). settingsFileRE and settingsReadRE, the
 // naming leg, stay in rules_data.go beside the rule; this file holds what counts as a write.
@@ -28,4 +32,79 @@ var (
 // taken off first.
 func writesAFile(line string) bool {
 	return settingsWriteRE.MatchString(streamSinkRE.ReplaceAllString(line, ""))
+}
+
+// The name leg of PERM-007's file-level half (P-134). Before, a line that named a settings file without reading it and
+// a line that wrote ANY file closed the finding: a status line that keeps `$HOME/.claude/settings.json` in a variable
+// to read the model from it, and writes a cache file, was "rewriting the permission settings". On 1,100 public status
+// line scripts that was 118 of 136 PERM-007 findings, every one read wrong; in the corpus, 17 of 21. So the half now
+// asks whether the file written is the file named: the naming line assigns the path to a name, and a later line writes
+// THROUGH that name — one level in the same file, as FS-005's file-level half follows a log's name (P-092). A later
+// assignment of the name to a file not named like a settings file ends it (`path` is reused across functions). A name handed to a function
+// that writes, copied into a second name, or a path a function returns is not followed (TestPERM007_OneLevelOnly).
+var (
+	// settingsAssignRE — a line that assigns to a name: shell `NAME=…` (export, local, readonly, declare), Python
+	// `name = …` (an annotation allowed, `self.x = …` included), Node `const|let|var name = …`. The value is the
+	// line's: the caller already knows it names a settings file.
+	settingsAssignRE = regexp.MustCompile(`^\s*(?:export\s+|readonly\s+|local\s+|typeset\s+|declare\s+(?:-\w+\s+)*|const\s+|let\s+|var\s+)?([A-Za-z_][\w.]*)\s*(?::\s*[^=]+?)?=[^=]`)
+
+	// redirectOrTeeRE — a shell redirection or tee and its target. The one-line closing reads the line without them:
+	// a redirect INTO the settings file is the line rule's (PERM-007's pattern has `>`/`tee` right before the name), and
+	// a redirect anywhere else writes another file — `echo "see ~/.claude/settings.json" >> "$LOG"` names the file in
+	// the text it logs.
+	// settingsBaseRE — a value still named like a Claude settings file without the `.claude` around it that
+	// settingsFileRE asks for. It never starts a name (that is settingsFileRE's); it only keeps one an assignment
+	// would otherwise end: brainbox's installer reads `join(homedir(), ".claude", "settings.json")` in one function
+	// and writes `join(claudeDir, "settings.json")` under the same name in the next.
+	settingsBaseRE = regexp.MustCompile(`(?i)['"/]settings(\.local)?\.json\b|\.claude\.json\b`)
+
+	redirectOrTeeRE = regexp.MustCompile(`(?:[0-9&]?>>?|>\|)\s*(?:"[^"]*"|'[^']*'|\S+)|\btee\s+(?:-a\s+|--append\s+)?(?:"[^"]*"|'[^']*'|\S+)`)
+)
+
+// writesItself reports whether a line that names a settings file also writes it, by a write in code (a write call
+// whose path argument is on the line). Shell redirections and tee are left to the line rule.
+func writesItself(line string) bool {
+	return writesAFile(redirectOrTeeRE.ReplaceAllString(line, ""))
+}
+
+// writesName returns the pattern of a line that writes the file the name holds: a shell redirect, tee, mv, cp,
+// install or sponge with the name as the target; Python's name.write_text/write_bytes, name.open("w"),
+// open(name, "w"), os.replace/rename and shutil.move/copy onto it, x.replace(name); Node's writeFile, appendFile,
+// createWriteStream (fs-extra's outputFile and writeJson too) of it, and rename/copyFile onto it. Case-sensitive: a
+// shell's $s is not its $S.
+func writesName(name string) *regexp.Regexp {
+	n := regexp.QuoteMeta(name)
+	shellRef := `["']?\$\{?` + n + `\}?["']?(?:\s|$|[;&|)<>])`
+	return regexp.MustCompile(
+		`(?:^|[^>0-9&])(?:>>?|>\|)\s*` + shellRef +
+			`|\btee\s+(?:-a\s+|--append\s+)?` + shellRef +
+			`|\b(?:mv|cp|install)\s+(?:-\S+\s+)*(?:"[^"]*"|'[^']*'|\S+)\s+` + shellRef +
+			`|\bsponge\s+(?:-a\s+)?` + shellRef +
+			`|\b` + n + `\.(?:write_text|write_bytes)\(` +
+			`|\b` + n + `\.open\(\s*(?:mode\s*=\s*)?["'][wax+]` +
+			`|\bopen\(\s*(?:str\(\s*)?` + n + `\s*\)?\s*,\s*(?:mode\s*=\s*)?["'][wax+]` +
+			`|\b(?:os\.(?:replace|rename)|shutil\.(?:move|copy|copy2|copyfile))\(\s*[^,()]+,\s*(?:str\(\s*)?` + n + `\s*\)?\s*[,)]` +
+			`|\.(?:replace|rename)\(\s*` + n + `\s*\)` +
+			`|\b(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|outputFile|outputFileSync|writeJson|writeJsonSync|outputJson|outputJsonSync)\(\s*` + n + `\s*[,)]` +
+			`|\b(?:rename|renameSync|copyFile|copyFileSync|move|moveSync)\(\s*[^,()]+,\s*` + n + `\s*[,)]`)
+}
+
+// settingsName is a name a line assigned a Claude settings path to, the pattern of a line that writes through it, and
+// the assigning line.
+type settingsName struct {
+	name  string
+	write *regexp.Regexp
+	at    model.Evidence
+}
+
+// forgetName returns names without the one called name: a later assignment gave it another value. A new slice; names
+// is not modified.
+func forgetName(names []settingsName, name string) []settingsName {
+	out := make([]settingsName, 0, len(names))
+	for _, n := range names {
+		if n.name != name {
+			out = append(out, n)
+		}
+	}
+	return out
 }

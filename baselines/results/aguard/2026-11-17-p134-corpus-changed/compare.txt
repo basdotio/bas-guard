@@ -1,0 +1,18 @@
+# P-134, static, threshold high, corpus c314e4d9: main 5de9737 (rules 2997414a2a16) against the branch fd8f820 (rules cbaa8a115ff1).
+# Every sample that carries PERM-007 on either side: where it is cited (file:line), and the verdict on both sides.
+# No other rule moved on any sample.
+sample	PERM-007 main	PERM-007 branch	verdict main -> branch
+ben-mcp-gh-avinash-jetwani-jevmem-src	[('directory', [('cli-main.ts', 484), ('cli-main.ts', 45)]), ('directory', [('import.ts', 182), ('import.ts', 103)])]	-	malicious -> malicious
+ben-mcp-gh-guaardvark-guaardvark-mcp	[('server', [('installer.py', 174), ('installer.py', 10)])]	-	malicious -> benign
+ben-mcp-gh-halleylabs-faultline-src	[('directory', [('hook.ts', 235), ('hook.ts', 72)]), ('directory', [('setup.ts', 79), ('setup.ts', 20)])]	[('directory', [('hook.ts', 235), ('hook.ts', 252)]), ('directory', [('setup.ts', 79), ('setup.ts', 92)])]	malicious -> malicious
+ben-mcp-gh-janmejai2002-gutcheck-gutcheck	[('server', [('gateway.py', 54), ('gateway.py', 50)]), ('server', [('claude.py', 4), ('claude.py', 51)]), ('server', [('cli.py', 178), ('cli.py', 141)])]	[('server', [('claude.py', 110), ('claude.py', 130)])]	malicious -> malicious
+ben-mcp-gh-jordank88-capability-gateway	[('server', [('gateway_server.py', 772), ('gateway_server.py', 89)])]	-	malicious -> benign
+ben-mcp-gh-ksimback-hermes-atlas-mcp-src	[('directory', [('install.ts', 59), ('install.ts', 88)])]	-	malicious -> benign
+ben-mcp-gh-mustafasidd05-collab-preflight-preflight	[('server', [('client_installer.py', 69), ('client_installer.py', 173)])]	-	malicious -> benign
+ben-mcp-gh-ninjahawk-hollow-agentos-mcp	[('server', [('add_to_claude.sh', 5), ('add_to_claude.sh', 24)])]	-	malicious -> benign
+ben-mcp-gh-stepan-cloud-claude-moysklad-mcp	[('server', [('setup.py', 7), ('setup.py', 102)])]	[('server', [('setup.py', 37), ('setup.py', 104)])]	malicious -> malicious
+ben-mcp-gh-thebasedcapital-brainbox-src	[('directory', [('installer.ts', 54), ('installer.ts', 77)])]	[('directory', [('installer.ts', 54), ('installer.ts', 77)])]	malicious -> malicious
+ben-mcp-gh-tstockham96-engram-src	[('directory', [('cli.ts', 467), ('cli.ts', 351)])]	[('directory', [('cli.ts', 467), ('cli.ts', 503)])]	malicious -> malicious
+ben-skill-gh-apsethicsbowl20026-collab-open-computer-skills	[('skill', [('install.py', 61), ('install.py', 15)])]	-	malicious -> malicious
+ben-skill-gh-mohammedatya-guardrail-forge-forge	[('skill', [('forge.py', 1624), ('forge.py', 4)]), ('skill', [('test_forge.py', 506)]), ('skill', [('test_forge.py', 513)]), ('skill', [('test_forge.py', 514)])]	[('skill', [('test_forge.py', 506)]), ('skill', [('test_forge.py', 513)]), ('skill', [('test_forge.py', 514)])]	malicious -> malicious
+mal-hook-userpromptsubmit-perm-rewrite	[('hook', [('docs.py', 5), ('docs.py', 7)])]	[('hook', [('docs.py', 5), ('docs.py', 7)])]	malicious -> malicious
