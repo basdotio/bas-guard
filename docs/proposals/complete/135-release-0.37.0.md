@@ -49,8 +49,8 @@ from.
 ## Done
 
 ```
-Merged: not yet — PR pending
-Released: (fill in after the release)
+Merged: PR #161 (2026-11-17; find the sha with git log --grep P-135)
+Released: v0.37.0
 Evidence: make verify: all gates passed on the branch
 Evidence: bas-guard version on main before this branch: rules=6e839a428eb8 judge-prompt=9cd57da1a4bd judge-excerpt=10
 ```
