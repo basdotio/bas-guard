@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**90 rule IDs** in this build — 50 engine rules + 14 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **80 score** and 10 never do (dimension 0).
+**92 rule IDs** in this build — 50 engine rules + 16 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **82 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `400eaf0b1400`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `dbd22857f91a`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 14 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 16 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -45,7 +45,7 @@ agree were produced by the same engine rule table.
 - [2 — Excessive permissions](#2--excessive-permissions) (8)
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
 - [4 — Code execution](#4--code-execution) (16)
-- [5 — Supply chain](#5--supply-chain) (8)
+- [5 — Supply chain](#5--supply-chain) (10)
 - [6 — Obfuscation](#6--obfuscation) (8)
 - [7 — Backdoor](#7--backdoor) (4)
 - [8 — Resource abuse](#8--resource-abuse) (3)
@@ -135,6 +135,8 @@ agree were produced by the same engine rule table.
 | `SUP-005` | high | Compiled Python bytecode shipped alongside the source | .pyc files (in __pycache__ or loose) travel with the artifact. Python loads a matching .pyc instead of compiling the .py beside it, so what runs need not be what anyone read; no text scanner reads bytecode, this one included. Raised from the tree walk, so it lands even though __pycache__ itself is skipped. |
 | `SUP-006` | high | Package source redirected to an unofficial registry | An .npmrc/.yarnrc/pip key, a `config set registry` command, or GOPROXY/PIP_INDEX_URL/NPM_CONFIG_REGISTRY points a package manager at a host that is not the vendor's registry, GitHub Packages, a known public mirror, or loopback. Shell variables are resolved one level within the same file; an unresolvable target is reported as unknown, not skipped. Comment-only lines are ignored; comments explaining why the redirect is fine are not consulted. |
 | `SUP-007` | high | Code downloaded over plaintext HTTP | A script or source file is fetched over http:// (not https) and saved where a later step runs or imports it. Nothing authenticates the server or the bytes, so whoever controls the host or the network path decides what code the agent runs. |
+| `SUP-008` | high | Install-time script runs unread, packed, inline or self-fetching code | A package.json's `preinstall`, `install` or `postinstall` script runs on the installing machine with no prompt, before any of the package's code is used. Raised when what it runs could not be vouched for: a file in the tree that was not read (over the 1 MiB cap, or not text), a file with a line of 4,096 bytes or more (packed or minified), a file that both reaches the network and starts a process, or inline interpreter code (`node -e`, `python -c`) that does more than print. The script is followed one level, through `npm run <name>` and `sh -c` too; a name that differs from npm's only by case (`postInstall`) is reported and the finding says npm does not run it. Says what was not reviewed, not that it is malicious: a package whose install script runs its own minified bundle gets it too. `prepare`, dependencies under node_modules and other package managers are not read. |
+| `SUP-009` | medium | Package runs a script at install time | A package.json has a `preinstall`, `install` or `postinstall` script and none of SUP-008's reasons holds: the file it runs was read and is ordinary, it is absent from the tree (a build output not built yet; the finding names it), or the script runs a tool. Reported because it runs with no prompt; it does not fail `check` at the default threshold. One finding per script, never together with SUP-008. |
 
 ## 6 — Obfuscation
 

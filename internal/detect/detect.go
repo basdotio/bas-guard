@@ -951,6 +951,9 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 	var units []unit
 	var notes []model.Finding
 	var skippedDirs, nonRegular, pyc, unreadable, outside []string
+	// What the walk learns about each file, for the checks that follow a reference inside the tree
+	// (the install-script check, P-129) without opening anything a second time.
+	tf := newTreeFiles()
 	// Keyed by content AND role: the same bytes as a doc and as a command are two different
 	// questions, and whichever the walk met first used to answer both.
 	type seenKey struct {
@@ -1016,6 +1019,7 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 			nonRegular = append(nonRegular, treeRel(dir, p))
 			return nil
 		}
+		tf.present[p] = true
 		// The extension is a FAST PATH, not the decision. It used to be the decision, and the
 		// consequence was that an attacker needed no technique at all — just no `.sh` suffix.
 		// `bootstrap` and `.bashrc` are the two most natural forms a shell script takes, and both
@@ -1034,6 +1038,9 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 		}
 		b, note := readCapped(p, boundary)
 		if note != nil {
+			if note.Title == fileTooLargeTitle {
+				tf.oversize[p] = true
+			}
 			notes = append(notes, *note)
 			return nil
 		}
@@ -1045,19 +1052,25 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 			return nil
 		}
 		role := treeRole(dir, p, named)
+		text := stripBOM(string(b))
+		// Recorded before the duplicate check: a byte-identical copy is not scanned twice, but it is
+		// still a file of the tree at its own path, and a package.json is judged against the files
+		// beside IT (a decoy copy elsewhere must not stand in for it).
+		tf.text[p] = text
 		key := seenKey{sha256.Sum256(b), role}
 		if seen[key] {
 			return nil // identical content already scanned (mirror copy)
 		}
 		seen[key] = true
 		if role == roleNamedDoc {
-			text := stripBOM(string(b))
 			units = append(units, unit{file: p, text: text, role: roleDoc}, unit{file: p, text: codeOnly(text), role: roleNamedDoc})
 			return nil
 		}
-		units = append(units, unit{file: p, text: stripBOM(string(b)), role: role})
+		units = append(units, unit{file: p, text: text, role: role})
 		return nil
 	})
+	// Dimension 5: Run routes these to the artifact, as it does the bytecode finding below.
+	notes = append(notes, installScriptFindings(dir, tf)...)
 	if len(outside) > 0 {
 		notes = append(notes, refusedLinksFinding(dir, outside)) // dimension 9: Run routes it to the artifact
 	}
@@ -1429,7 +1442,7 @@ func readCapped(path, relBase string) ([]byte, *model.Finding) {
 	if len(b) > maxScanBytes {
 		n := model.Finding{
 			RuleID: "COV-000", Dimension: 0, Severity: model.SevLow, Source: model.SrcStatic,
-			Title: "File too large, content scan skipped (incomplete coverage)",
+			Title: fileTooLargeTitle,
 			Why:   "Files above the 1 MiB cap are not scanned line-by-line; not silently ignored.",
 			// No snippet: the Title says what happened and File says to what, so a label here is a
 			// third line saying neither. Coverage notes that carry a real VALUE (which script a hook
