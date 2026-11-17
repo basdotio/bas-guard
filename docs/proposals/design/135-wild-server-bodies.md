@@ -60,42 +60,45 @@ Three small changes, each on the static side, measured on the static bench (free
 
 Code:
 
-- [ ] `OBF-008` (high, dimension 6): a file the scan reads holds **four or more variation selectors in a row**
-  (U+FE00–FE0F, U+E0100–E01EF). One finding per file, at the line of the first run; it says how many selectors the
-  runs hold and the longest run, and its snippet shows that line with each run replaced by a count, never the
-  characters. Raised on code, instruction files and documents alike.
-- [ ] Reverse: an emoji followed by its selector, a keycap sequence, an ideograph with one selector, and a doubled
-  selector (two in a row, a copy-paste slip) raise nothing.
-- [ ] The credential leg reads crypto-wallet key stores: `wallet.dat`, `.ethereum/keystore`, `keystore/UTC--`,
+- [x] `OBF-008` (high, dimension 6): a file the scan reads holds **four or more variation selectors in a row**
+  (U+FE00–FE0F, U+E0100–E01EF) **that are not all the same one**. One finding per file, at the line of the first
+  run; it says how many selectors the runs hold and the longest run, and its snippet shows that line with each run
+  replaced by a count, never the characters. Raised on code, instruction files and documents alike.
+  *The words in the second bold were added after the first run: the rule as first written failed the npm line below
+  (Readings, "Changed after a reading"). The measurement lines were not touched.*
+- [x] Reverse: an emoji followed by its selector, a keycap sequence, an ideograph with one selector, a doubled
+  selector, and one selector repeated four or forty times raise nothing.
+- [x] The credential leg reads crypto-wallet key stores: `wallet.dat`, `.ethereum/keystore`, `keystore/UTC--`,
   `.config/solana/id.json`, `Electrum/wallets`, `exodus.wallet`, and the MetaMask and Phantom extension store ids.
   The chain rules are otherwise unchanged: the same loopback downgrade, the same cross-file `EXFIL-002`.
-- [ ] Reverse: a file that names a wallet store and has no egress leg gets no `EXFIL-001`/`EXFIL-003`.
-- [ ] `OBF-009` (high, dimension 6): a script file holds **20 or more distinct identifiers of an obfuscator's
+- [x] Reverse: a file that names a wallet store and has no egress leg gets no `EXFIL-001`/`EXFIL-003`; nor does a
+  wallet API client or a Java `.keystore`.
+- [x] `OBF-009` (high, dimension 6): a script file holds **20 or more distinct identifiers of an obfuscator's
   form** (`_0x` followed by four or more letters or digits). One finding per file, at the first line holding one; it
   says how many.
-- [ ] Reverse: a script with fewer than 20 such names, and a Markdown document that quotes obfuscated code, raise
-  nothing.
-- [ ] `rulesEpoch` 22 → 23, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
+- [x] Reverse: a script with fewer than 20 such names, a Markdown document that quotes obfuscated code, minified
+  code and a table of hex literals raise nothing.
+- [x] `rulesEpoch` 22 → 23, `make docs`, `TestEveryRuleIDIsDocumented` green; `make verify` green from its own exit
   code.
 
 Measurement (static, threshold high, corpus `c314e4d9`, `main` at `f28029f` against the branch). Lines set before
 the run:
 
-- [ ] **Target**: each of the three trees is flagged at high for the reason above: `OBF-008` on
+- [x] **Target**: each of the three trees is flagged at high for the reason above: `OBF-008` on
   `dd-npm-iflow-watercrawl-hidden-eval`, `EXFIL-001` or `EXFIL-003` on `dd-npm-todo-wallet-exfil`, `OBF-009` on
   `dd-npm-excluder-env-exfil`. Three of three.
-- [ ] **Malicious**: no sample flagged on `main` is unflagged on the branch.
-- [ ] **Benign**: no benign sample, alert-justified ones included, carries `OBF-008` or `OBF-009`; the samples
+- [x] **Malicious**: no sample flagged on `main` is unflagged on the branch.
+- [x] **Benign**: no benign sample, alert-justified ones included, carries `OBF-008` or `OBF-009`; the samples
   flagged at high are the same as on `main`.
-- [ ] **Hard negatives**: the same samples flagged as on `main`.
-- [ ] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on `main`; benign flagged not
+- [x] **Hard negatives**: the same samples flagged as on `main`.
+- [x] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on `main`; benign flagged not
   more than on `main`.
-- [ ] **Fresh benign skills** (`fresh216`, `fresh200`, 412 trees): none carries `OBF-008` or `OBF-009`; the trees
+- [x] **Fresh benign skills** (`fresh216`, `fresh200`, 412 trees): none carries `OBF-008` or `OBF-009`; the trees
   flagged at high are the same as on `main`.
-- [ ] **Ordinary npm packages** (the 1,890 distinct packages installed on a developer machine, each given to
+- [x] **Ordinary npm packages** (the 1,890 distinct packages installed on a developer machine, each given to
   `check` as a directory, on `main` and on the branch): none carries `OBF-008` or `OBF-009`, and none is flagged at
   high on the branch that is not on `main`.
-- [ ] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch; what differs is
+- [x] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch; what differs is
   reported.
 
 ## Out of scope
@@ -124,6 +127,8 @@ the run:
 |---|---|---|
 | 1 | `OBF-008`, the wallet stores in the credential leg, `OBF-009`, tests, epoch, generated rules doc | `detect: a run of variation selectors is OBF-008, obfuscator-renamed identifiers are OBF-009, and a wallet key store is a credential (P-135)` |
 | 2 | `.claude/rules/detect.md` and the spec line | `docs: three shapes of a server body nobody can read (P-135)` |
+| 1a | The lure test of P-131 held a literal zero-width character; written as an escape, as `logical.go` asks | `detect: the lure test writes its zero-width character as an escape (P-131)` |
+| 1b | After the first run: a selector run counts only when its selectors differ | `detect: OBF-008 needs a run whose selectors differ; one selector repeated carries nothing (P-135)` |
 | 3 | Static runs: corpus, held-out, fresh skills, the npm packages; main and branch | `baselines: P-135 static runs, main and branch (P-135)` |
 | 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-135 done (P-135)` |
 
@@ -134,8 +139,53 @@ Decided by the recommended answer unless the maintainer says otherwise:
 1. **`OBF-009` at high.** Recommended: high. A file made unreadable on purpose is the finding the tool exists for,
    and no benign file in 4,046 corpus files or 103,003 npm files carries the signature. The alternative is medium
    beside `BD-002`, which leaves `excluder` unflagged.
-2. **The selector run's length.** Recommended: four. No measured file has two in a row; two is what a doubled emoji
-   selector looks like, and a payload needs dozens.
+2. **The selector run's length.** Recommended: four. ~~No measured file has two in a row~~ — wrong: the prototype
+   read source files only, and the engine reads every file. Read over every file, ordinary packages hold runs of two
+   and one of four, all of them one selector repeated. Four stays, and the run must hold selectors that differ
+   (Readings).
 3. **Wallet stores that no sample shows.** Recommended: the list as written. It is the same kind of list as
    `.ssh/` and `.aws/`, and none of its names occurs in any benign tree measured; two held-out malicious trees name
    the extension ids.
+
+## Readings
+
+Static, threshold high, `main` at `f28029f` (`rules=6e839a428eb8`) against the branch at `9e8ab98`
+(`rules=fbe3f98553bb`), both built 2026-11-18. Corpus `c314e4d9` (5,272 samples), the `heldout-all` list (459, layer
+2, not in the corpus), two pools of fresh skills (212 and 200 trees), and the 1,890 distinct npm packages installed
+on a developer machine, each given to `check` as a directory:
+`baselines/results/aguard/2026-11-18-p135-{corpus,heldout,fresh216,fresh200}-{main,changed}`; `compare.txt` in
+`corpus-changed` has every line, the npm one included (its per-package results name a machine's packages and are not
+committed).
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| the three trees flagged at high for the reason set | 0 | **3** | `OBF-008`, `EXFIL-003`, `OBF-009` ✓ |
+| malicious flagged, of 719; none lost | 235 | **238** | ✓ (the three targets, nothing else moved) |
+| benign carrying `OBF-008` or `OBF-009`, of 4,534 | — | 0 | 0 ✓ |
+| benign flagged at high, of 4,534 | 337 | 337 | same samples ✓ |
+| hard negatives flagged, of 19 | 4 | 4 | same samples ✓ |
+| held-out malicious flagged, of 243 | 133 | 133 | not fewer ✓ |
+| held-out benign flagged, of 216 | 6 | 6 | not more ✓ |
+| fresh skills carrying either rule, of 412; flagged | — ; 33 | 0 ; 33 | same trees ✓ |
+| npm packages carrying either rule, of 1,890; flagged at high | — ; 37 | 0 ; 37 | none newly flagged, no (rule, severity) pair differs ✓ |
+
+One sample that was already flagged gains a reason: `dd-npm-antv-mcp-chart-preinstall` (6,315 obfuscator names) now
+carries `OBF-009` beside its `SUP-008`. The held-out set gains nothing: the two held-out malicious trees that name a
+wallet extension id were flagged on `main` already.
+
+**Changed after a reading.** The first build (`5d40013`) raised `OBF-008` on four or more selectors in a row, as
+the criterion then read, and **failed the npm line: one of 1,890 packages, `focus-trap@7.6.0`, carried the rule
+and was newly flagged at high.** The contributors table of its README holds U+FE0F four times running before an
+emoji. The prototype had read source files only; the engine reads every file. Read again over every file
+(`agent-guard-work/vs-runs-allfiles.py`): 149,654 files in the npm pool hold six runs of two or more selectors,
+five of length two and one of length four, **every one of them U+FE0F repeated**; the corpus and the fresh skills
+hold none but the carrier, which is 9,123 selectors long and holds 60 different ones. A repeated selector carries
+no data, so the rule now asks that the run's selectors differ (`9e8ab98`); the reverse test has the README's line.
+Every branch-side run was repeated on that build and the table above is from it. No line was changed.
+
+**The npm pool as a reading of `main`.** 37 of the 1,890 ordinary packages carry a high finding on `main` and on
+the branch alike. That is not this proposal's to change; it is the first figure for how a `check` of an arbitrary
+npm package reads, and it is recorded here because nothing else in the repository measures it.
+
+**Read, not gated: the maintainer's own `~/.claude`** (100 artifacts): the same 83 findings on both builds; neither
+rule fires.
