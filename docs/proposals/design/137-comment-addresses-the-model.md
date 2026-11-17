@@ -106,7 +106,7 @@ branch). Lines set before the run:
 - **Five of the seven trees are one template**, spliced by the collection's authors into five real servers. They
   are one decision, not five; the other two trees come from two other collections and were flagged already.
 - No tree outside the development corpus carries the signal, held-out included. The benign side is what was measured
-  widely (2,332 comments in 5,381 benign trees and packages, none with a signal).
+  widely (1,778 comments in 7,052 benign trees and packages, none with a signal).
 
 ## Work items
 
@@ -122,7 +122,7 @@ branch). Lines set before the run:
 Decided by the recommended answer unless the maintainer says otherwise:
 
 1. **Severity.** Recommended: high. Words placed where the reader will not see them, telling the agent to hide
-   something from that reader, have no innocent reading, and none of 2,332 benign comments carries them. Medium
+   something from that reader, have no innocent reading, and none of 1,778 benign comments carries them. Medium
    would leave the five trees unflagged.
 2. **Comments in fenced code.** Recommended: not reported. A fence shows its content to the reader, so nothing is
    hidden, and that is where a document about attacks quotes one.

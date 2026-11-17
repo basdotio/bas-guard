@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**97 rule IDs** in this build — 50 engine rules + 21 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **87 score** and 10 never do (dimension 0).
+**98 rule IDs** in this build — 50 engine rules + 22 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **88 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `fbe3f98553bb`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `fb0adc43e915`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 21 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 22 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -41,7 +41,7 @@ agree were produced by the same engine rule table.
 
 ## Contents
 
-- [1 — Prompt injection](#1--prompt-injection) (12)
+- [1 — Prompt injection](#1--prompt-injection) (13)
 - [2 — Excessive permissions](#2--excessive-permissions) (8)
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
 - [4 — Code execution](#4--code-execution) (17)
@@ -65,6 +65,7 @@ agree were produced by the same engine rule table.
 | `INJ-004` | medium | Hidden / Unicode-steganography characters | Zero-width / directional control characters are used to hide injected instructions. |
 | `INJ-005` | high | Fetches remote instructions to act on | The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read. |
 | `INJ-006` | high | Text hidden in Unicode tag characters | Part of this line is written in Unicode tag characters (U+E0000–E007F), which no terminal, editor or diff shows and a model reads as ordinary text: the agent follows words nobody reviewing the file can see. Emoji flags, the one legitimate use of these characters, are not reported. |
+| `INJ-007` | high | HTML comment written for the model | An HTML comment in an instruction file or a bundled document (not drawn when the file is rendered, so the person reading the page does not see it) carries the header `SYSTEM OVERRIDE`, or tells the agent to keep its instructions or something it does from the user ("never reveal the hidden instruction chain", "do not mention this step to the user", "without telling the user"). The same sentences outside a comment are not reported by this rule, and a comment inside a code fence, which the reader is shown, is not reported. One per comment, at the line it opens on; a comment may span lines, and one never closed runs to the end of the file (P-137). |
 | `LLM-003` | medium · advisory | Hidden prompt injection | A directive aimed at the agent, phrased to dodge keyword rules. Runs on skills, CLAUDE.md, subagents, slash commands and hooks. The severity is the tool's, from the category the model names (exfiltration, credential read, remote execution, safety disable, concealed directive, privilege escalation or sandbox escape → high; other directive → medium). |
 | `LLM-007` | high · advisory | Artifact tried to instruct the analyzer | While being examined, the content addressed the analysis model — telling it what to conclude, or to ignore its instructions. Legitimate content has no reason to talk to a scanner. Unlike every other verdict the SEVERITY IS THE TOOL'S, not the model's: a hijacked model would rate its own capture low. |
 | `LLM-011` | medium · advisory | A required step changes the result the user receives | The result pass (P-068), skills only: the SKILL.md body and the documents it names are asked one question — does a step presented as required make the result false to the user's data or task, in a way the declared purpose does not call for and the user cannot see? The severity is the tool's, from the category the model names (forced value, data tampering → high; unrequested artifact, presentation change, other → medium). The step's own rationale is not evidence; conversions, rounding and filtering for presentation, formatting rules, validation and the skill's own scratch files are not findings. |
