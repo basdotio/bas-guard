@@ -180,8 +180,8 @@ The maintainer said to ship and merge it on 2026-11-18 ("好，发吧，合了")
 recommended: high, the platform list as written, documents read as well as `SKILL.md`.
 
 ```
-Merged: PR #157 (find the date and sha with git log --grep P-131 after the merge)
-Released: (fill in after the release)
+Merged: PR #157 (2026-11-17; find the sha with git log --grep P-131)
+Released: v0.37.0
 Evidence: TestLureReason, TestLure_WhereItIsRead, TestLure_HiddenCharactersDoNotHideTheHost, TestLure_LineIsRedacted
   (internal/detect/lure_test.go); corpus c314e4d9 static, main 1943194 → branch aed5cbe: the four missed trees 0 → 4
   at high SUP-010, malicious 231 → 235 of 719 with none lost, benign 342 → 342 of 4,534 with SUP-010 on none, hard

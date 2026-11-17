@@ -182,3 +182,16 @@ CC_SETTINGS_PATH, …)`, `writeJson(SETTINGS, next)`, `os.replace(…)`), a test
 `<your-cwd>` help string (Out of scope).
 
 **Public settings files** (P-133's 721): no change.
+
+## Done
+
+The maintainer answered both open questions as recommended (2026-11-17) and had it merged before P-133.
+
+```
+Merged: PR #160 (2026-11-17; find the sha with git log --grep P-134)
+Released: v0.37.0
+Evidence: TestPERM007_WriteThroughTheName (13 rows, high), TestPERM007_ReadThenWriteElsewhere (12 rows, quiet),
+  TestPERM007_OneLevelOnly, TestPERM007_CitesTheNameAndTheWrite (internal/detect/perm007_name_test.go); reverse: the
+  P-016 and P-124 rows unchanged, the corpus's mal-hook-userpromptsubmit-perm-rewrite keeps PERM-007; 1,425 public hook
+  stages PERM-007 35 -> 11, none gained; 721 public settings files unchanged
+```
