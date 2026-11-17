@@ -86,7 +86,7 @@ Code:
   and a readable `install.sh` are `SUP-009`; a `package.json` under `node_modules/` raises nothing; two identical
   `package.json` files in two directories are each judged against their own directory; the check opens no file the
   walk did not already read.
-- [x] `rulesEpoch` 16 → 17, `make docs` regenerates `docs/rules.md` with both IDs, `TestEveryRuleIDIsDocumented` green.
+- [x] `rulesEpoch` 16 → 17 (18 after the merge with P-128, which took 17), `make docs` regenerates `docs/rules.md` with both IDs, `TestEveryRuleIDIsDocumented` green.
 - [x] `make verify` green, read from its own exit code.
 
 Measurement (static, threshold high, corpus `c314e4d9`, `main` at `17d7bb0` against the branch). Lines set before the
@@ -204,3 +204,7 @@ a CLI script that fetches and starts a process); reasons 1, 2 and 4: none. The g
 
 **Read, not gated: the maintainer's own `~/.claude`** (99 artifacts): 83 findings on `main` and 83 on the branch, the
 same ones; neither rule fires.
+
+**After the merge with P-128** (`main` at `c6e054b`, the branch at `98059ac`, `rules=0352af8d2690`): the same four
+runs repeated and the same figures, line for line (226 → 231, 342 → 342, 4 → 4, held-out 80 and 6 on both). Not
+committed as a second set of result directories; the lists and the script are in `agent-guard-work/`.
