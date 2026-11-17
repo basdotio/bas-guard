@@ -208,3 +208,23 @@ same ones; neither rule fires.
 **After the merge with P-128** (`main` at `c6e054b`, the branch at `98059ac`, `rules=0352af8d2690`): the same four
 runs repeated and the same figures, line for line (226 → 231, 342 → 342, 4 → 4, held-out 80 and 6 on both). Not
 committed as a second set of result directories; the lists and the script are in `agent-guard-work/`.
+
+## Done
+
+The maintainer said to ship it on 2026-11-17, with the one line recorded as not met as written.
+
+```
+Merged: PR #155 (find the date and sha with git log --grep P-129 after the merge)
+Released: (fill in after the release)
+Evidence: TestInstallScript_High, TestInstallScript_Medium, TestInstallScript_WrongCaseIsReportedAndSaysSo
+  (internal/detect/installscript_test.go); corpus c314e4d9 static, main 17d7bb0 → branch: the five missed install
+  scripts 0 → 5 at high SUP-008, malicious 226 → 231 of 719 with none lost, benign 342 → 342 of 4,534 with SUP-008 on
+  none, hard negatives 4 → 4 of 19, held-out 80 → 80 of 243 and 6 → 6 of 216; the same figures after the merge with
+  P-128; the maintainer's ~/.claude 83 findings → 83, neither rule
+Evidence: not met as written — "the four benign install scripts carry SUP-009" is 3 of 4: the benchmark places
+  ben-mcp-gh-bradleygolden-hexdocs-mcp as an .mcp.json entry and reads no tree; `check <that tree>` gives SUP-009
+Evidence: changed after a reading — every script name as install-time, 163 benign trees: SUP-008 on 12 → 4 after the
+  inline reason was narrowed (9ac04b6); all runs repeated, gated lines unchanged
+Evidence: reverse: TestInstallScript_OtherScriptsRaiseNothing, TestInstallScript_DependenciesAreNotRead,
+  TestInstallScript_IdenticalFilesAreJudgedWhereTheyAre, TestInstallScript_OneFindingPerScript; make verify green
+```
