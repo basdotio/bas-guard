@@ -121,7 +121,7 @@ paths:
   `OBF-007` 不跟着提:它是四条里最弱的信号,它对应的样本(csv-summarizer)的 medium 在 `EXFIL-004`,那条归组 C 管;
   于是闸门层是 3/4,第四个靠"放行不记住"(gate.md)每次重审。`TestShapeRulesGateAtHigh`/`TestPaddingStaysLow` 钉两侧。
   配套的 `EXFIL-004`(整个环境被枚举:`os.environ.items()`、`printenv`、`env >`)是普通规则;`envWholeRE` 同时放行了
-  `.items()/.keys()/.values()/.copy()`,以前正好被 `[^.\[\w]` 排除掉。
+  `.items()/.keys()/.values()/.copy()`,以前正好被 `[^.\[\w]` 排除掉。 **没人读得了的两种形状**([unreviewable.go](../../internal/detect/unreviewable.go),P-136,epoch 23),都是 high、每文件一条、点名文档的 code-only 副本不再问一遍:`OBF-008` 连续 ≥4 个**且不全相同**的变体选择符(U+FE00–FE0F、U+E0100–E01EF;一个跟在 emoji 或表意字后面是排版;**同一个重复多少次都不算**——第一版只看长度,报了 focus-trap README 贡献者表里的 U+FE0F×4,本机 npm 包 15 万个文件里自然出现的 6 处连串全是 U+FE0F 重复;**别把"不全相同"拿掉**;报的是载体不是载荷,snippet 写个数不印字符);`OBF-009` 脚本里 ≥20 个不同的 `_0x…` 名字(混淆器默认命名;**别扩成"压缩过的代码"**,minified 到处都是,文档里引用的不算)。**变体选择符不进 `invisible()`**:报告层会把每个 emoji 的 FE0F 换成 U+FFFD;词中间插一个选择符躲规则是另一个没关的口子(P-136 Out of scope)。钱包密钥库(`walletStoreRE`:wallet.dat、geth keystore、Solana keypair、Electrum/Exodus、MetaMask/Phantom 扩展 id)是凭据腿的又一份名单,**加名字前先在良性上数**:`wallets` 端点、Java 的 `.keystore`、钱包 API 不在里面是故意的。
   **凭证腿的 shell 半边**(P-010):`env`/`printenv`/`set`/`export -p` 在命令位置**且后接 `|`/`>` 再接命令**才算,整行以 `|` 开头(Markdown 表格)不算——
   接受行尾会把 ```` ```env ```` 围栏、`set -e`、`{ get; set; }` 算成凭证读。凭证 dotfile(`.env` 及阶段后缀、`.netrc`、`.npmrc`、`.git-credentials`、`.pypirc`)
   必须跟在读取动词后:裸词 `.env` 与网络同文件共现 155 个良性文件,光有 home 路径是"把 key 配在 `~/.claude/.env`"的散文。`.kube/config`、`.docker/config.json` 故意不进。

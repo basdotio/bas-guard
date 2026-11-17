@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**95 rule IDs** in this build — 50 engine rules + 19 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **85 score** and 10 never do (dimension 0).
+**97 rule IDs** in this build — 50 engine rules + 21 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **87 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `6e839a428eb8`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `fbe3f98553bb`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 19 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 21 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -46,7 +46,7 @@ agree were produced by the same engine rule table.
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
 - [4 — Code execution](#4--code-execution) (17)
 - [5 — Supply chain](#5--supply-chain) (12)
-- [6 — Obfuscation](#6--obfuscation) (8)
+- [6 — Obfuscation](#6--obfuscation) (10)
 - [7 — Backdoor](#7--backdoor) (4)
 - [8 — Resource abuse](#8--resource-abuse) (3)
 - [9 — Filesystem](#9--filesystem) (7)
@@ -153,6 +153,8 @@ agree were produced by the same engine rule table.
 | `OBF-005` | medium | Mixed-script token (homoglyph disguise) | A word mixes ASCII with Cyrillic/Greek letters that look identical to ASCII. This defeats literal pattern matching while running the same command; rules are also applied to a folded copy, so anything hidden this way is still checked. |
 | `OBF-006` | high | File content does not match its name | A file with a text extension (.txt, .md, .json, …) begins with the signature of an archive or executable (zip, gzip, ELF, Mach-O, PE). The text rules read compressed bytes and match nothing — the disguise's purpose. Images and PDFs are not flagged: inert oddities are noise. |
 | `OBF-007` | low | Content hidden below a long run of blank lines | 200 or more consecutive blank lines with code after them. No editor page, `head`, or size-capped excerpt reaches past a run that long, so what follows is read by the interpreter and nobody else. Cites the first line after the run. |
+| `OBF-008` | high | Data hidden in a run of invisible variation selectors | A file holds four or more Unicode variation selectors in a row (U+FE00–FE0F, U+E0100–E01EF) that are not all the same one. A selector draws nothing and has one use, after an emoji or an ideograph, to pick how that character looks; a run of differing ones is data that no editor, diff, terminal or rendered page shows, and code that reads the characters back turns it into text or a program (an npm MCP server hid an `eval` payload this way). Reports the carrier and how many selectors it holds, not what they spell. A single selector, a keycap sequence, and one selector repeated (an emoji selector stuttered by a tool, however many times) are not reported. One per file, in code, instruction files and documents alike (P-136). |
+| `OBF-009` | high | Script with obfuscator-renamed identifiers | A script holds 20 or more distinct names of the form `_0x1a2b3c` — what an obfuscator leaves when it renames every variable and function so the file cannot be read. Minified code keeps short letters and is not reported; a document that quotes such code is not reported. The line rules still run on the file and see little, because its strings and names are built at run time. One naming scheme, the default of the most used obfuscator. One per file (P-136). |
 
 ## 7 — Backdoor
 
