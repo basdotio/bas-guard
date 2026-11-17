@@ -2,7 +2,8 @@
 # 132 — A skill's `!` command that downloads code over https and runs it, or runs `npx -y …@latest`, scored 100/100: the shell Claude Code runs on invocation was read like a sentence in a README
 
 - **Source**: new finding, 2026-11-17, reproduced on v0.36.0 (`main` at `1943194`)
-- **Depends on**: none. Moves `rulesEpoch` 18 → 19
+- **Depends on**: none. Moves `rulesEpoch` 18 → 19; P-133 (`p/133-settings-helper-commands-unread`, in progress) also
+  takes 19 from 18, so whichever of the two merges second takes 20 (as P-127 and P-128 did)
 - **Branch**: `p/132-skill-shell-fetches-and-runs`
 
 ## Problem
