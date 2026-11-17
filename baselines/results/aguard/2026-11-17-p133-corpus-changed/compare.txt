@@ -1,0 +1,32 @@
+# P-133, static, threshold high, corpus c314e4d9: main 1943194 (rules 0352af8d2690) against the branch fad42fe (rules 2997414a2a16).
+# Verdicts: 5272 of 5272 the same. Set of (rule, severity) per sample: the same for every sample.
+# Samples that carry a settings helpers artifact on the branch, with what it carries, the helper-script
+# references it could not follow (COV-000 evidence lines), and the overall score on both sides.
+# overall moves only because one more clean artifact is averaged (the issues/008 effect); no verdict moves.
+sample	helpers findings	unfollowed script refs	overall main -> branch
+ben-hook-aizenvoltprime-damocles-settings	none	1	100 -> 100
+ben-hook-carlos-dominguez-faber-claude-code-tune-kit-settings	none	1	100 -> 100
+ben-hook-clxzl-claude-code-best-practice-cn-settings	none	0	99 -> 99
+ben-hook-codingagentsystem-cas-settings	none	0	99 -> 99
+ben-hook-dshakes-compass-settings	none	1	98 -> 99
+ben-hook-dwmkerr-dotfiles-settings	none	1	98 -> 99
+ben-hook-gkotian-gautam-linux-settings	none	0	100 -> 100
+ben-hook-henryalouf-ruflow-settings	none	1	98 -> 98
+ben-hook-issmirnov-dotfiles-settings	none	1	96 -> 97
+ben-hook-kunaltulsidasani-claude-reimagined-settings	none	1	100 -> 100
+ben-hook-liriansu-opus-liriansu-opus-settings	none	0	100 -> 100
+ben-hook-ma08-botfiles-settings	none	1	91 -> 92
+ben-hook-natea-exomind-settings	none	1	89 -> 90
+ben-hook-parcadei-continuousclaudev4-7-settings	none	1	100 -> 100
+ben-hook-proffesor-for-testing-agentic-qe-settings	none	0	93 -> 93
+ben-hook-refcell-claude-settings	none	0	98 -> 98
+ben-hook-travisjneuman-claude-settings	none	0	91 -> 91
+ben-hook-vmihalis-hacker-bob-settings	none	1	99 -> 99
+ben-hook-yuluo-yx-use-settings	none	0	69 -> 69
+ben-hook-yzhao062-anywhere-agents-settings	none	1	69 -> 69
+ben-perm-barkain-claude-code-workflow-orchestration-settings	none	1	100 -> 100
+ben-perm-beamoint-claudex-settings	none	0	100 -> 100
+ben-perm-codeoutin-claude-code-agency-settings	none	0	88 -> 94
+ben-perm-j5ik2o-takt-sdd-settings	none	1	94 -> 96
+ben-perm-serpro69-ktchn8s-settings	none	1	100 -> 100
+hn-perm-feiskyer	none	1	100 -> 100

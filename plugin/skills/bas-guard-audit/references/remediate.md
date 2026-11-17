@@ -65,7 +65,13 @@ takes allow/deny.
 transcript file. A loopback destination on an ordinary event is a local sidecar; confirm it.
 A non-loopback one, or any one on `PermissionRequest`, is the event stream (or the
 authorization decision) leaving the box — remove it unless that is what you intended. A
-notifier that only needs to say "done" can send a fixed message instead.
+notifier that only needs to say "done" can send a fixed message instead. A status line
+(`statusLine` in settings) is reported the same way when it sends the transcript; its other
+input (model, cost, workspace) is not reported.
+
+Findings on `helper commands (settings.json)` come from `apiKeyHelper`, `statusLine` and the
+other commands a settings file has Claude Code run without asking: read the command and the
+script it names as you would a hook's, and remove what the user did not put there.
 
 If a hook is one the user did not add, that is the finding. Hooks are the surface where
 "I don't know where this came from" should stop the conversation and start an investigation.
