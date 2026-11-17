@@ -227,8 +227,7 @@ func TestStatusLineEgress_HooksUnchanged(t *testing.T) {
 }
 
 // TestContentHash_HelpersBindCommandAndScript: the helpers artifact's identity follows its command and the script it
-// names (decision 7). A key that is not a helper is not in it, and the apiKeyHelper command is not forgotten as a
-// credential value because of its key's name.
+// names (decision 7). A key that is not a helper is not in it.
 func TestContentHash_HelpersBindCommandAndScript(t *testing.T) {
 	hash := func(body, script string) string {
 		root, a := helperFixture(t, body, map[string]string{".claude/statusline.sh": script})

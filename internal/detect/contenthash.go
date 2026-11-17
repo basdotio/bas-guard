@@ -236,9 +236,9 @@ func permissionHashInput(root string, a model.ArtifactReport, docs map[string]co
 // sectionHashInput hashes one top-level section of a config file as it stands (the settings env block).
 // helpersHashInput: the members of the settings file that helperUnits reads as helper commands (P-133), as written
 // — a command string in the shell view, a status line object as a hook entry is — plus the scripts their commands
-// name, so neither can change under an approval. A helper string is viewed without its key: `apiKeyHelper` names a
-// credential, and reading the key as announcing one would forget the whole command, which then could change without
-// re-keying.
+// name, so neither can change under an approval. A helper string is viewed without its key: the key names a setting,
+// not an assignment. redact.Keyed does not read `apiKeyHelper` as a credential key today; viewing without it keeps a
+// wider credential-key list from ever forgetting the whole command, which could then change without re-keying.
 func helpersHashInput(root string, a model.ArtifactReport, docs map[string]configDoc) (string, []byte, bool) {
 	top, ok := readConfigDoc(a.Path, docs)
 	if !ok {

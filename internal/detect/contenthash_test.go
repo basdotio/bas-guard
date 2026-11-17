@@ -185,7 +185,7 @@ func TestContentHashGolden(t *testing.T) {
 		{
 			// P-133: the helper members as written — the command in the shell view, its flag-announced secret
 			// forgotten; the status line object as a hook entry — and the script the command names. Not "model":
-			// it is not a helper. The apiKeyHelper string is viewed without its key, which names a credential.
+			// it is not a helper. The apiKeyHelper string is viewed without its key (a setting's name, not an assignment).
 			name: "settings helpers",
 			a:    permArtifact(helpers, collect.SettingsHelpersName),
 			input: `{"helpers":{"apiKeyHelper":"sh ~/.claude/hooks/pre.sh --password <REDACTED>",` +
