@@ -65,7 +65,7 @@ is raised *instead of* `EXFIL-001`, so you will never see both for one file.
    sitting inside a permission entry).
 4. **Hooks**, because they run silently on every matching tool call and nobody reads them:
    `HOOK-001` (shell chaining), `HOOK-002` (second stage outside HOME — high on
-   `PermissionRequest`), `HOOK-003` (HTTP hook posting the event payload), and anything found
+   `PermissionRequest`), `HOOK-003` (a hook sending the event payload or the transcript), and anything found
    inside a hook-referenced script.
 5. **Credential and destructive filesystem reach**: `FS-001`, `FS-003`, `FS-002`, `FS-004`.
 6. Everything else, then the advisory shapes above.
