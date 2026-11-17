@@ -3,10 +3,9 @@
 
 - **Source**: new finding, 2026-11-17, found while checking a guide to the places in Claude Code that run things on
   their own against v0.36.0
-- **Depends on**: P-134 (a narrower `PERM-007` file-level half) lands first, by Open question 1's decision. Moves
-  `rulesEpoch` 19 → 20 (rules version `cbaa8a115ff1`): it was 18 → 19 until P-132
-  (PR #158) merged first and took 19, and this branch merged `main` after it (merge commit `96632b2`). P-131 (PR #157)
-  also takes 19 on its branch
+- **Depends on**: P-134 (PR #160, a narrower `PERM-007` file-level half), which landed first as Open question 1
+  decided (merged as `4a2bc66`). Moves `rulesEpoch` 20 → 21 (rules version `8cb81aaaae50`): it was 18 → 19, then
+  19 → 20 after P-132 merged first (merge commit `96632b2`), then 20 → 21 after P-134 did (merge commit `0e80eeb`)
 - **Branch**: `p/133-settings-helper-commands-unread`
 
 ## Problem
@@ -130,7 +129,7 @@ names is followed under the same boundary. One artifact per settings file holds 
 - [x] The rows above through the built binary, v0.36.0 (+ P-129) against the branch (Measured).
 - [x] Static over the corpus and the held-out ClawHub set, `main` against the branch; real settings files and status
   line scripts from public repositories (Measured).
-- [x] `rulesEpoch` 18 → 19, then 20 after the merge with P-132; `make docs`; `.claude/rules/detect.md`, `pipeline.md`, `hash.md`; the architecture and
+- [x] `rulesEpoch` 18 → 19, then 20 after the merge with P-132, then 21 after the merge with P-134; `make docs`; `.claude/rules/detect.md`, `pipeline.md`, `hash.md`; the architecture and
   README pairs; the audit skill's triage and remediation references; `make verify` green; `go.mod` line 2 is still
   `go 1.23.5` and `go version` does not switch toolchains.
 
@@ -159,8 +158,8 @@ names is followed under the same boundary. One artifact per settings file holds 
   is a name, not code the scan can read.
 - Not that a status line that sends its stdin is safe: decision 5 says only that the stdin carries no conversation.
 - Not a recall gain on the corpus: no malicious sample in the corpus has a helper key (Measured).
-- Not that a status line flagged `PERM-007` writes Claude's settings: on the public scripts measured it almost never
-  does (Measured, Open question 1).
+- Not that a status line flagged high is malicious: on top of P-134, 50 of the 63 public status line scripts newly
+  flagged high carry `EXFIL-001` for sending a token to the vendor's own usage API (Measured).
 
 ## Work items
 
@@ -172,8 +171,10 @@ names is followed under the same boundary. One artifact per settings file holds 
 | 3 | `.claude/rules`, the architecture and README pairs, the audit skill's references | `docs: settings helper commands (P-133)` |
 | 4 | The static runs | `baselines: P-133 static runs, main and branch, corpus and held-out ClawHub (P-133)` |
 | 4a | `main` merged after P-132: `rulesEpoch` 20, the static runs repeated on the merged code | `Merge remote-tracking branch 'origin/main' into p/133-settings-helper-commands-unread` |
-| 5 | Measured and the open questions. The file stays in `design/` until the maintainer says ship it, which waits for P-134 (Open question 1); the move to `complete/`, the Done block and the index row come then | `proposals: P-133 measured, five open questions (P-133)` |
+| 4b | `main` merged after P-134: `rulesEpoch` 21; the static runs, the status line scripts and the settings files measured again on top of it | `Merge remote-tracking branch 'origin/main' into p/133-settings-helper-commands-unread` |
+| 5 | Measured and the open questions. The file stays in `design/` until the maintainer says ship it, which waited for P-134 (Open question 1; merged as `4a2bc66`); the move to `complete/`, the Done block and the index row come then | `proposals: P-133 measured, five open questions (P-133)` |
 | 6 | The five answers | `proposals: P-133 open questions decided, waits for P-134 (P-133)` |
+| 7 | P-134 landed: the epoch, and the figures measured again on top of it | `proposals: P-133 measured again on top of P-134, rulesEpoch 21 (P-133)` |
 
 ## Open questions
 
@@ -189,7 +190,8 @@ All asked at once (2026-11-17), each with a recommended answer. The maintainer t
    belong to `PERM-007`, which hook and skill scripts meet too; but shipping before it would make roughly one status
    line in seven read as high.
    **Decided (2026-11-17)**: (b). The narrower `PERM-007` file-level half lands first in a proposal of its own (P-134);
-   this branch's every-rule reading of helper scripts follows it.
+   this branch's every-rule reading of helper scripts follows it. P-134 merged (`4a2bc66`); on top of it the figure is
+   63 of 1,100 newly high, 50 of them `EXFIL-001` on usage meters (Measured).
 2. **A helper's script outside `HOME`** (decision 4). Recommended: a note, as for a permission grant's script. A
    scored finding like `HOOK-002` would mark the reference's own `/bin/generate_temp_api_key.sh` example medium.
    **Decided (2026-11-17)**: a note, not scored.
@@ -249,6 +251,13 @@ held-out 66 of 118 and 6 of 208 on both sides), no verdict and no per-sample (ru
 helpers artifacts with no finding; the four rows above through the binary the same. Not committed as a second set of
 result directories. The real-world readings below were taken before the merge and not repeated.
 
+**On top of P-134** (`main` at `4a2bc66`, `rules=cbaa8a115ff1`, against the branch at `0e80eeb`,
+`rules=8cb81aaaae50`; P-134 had moved `main`'s own figures to 337 benign flagged): the static runs again show no
+change between the two sides — 231 of 719, 337 of 4,534, 4 of 19, held-out 66 of 118 and 6 of 208, no verdict and no
+per-sample (rule, severity) set moved, the same 26 helpers artifacts with no finding — and the four rows above
+through the binary are the same. The real-world readings below were taken on v0.36.0 + P-129; the status line scripts
+and the settings files were measured again on top of P-134, and the paragraphs say which figure is which.
+
 **Real settings files.** The corpus holds 26 status lines and no other helper, so it cannot say what reading helpers
 costs. GitHub code search for each key in `settings.json` and `settings.local.json` returned 721 files from 677
 repositories that hold at least one helper (statusLine 559, apiKeyHelper 125, fileSuggestion 55, awsAuthRefresh 48,
@@ -266,6 +275,7 @@ finding, every one read:
 
 485 of the 721 name a script the sample does not include: one `COV-000` note each. 21 files move from the Watch band to
 Low, and the overall score of 298 rises by 1 to 8 points, for the reason in Open question 5; three fall by 1 or 2.
+On top of P-134 every one of these figures is the same.
 
 **Real status line scripts.** 1,100 files named `statusline.{sh,py,js,ts,cjs}` (or `statusline-command.sh`) that mention
 `transcript_path`, from 1,018 repositories, each run as the status line of a fake home.
@@ -283,6 +293,10 @@ Low, and the overall score of 298 rises by 1 to 8 points, for the reason in Open
   `.credentials.json` and sent to `api.anthropic.com/api/oauth/usage` (or another vendor's API) — true as worded
   ("reads a credential and sends it"), to the vendor's own host. `EXEC-001` is `echo "curl … | bash"` install hints.
   This is the cost of decision 4, and Open question 1.
+  **On top of P-134** (which narrowed `PERM-007`'s file-level half, as Open question 1 decided): **63 of 1,100**
+  newly carry a high (400 a finding of some severity). By high rule: `EXFIL-001` 50, `PERM-007` 11 (eight test files
+  that write a fixture settings file, three status lines that do write Claude's settings or `~/.claude.json`; P-134's
+  Measured reads each), `EXEC-001` 3, `FS-003` 1, `EXFIL-003` 1, `HOOK-003` 1.
 - **`HOOK-003`**: 1 of 1,100, and wrong. The script derives a directory from the transcript's path
   (`config_dir="${transcript_path%%/projects/*}"`), reads `"$config_dir/.credentials.json"` and sends the token; P-128's
   reading carries the path through the pattern expansion and the appended file name. Hooks meet the same reading, so it
