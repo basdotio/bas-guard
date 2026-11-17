@@ -349,6 +349,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		if !u.synthetic {
 			findings = append(findings, shapeFindings(rel, u, commentLines)...)
 		}
+		// INJ-007 (P-137): an HTML comment written for the model. On text a reader is shown rendered — an
+		// instruction file or a document — which is the scope the prerequisite lure has (hiddencomment.go).
+		if lureScope(u) {
+			findings = append(findings, hiddenCommentFindings(rel, u)...)
+		}
 		// BD-004's language-native half: a socket opened and a shell's stdio bound to it, across
 		// lines no single rule can span. Real script files only — a config value or an instruction
 		// describing this is not running it (the line-rule half runs everywhere BD-003 does).
