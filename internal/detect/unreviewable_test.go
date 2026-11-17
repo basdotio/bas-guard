@@ -52,7 +52,7 @@ func TestSelectorRun_IsACarrier(t *testing.T) {
 	if !strings.HasSuffix(ev.File, "src/index.ts") || ev.Line != 3 {
 		t.Errorf("want the finding at src/index.ts:3, got %s:%d", ev.File, ev.Line)
 	}
-	if !strings.Contains(got[0].Why, "300 variation selectors") {
+	if !strings.Contains(got[0].Why, "300 variation selectors, different ones, in one run at line 3") {
 		t.Errorf("the finding should count the selectors:\n%s", got[0].Why)
 	}
 	if !strings.Contains(ev.Snippet, "[300 variation selectors]") || strings.ContainsFunc(ev.Snippet, isVariationSelector) {
@@ -72,17 +72,21 @@ func TestSelectorRun_IsACarrier(t *testing.T) {
 }
 
 // TestSelectorRun_OrdinaryTextRaisesNothing is the reverse side: every way a variation selector appears
-// in text people write. One after an emoji, the keycap sequence, an ideograph with its variant, emoji
-// joined by ZWJ, and the doubled selector a copy-paste leaves.
+// in text people and their tools write. One after an emoji, the keycap sequence, an ideograph with its
+// variant, emoji joined by ZWJ, and one selector stuttered: twice, or four times as in the contributors
+// table of a real package's README, which the first build of this rule flagged. A repeated selector
+// carries nothing, however long the run.
 func TestSelectorRun_OrdinaryTextRaisesNothing(t *testing.T) {
 	for name, line := range map[string]string{
-		"emoji with its selector":    "Done ✔️ and shipped ❤️",
-		"keycap sequence":            "Step 1️⃣ then 2️⃣",
-		"ideographic variation":      "葛\U000e0100城市 and 辻\U000e0101",
-		"zwj sequence":               "\U0001f3f3️‍\U0001f308 flag",
-		"a doubled selector":         "Warning ⚠️️ read this",
+		"emoji with its selector":    "Done \u2714\ufe0f and shipped \u2764\ufe0f",
+		"keycap sequence":            "Step 1\ufe0f\u20e3 then 2\ufe0f\u20e3",
+		"ideographic variation":      "\u845b\U000e0100\u57ce\u5e02 and \u8fbb\U000e0101",
+		"zwj sequence":               "\U0001f3f3\ufe0f\u200d\U0001f308 flag",
+		"a doubled selector":         "Warning \u26a0\ufe0f\ufe0f read this",
+		"one selector four times":    "<a title=\"Accessibility\">\ufe0f\ufe0f\ufe0f\ufe0f\u267f\ufe0f</a>", // the contributors table of focus-trap's README
+		"one selector forty times":   "x" + strings.Repeat("\ufe0f", 40) + "y",
 		"three, below the threshold": "x" + selectors(3) + "y",
-		"selectors apart":            "a︀b︁c︂d︃e︄f",
+		"selectors apart":            "a\ufe00b\ufe01c\ufe02d\ufe03e\ufe04f",
 	} {
 		files := map[string]string{"SKILL.md": plainSkill + line + "\n", "run.js": "// " + line + "\nconsole.log('" + line + "');\n"}
 		if got := treeFindings(t, "OBF-008", files); len(got) != 0 {

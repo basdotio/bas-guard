@@ -15,17 +15,36 @@ import (
 //	OBF-008  a run of Unicode variation selectors: bytes written in characters that draw nothing
 //	OBF-009  a script whose names an obfuscator replaced: a file prepared so that nobody reads it
 //
-// Measured before they were built (agent-guard-work/jsbody-proto.py, jsbody-npm-pool.py): neither shape
-// occurs in any of 4,534 benign trees (391 of them with JavaScript, 4,046 files), 412 fresh skills, the
-// held-out set (totals only), or 103,003 source files of the npm packages installed on a developer
-// machine — where 12 files hold a lone selector and not one holds an `_0x` name.
+// Measured (agent-guard-work/jsbody-proto.py, vs-runs-allfiles.py, npm-pool-run.py): neither shape occurs
+// in any of 4,534 benign trees (391 of them with JavaScript, 4,046 files), 412 fresh skills, the held-out
+// set (totals only), or the 1,890 npm packages installed on a developer machine, where not one source
+// file holds an `_0x` name.
 
 // selectorRunMin is how many variation selectors in a row stop being typography. A selector follows one
 // character and picks how it is drawn (the emoji form of a symbol, a variant of an ideograph), so
-// well-formed text never has two in a row; two is what a doubled emoji selector from a copy-paste looks
-// like. Four leaves that alone and is far below any payload: the carrier this was written from holds
-// 9,123 on one line.
+// well-formed text never has two in a row. Text that is not well formed does: 149,654 files of every kind
+// in the npm packages of a developer machine hold six runs, five of two and one of four (a contributors
+// table in a README), and every one of them is U+FE0F repeated — an emoji selector stuttered by a tool.
+// The carrier this was written from holds 9,123 on one line, 60 different ones.
+//
+// So a run counts when it is four or longer AND its selectors are not all the same (carrierRun). The
+// first build asked for length only and flagged that README; a selector repeated says nothing, and it
+// is the differences between selectors that carry the bytes.
 const selectorRunMin = 4
+
+// carrierRun reports whether a run of variation selectors can carry data: selectorRunMin or more of
+// them, not all the same one.
+func carrierRun(run []rune) bool {
+	if len(run) < selectorRunMin {
+		return false
+	}
+	for _, r := range run[1:] {
+		if r != run[0] {
+			return true
+		}
+	}
+	return false
+}
 
 // isVariationSelector reports whether r is a variation selector: U+FE00–FE0F, or the supplement
 // U+E0100–E01EF. 256 characters in all, which is why one of them can stand for a byte.
@@ -37,7 +56,7 @@ func isVariationSelector(r rune) bool {
 // the cheap test in front of the walk, since nearly no file has any.
 var selectorPrefixes = [2]string{"\xef\xb8", "\xf3\xa0"}
 
-// selectorRun is OBF-008: a file holding a run of selectorRunMin or more variation selectors. The run is
+// selectorRun is OBF-008: a file holding a run of variation selectors that can carry data. The run is
 // data nobody is shown — no editor, diff, terminal or rendered page draws it — and code that reads the
 // characters back turns it into text or a program: the in-the-wild server decodes each selector to a
 // byte and hands the result to eval, in a file that reads as an ordinary crawler. One finding per file,
@@ -51,21 +70,21 @@ func selectorRun(rel, text string) (model.Finding, bool) {
 	}
 	total, longest, runs := 0, 0, 0
 	firstLine, firstText := 0, ""
+	var run []rune
 	for i, line := range strings.Split(text, "\n") {
-		n := 0
 		end := func() {
-			if n >= selectorRunMin {
-				total, runs = total+n, runs+1
-				longest = max(longest, n)
+			if carrierRun(run) {
+				total, runs = total+len(run), runs+1
+				longest = max(longest, len(run))
 				if firstLine == 0 {
 					firstLine, firstText = i+1, line
 				}
 			}
-			n = 0
+			run = run[:0]
 		}
 		for _, r := range line {
 			if isVariationSelector(r) {
-				n++
+				run = append(run, r)
 				continue
 			}
 			end()
@@ -75,16 +94,17 @@ func selectorRun(rel, text string) (model.Finding, bool) {
 	if runs == 0 {
 		return model.Finding{}, false
 	}
-	where := fmt.Sprintf("a run of %d at line %d", longest, firstLine)
+	where := fmt.Sprintf("in one run at line %d", firstLine)
 	if runs > 1 {
 		where = fmt.Sprintf("in %d runs, the longest %d, the first at line %d", runs, longest, firstLine)
 	}
 	return model.Finding{
 		RuleID: "OBF-008", Dimension: 6, Severity: model.SevHigh, Source: model.SrcStatic,
 		Title: "Data hidden in a run of invisible variation selectors",
-		Why: fmt.Sprintf("%s holds %d variation selectors, %s. A variation selector draws nothing: one after an emoji "+
-			"or an ideograph picks how that character looks, and that is the only use it has. A run of them is data "+
-			"written where no editor, diff, terminal or rendered page shows anything — each can stand for a byte — and "+
+		Why: fmt.Sprintf("%s holds %d variation selectors, different ones, %s. A variation selector draws nothing: one "+
+			"after an emoji or an ideograph picks how that character looks, and that is the only use it has. A run of "+
+			"differing ones is data written where no editor, diff, terminal or rendered page shows anything — each can "+
+			"stand for a byte — and "+
 			"code that reads the characters back turns the run into text or a program. Look for what decodes it (a "+
 			"codePointAt or ord() compared against 0xFE00 or 0xE0100) and read what it yields as part of this file; "+
 			"nobody reviewing the file has seen it.", rel, total, where),
@@ -92,13 +112,13 @@ func selectorRun(rel, text string) (model.Finding, bool) {
 	}, true
 }
 
-// nameSelectorRuns rewrites a line for a snippet: each run of selectorRunMin or more variation selectors
-// becomes "[N variation selectors]". Shorter runs are left as written, so an emoji keeps its selector.
+// nameSelectorRuns rewrites a line for a snippet: each carrier run becomes "[N variation selectors]".
+// Every other selector is left as written, so an emoji keeps its own.
 func nameSelectorRuns(line string) string {
 	var b strings.Builder
 	var run []rune
 	flush := func() {
-		if len(run) >= selectorRunMin {
+		if carrierRun(run) {
 			fmt.Fprintf(&b, "[%d variation selectors]", len(run))
 		} else {
 			b.WriteString(string(run))
