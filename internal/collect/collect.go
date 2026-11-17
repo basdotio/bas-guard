@@ -418,11 +418,14 @@ func CollectAll(root string) Result {
 	res.Artifacts = append(res.Artifacts, mcp...)
 	res.Notes = append(res.Notes, mn...)
 
-	settings, cn := collectSettings(root, &res.Env)
+	settings, cn, approvals := collectSettings(root, &res.Env)
 	res.Artifacts = append(res.Artifacts, settings...)
 	res.Notes = append(res.Notes, cn...)
 
+	// home's .mcp.json is the project's whose settings were just read: PERM-009 on each server they
+	// approve (P-127).
 	pmcp, pmn := mcpServersFrom(filepath.Join(home, ".mcp.json"), "", &res.Env)
+	pmcp = withMCPApprovals(pmcp, approvals)
 	res.Artifacts = append(res.Artifacts, pmcp...)
 	res.Notes = append(res.Notes, pmn...)
 
@@ -772,27 +775,32 @@ func ScopeFor(path string) string {
 	return "base"
 }
 
-func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
+// collectSettings reads root's settings files. The third result is what they say about the servers of the
+// project's .mcp.json, in settingsScopes' order (P-127).
+func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding, []mcpApproval) {
 	var out []model.ArtifactReport
 	var notes []model.Finding
+	var approvals []mcpApproval
 	for _, sc := range settingsScopes {
-		arts, n := settingsFrom(filepath.Join(root, sc.file), sc.nameSuffix, env)
+		arts, n, ap := settingsFrom(filepath.Join(root, sc.file), sc.nameSuffix, env)
 		out = append(out, arts...)
 		notes = append(notes, n...)
+		approvals = append(approvals, ap)
 	}
-	return out, notes
+	return out, notes, approvals
 }
 
 // settingsFrom reads one settings file: its hooks per (event, matcher, command), its permission list
 // and its env block, each an artifact. An absent file yields nothing; one that cannot be read, a note;
-// one that does not parse, an artifact carrying PARSE-000.
-func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
+// one that does not parse, an artifact carrying PARSE-000. The third result is what the file says about
+// the servers of a project's .mcp.json (mcpApprovalFrom); it is never an artifact of its own.
+func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding, mcpApproval) {
 	b, err := safeio.ReadFile(path, safeio.MaxConfigBytes)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
+			return nil, nil, mcpApproval{}
 		}
-		return nil, []model.Finding{ioNote(path, err)}
+		return nil, []model.Finding{ioNote(path, err)}, mcpApproval{}
 	}
 	var doc struct {
 		Hooks       map[string]json.RawMessage `json:"hooks"`
@@ -806,7 +814,7 @@ func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.Artif
 		Env map[string]json.RawMessage `json:"env"`
 	}
 	if json.Unmarshal(b, &doc) != nil {
-		return []model.ArtifactReport{withParseError(model.KindHook, filepath.Base(path), path)}, nil
+		return []model.ArtifactReport{withParseError(model.KindHook, filepath.Base(path), path)}, nil, mcpApproval{}
 	}
 	// No OwnerRoot: a settings.json hook ships in no tree, so there is nothing to resolve
 	// a relative reference against beyond the root and home candidates hookUnits already tries.
@@ -818,7 +826,7 @@ func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.Artif
 	if len(doc.Env) > 0 {
 		out = append(out, artifact(model.KindPermission, SettingsEnvName+nameSuffix, path, ""))
 	}
-	return out, notes
+	return out, notes, mcpApprovalFrom(path, b)
 }
 
 // instructionFile is an instruction file Claude Code loads for a config root: where it is, and the

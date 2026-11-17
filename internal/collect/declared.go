@@ -71,6 +71,9 @@ func withDeclared(res Result, path string, isDir bool) Result {
 		notes = append(notes, n...)
 	}
 	if isDir {
+		// What the project's .claude says about the servers of its .mcp.json (P-127). <dir>'s own settings
+		// files are a config root's, whose project is the directory above: they approve nothing here.
+		var approvals []mcpApproval
 		for _, sub := range declaredSettingsDirs {
 			dir := filepath.Join(path, sub)
 			for _, sc := range settingsScopes {
@@ -78,13 +81,16 @@ func withDeclared(res Result, path string, isDir bool) Result {
 				if !readableInTree(path, p) {
 					continue
 				}
-				a, n := settingsFrom(p, sc.nameSuffix, &env)
+				a, n, ap := settingsFrom(p, sc.nameSuffix, &env)
 				add(a, n, dir)
+				if sub == projectDirName {
+					approvals = append(approvals, ap)
+				}
 			}
 		}
 		if p := filepath.Join(path, projectMCPName); readableInTree(path, p) {
 			a, n := mcpServersFrom(p, "", &env)
-			add(a, n, "")
+			add(withMCPApprovals(a, approvals), n, "")
 		}
 		known := append(append([]model.ArtifactReport{}, res.Artifacts...), arts...)
 		a, n := declaredInstructions(path, known)
@@ -97,7 +103,7 @@ func withDeclared(res Result, path string, isDir bool) Result {
 		default:
 			for _, sc := range settingsScopes {
 				if base == sc.file {
-					a, n := settingsFrom(path, sc.nameSuffix, &env)
+					a, n, _ := settingsFrom(path, sc.nameSuffix, &env)
 					add(a, n, filepath.Dir(path))
 				}
 			}

@@ -1,0 +1,106 @@
+# `corpus score` output, verbatim. Do not paraphrase it: the scorer's
+# refusals (a count where a rate would mislead, collected kept apart from constructed,
+# the uncovered tally) are the point, and retyping loses them.
+#
+# measured by agent-guard's own adapter (agent-guard baselines/adapter/aguard), threshold "high" chosen by us, placement: by content, into a fake home; unplaceable trees are handed to `check` directly
+# tool=aguard version=bas-guard v0.35.0 (commit bf7f8fb, built 2026-11-16T17:11:29Z) · reputation entries=18 · rules=35dbd6adf202 · judge-prompt=9cd57da1a4bd · judge-excerpt=9 threshold=high corpus=24c15d32 at 2026-11-16T17:11:48Z
+
+corpus     5042 labels — 550 malicious, 4473 benign, 19 hard-negative
+coverage   5042 of 5042 scored; 0 had no verdict
+
+detection — recall per dimension, split by what the samples rest on:
+  wild        the artifact existed because somebody made it for real. ONLY these
+              can back a claim about the world.
+  fixture     a third party wrote it as a test case — coverage of THEIR shapes.
+  synthetic   a third party's generator wrote it outright — coverage of ITS shapes.
+  injected    a generator put a payload into a real benign artifact — the base is
+              wild, the attack is not; a score here is about the template.
+  constructed we wrote it — coverage of OURS.
+  None of these merge. Adding them produces a number that means nothing.
+  dimension        evidence          n   result
+  backdoor         constructed       4   caught 3 of 4 (coverage of chosen shapes, not a rate)
+  backdoor         fixture          19   caught 13 of 19 (n too small for a rate; ±22 pts)
+  backdoor         synthetic        20   caught 7 of 20 (n too small for a rate; ±22 pts)
+  backdoor         wild              2   caught 1 of 2 (n too small for a rate; ±41 pts)
+  execution        constructed       7   caught 5 of 7 (coverage of chosen shapes, not a rate)
+  execution        fixture          52   21%  [12, 34]  (11/52)
+  execution        synthetic        20   caught 10 of 20 (n too small for a rate; ±20 pts)
+  execution        wild             13   caught 9 of 13 (n too small for a rate; ±27 pts)
+  exfiltration     constructed      10   caught 8 of 10 (coverage of chosen shapes, not a rate)
+  exfiltration     fixture          48   58%  [44, 71]  (28/48)
+  exfiltration     synthetic        20   caught 0 of 20 (n too small for a rate; ±16 pts)
+  exfiltration     wild              6   caught 1 of 6 (n too small for a rate; ±40 pts)
+  filesystem       constructed       1   caught 0 of 1 (coverage of chosen shapes, not a rate)
+  filesystem       fixture          27   caught 4 of 27 (n too small for a rate; ±18 pts)
+  filesystem       synthetic       100   21%  [14, 30]  (21/100)
+  injection        constructed       5   caught 5 of 5 (coverage of chosen shapes, not a rate)
+  injection        fixture          64   41%  [29, 53]  (26/64)
+  injection        synthetic        40   0%  [0, 9]  (0/40)
+  injection        wild             13   caught 3 of 13 (n too small for a rate; ±27 pts)
+  permission       constructed       5   caught 2 of 5 (coverage of chosen shapes, not a rate)
+  permission       fixture           8   caught 2 of 8 (n too small for a rate; ±34 pts)
+  permission       synthetic        20   caught 6 of 20 (n too small for a rate; ±22 pts)
+  permission       wild              3   caught 0 of 3 (n too small for a rate; ±56 pts)
+  reconnaissance   constructed       1   caught 0 of 1 (coverage of chosen shapes, not a rate)
+  reconnaissance   fixture          28   4%  [1, 18]  (1/28)
+  resource-abuse   constructed       1   caught 0 of 1 (coverage of chosen shapes, not a rate)
+  resource-abuse   fixture          16   caught 0 of 16 (n too small for a rate; ±19 pts)
+  resource-abuse   synthetic        20   caught 1 of 20 (n too small for a rate; ±19 pts)
+  supply-chain     fixture          17   caught 9 of 17 (n too small for a rate; ±22 pts)
+
+  per source — a rate over one source is a rate ABOUT that source, not the world:
+  DataDog/malicious-software-packages-dataset      5   caught 3 of 5 (n too small for a rate; ±37 pts)
+  NVIDIA/SkillSpector               5   caught 1 of 5 (n too small for a rate; ±42 pts)
+  cisco-mcp-scanner-evals         127   17%  [12, 25]  (22/127)
+  datadog-ai-skills                23   caught 9 of 23 (n too small for a rate; ±20 pts)
+  reconstruction:connector          5   caught 3 of 5 (n too small for a rate; ±37 pts)
+  reconstruction:hooks              5   caught 4 of 5 (n too small for a rate; ±42 pts)
+  reconstruction:instruction        1   caught 1 of 1 (n too small for a rate; ±79 pts)
+  reconstruction:mcp                3   caught 3 of 3 (n too small for a rate; ±56 pts)
+  reconstruction:permission         6   caught 3 of 6 (n too small for a rate; ±31 pts)
+  reconstruction:skills             2   caught 2 of 2 (n too small for a rate; ±66 pts)
+  skill-safety-bench                9   caught 0 of 9 (n too small for a rate; ±30 pts)
+  skillcraft-audit                 42   79%  [64, 88]  (33/42)
+  skillharm                       240   19%  [14, 24]  (45/240)
+  skillsgoat                       65   38%  [28, 51]  (25/65)
+  synthetic-malicious              12   caught 7 of 12 (n too small for a rate; ±26 pts)
+
+  by what the label rests on — read: a person located and quoted the attack;
+  upstream: the upstream said so; derived: our rule read the upstream's category;
+  assumed: a batch constant. Kinds of evidence, never averaged:
+  assumed                         240   19%  [14, 24]  (45/240)
+  read                            310   37%  [32, 43]  (116/310)
+
+flag rate on the benign pool — an estimate, reported per source:
+  benign here means `somebody runs this`, on an `assumed` basis — these are flags,
+  not confirmed false positives. Read one before you count it as an error.
+  automatelab-mcp-tools           353   1%  [0, 3]  (4/353)
+  fastmcp-examples                 36   3%  [0, 14]  (1/36)
+  harvested                      1565   14%  [12, 16]  (221/1565)
+  mcp-archived-servers             14   caught 4 of 14 (n too small for a rate; ±26 pts)
+  mcp-reference-servers             7   caught 1 of 7 (n too small for a rate; ±37 pts)
+  python-sdk-examples              32   0%  [0, 11]  (0/32)
+  skillet-wild                    463   5%  [3, 7]  (21/463)
+  skillmd-138k                   1970   4%  [3, 5]  (71/1970)
+  skillsgoat                       10   caught 3 of 10 (n too small for a rate; ±30 pts)
+  by surface, for a population that spans several (a sample on two load paths counts under both):
+    harvested · connector         121   0%  [0, 3]  (0/121)
+    harvested · hooks             186   3%  [1, 7]  (6/186)
+    harvested · mcp               781   21%  [18, 24]  (163/781)
+    harvested · permission        167   4%  [2, 8]  (7/167)
+    harvested · skills            399   13%  [10, 16]  (50/399)
+  (17 benign label(s) held out of this denominator by a recorded `exclude` adjudication — duplicate copies, counted once; see manifest `adjudications`)
+  reviewed subset: 28 of the benign pool has been read by a person; 10 flag(s) landed there.
+  those 10 ARE confirmed false positives. The rest of the flags above remain unadjudicated.
+  alert justified: 6 benign sample(s) cross a safety boundary in the open (sandbox off,
+  borrowed credentials, remote rewrite of global instructions); 0 flagged. They are outside
+  the flag rate above on both sides — a flag there is correct, and so is a silence.
+
+hard negatives — the precision probe, a census, never pooled with the estimate above:
+  flagged 4 of 19 (21%) — each one a confirmed false positive: these were read
+
+attribution — of caught malicious with a read-basis dimension, was the KIND named:
+  67 of 116 correct (58%, [49, 66])
+
+location — of caught malicious with a quoted file, did the scanner name that file:
+  107 of 116 (92%, [86, 96]) — a flag on the right file, not just on the tree
