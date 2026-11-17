@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**94 rule IDs** in this build — 50 engine rules + 18 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **84 score** and 10 never do (dimension 0).
+**95 rule IDs** in this build — 50 engine rules + 19 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **85 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `8cb81aaaae50`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `6e839a428eb8`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
 - **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 18 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 19 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -45,7 +45,7 @@ agree were produced by the same engine rule table.
 - [2 — Excessive permissions](#2--excessive-permissions) (8)
 - [3 — Data exfiltration](#3--data-exfiltration) (12)
 - [4 — Code execution](#4--code-execution) (17)
-- [5 — Supply chain](#5--supply-chain) (11)
+- [5 — Supply chain](#5--supply-chain) (12)
 - [6 — Obfuscation](#6--obfuscation) (8)
 - [7 — Backdoor](#7--backdoor) (4)
 - [8 — Resource abuse](#8--resource-abuse) (3)
@@ -138,6 +138,7 @@ agree were produced by the same engine rule table.
 | `SUP-007` | high | Code downloaded over plaintext HTTP | A script or source file is fetched over http:// (not https) and saved where a later step runs or imports it. Nothing authenticates the server or the bytes, so whoever controls the host or the network path decides what code the agent runs. |
 | `SUP-008` | high | Install-time script runs unread, packed, inline or self-fetching code | A package.json's `preinstall`, `install` or `postinstall` script runs on the installing machine with no prompt, before any of the package's code is used. Raised when what it runs could not be vouched for: a file in the tree that was not read (over the 1 MiB cap, or not text), a file with a line of 4,096 bytes or more (packed or minified), a file that both reaches the network and starts a process, or inline interpreter code (`node -e`, `python -c`) that reads or writes files, reads the environment, opens the network, starts a process or evaluates code (printing a notice, or a chmod after a build, is not that). The script is followed one level, through `npm run <name>` and `sh -c` too; a name that differs from npm's only by case (`postInstall`) is reported and the finding says npm does not run it. Says what was not reviewed, not that it is malicious: a package whose install script runs its own minified bundle gets it too. `prepare`, dependencies under node_modules and other package managers are not read. |
 | `SUP-009` | medium | Package runs a script at install time | A package.json has a `preinstall`, `install` or `postinstall` script and none of SUP-008's reasons holds: the file it runs was read and is ordinary, it is absent from the tree (a build output not built yet; the finding names it), or the script runs a tool. Reported because it runs with no prompt; it does not fail `check` at the default threshold. One finding per script, never together with SUP-008. |
+| `SUP-010` | high | Prerequisite offered from a paste site, a password-protected archive or a platform look-alike | A line of an instruction file or a bundled document tells the reader to install or run something first and points at one of three places skills have delivered malware from without a line of code of their own: a paste or snippet site, beside a word for running or installing; an archive or executable download, beside a password to open it; or a site whose host carries an agent platform's name (OpenClaw and its former names, ClawHub, Claude, Anthropic, OpenAI, ChatGPT, Codex, Cursor) and is not one of that platform's own, beside a phrase that makes it a prerequisite or a download. Each URL is judged by its own host. Not raised on scripts, hook commands or tool descriptions, and nothing is fetched. Free app hosting, project pages and unusual top-level domains are not reasons: documentation sites and tools' own pages live there. |
 | `SUP-011` | medium | Skill shell command runs a registry package at a moving version | A `` !`command` `` or a `` ```! `` block in a SKILL.md or a custom command runs a package from a registry at a version that can change: npx or npm exec with -y, --package or a tag or range (`pkg@latest`), bunx with a tag, pnpm or yarn dlx, uvx, uv tool run or pipx run without `==`, go run of a remote module at a branch. The package's code is not in the tree and runs on every invocation, before Claude reads the content. An exact version, a local path, a git URL at a full commit and `npx <tool>` with no -y and no version (a project's own copy, when installed) are not reported. One per command (P-132). |
 
 ## 6 — Obfuscation
