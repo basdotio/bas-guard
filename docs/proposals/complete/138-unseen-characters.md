@@ -265,3 +265,31 @@ written with control characters in it and is recorded as not met for those two r
 
 **Read, not gated: the maintainer's own `~/.claude`** (101 artifacts): the same 83 findings on `main` and on the
 branch.
+
+## Done
+
+The maintainer said to merge it on 2026-11-18 ("好，合"), after asking what it improves and being told: no
+benchmark number, the probes. Open question 1 was answered by the reading (control characters stay in the line);
+2 and 3 stand as recommended: the fillers and the braille blank are read as a space, and the character itself is
+not reported.
+
+```
+Merged: PR #165 (find the date and sha with git log --grep P-138 after the merge)
+Released: (fill in after the release)
+Evidence: TestIgnorable_IsUnicodesList, TestFoldCharacters_ReadsWhatAReaderSees, TestUnseenCharacters_DoNotHideAWord,
+  TestOtherSpaces_SeparateWordsLikeASpace (internal/detect/ignorable_test.go; the first also under Go 1.23.5); probes,
+  main 9bda8d1 → branch 5238689 (rulesEpoch 25): one character inside the word, rows found 10 → 36 of 46; a space
+  between the words, 3 → 18 of 18
+Evidence: corpus c314e4d9 static, the same builds: malicious 243 → 243 of 719, benign 337 → 337 of 4,534, hard
+  negatives 4 → 4 of 19; held-out, totals only: malicious 133 → 133 of 243, benign 6 → 6 of 216; fresh skills 33 → 33
+  of 412; npm packages flagged at high 37 → 37 of 1,890; no finding of any sample in any set differs; the
+  maintainer's ~/.claude 83 findings → 83
+Evidence: NOT MET AS WRITTEN: the probe line named control characters, and its two control-character rows (U+0008,
+  U+007F) are not found. The first build (3514e78) dropped control characters and failed the npm line (prettier
+  3.3.3, 3.6.2 and 3.8.1 each gained a low OBF-002); the rule was changed, not the line, and every branch-side run
+  repeated (Readings, "Changed after a reading"). A control character inside a word is an open gap: Out of scope,
+  ROADMAP.md, TestControlCharacters_AreLeftInTheLine
+Evidence: reverse: TestUnseenCharacters_OrdinaryTextRaisesNothing (emoji with their selectors, keycaps, French
+  spacing, an ideographic space, a captured terminal, a blank inside a word), TestControlCharacters_AreLeftInTheLine
+  (the table that failed), TestUnseenCharacters_AreNotReportedAsHidden; make verify green
+```
