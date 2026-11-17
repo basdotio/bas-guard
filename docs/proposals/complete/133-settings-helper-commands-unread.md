@@ -303,3 +303,18 @@ On top of P-134 every one of these figures is the same.
   is not changed here (Out of scope). No real status line in the sample sends the transcript.
 
 **A real `~/.claude`** (383 artifacts, no helper key): the same on both sides — overall 69, 789 findings, 8 notes.
+
+## Done
+
+The maintainer answered the five open questions as recommended (2026-11-17) and had it merged after P-134.
+
+```
+Merged: PR #159 (2026-11-17; find the sha with git log --grep P-133)
+Released: v0.37.0
+Evidence: TestSettingsHelpers_TheBriefsRows (cmd/bas-guard); TestCollectSettings_HelpersAreAnArtifact, _NoHelperNoArtifact,
+  _HelpersBesideTheOthers, TestSettingsHelpers_KeysOrderAndLines, TestCheck_HelpersAreReadUnderADirectoryTarget
+  (internal/collect); TestHelperUnits_* and TestStatusLineEgress (internal/detect); reverse: TestStatusLineEgress_HooksUnchanged,
+  TestSettingsHelpers_NotAPermissionList, TestCheck_HelperLineIsPrintedOnce; TestContentHashGolden/settings_helpers;
+  via scan: the brief's four rows 100/100 -> 69/100 (EXEC-001 high); corpus and held-out unchanged per sample;
+  1,100 public status line scripts: 63 newly carry a high on top of P-134; a real ~/.claude unchanged
+```

@@ -252,8 +252,8 @@ neither ID fires. Both scans took the same time (about three minutes).
 ## Done
 
 ```
-Merged: PR #158 (find the date and sha with git log --grep P-132 after the merge)
-Released: (fill in after the release)
+Merged: PR #158 (2026-11-17; find the sha with git log --grep P-132)
+Released: v0.37.0
 Evidence: TestSkillShell_FetchAndRun, _FetchAndRunQuiet, _AlreadyReportedIsNotRestated, _PackageRunner,
   _PackageRunnerQuiet, _Evidence, _OneFindingPerCommand, _CommandFiles, _WhyIsRedacted,
   TestSkillShellCommands_MatchClaudeCode, FuzzSkillShell (internal/detect/skillshell_test.go); brief rows:
