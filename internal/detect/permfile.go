@@ -40,7 +40,7 @@ func writesAFile(line string) bool {
 // line scripts that was 118 of 136 PERM-007 findings, every one read wrong; in the corpus, 17 of 21. So the half now
 // asks whether the file written is the file named: the naming line assigns the path to a name, and a later line writes
 // THROUGH that name — one level in the same file, as FS-005's file-level half follows a log's name (P-092). A later
-// assignment of the name to anything else ends it (`path` is reused across functions). A name handed to a function
+// assignment of the name to a file not named like a settings file ends it (`path` is reused across functions). A name handed to a function
 // that writes, copied into a second name, or a path a function returns is not followed (TestPERM007_OneLevelOnly).
 var (
 	// settingsAssignRE — a line that assigns to a name: shell `NAME=…` (export, local, readonly, declare), Python
@@ -52,6 +52,12 @@ var (
 	// a redirect INTO the settings file is the line rule's (PERM-007's pattern has `>`/`tee` right before the name), and
 	// a redirect anywhere else writes another file — `echo "see ~/.claude/settings.json" >> "$LOG"` names the file in
 	// the text it logs.
+	// settingsBaseRE — a value still named like a Claude settings file without the `.claude` around it that
+	// settingsFileRE asks for. It never starts a name (that is settingsFileRE's); it only keeps one an assignment
+	// would otherwise end: brainbox's installer reads `join(homedir(), ".claude", "settings.json")` in one function
+	// and writes `join(claudeDir, "settings.json")` under the same name in the next.
+	settingsBaseRE = regexp.MustCompile(`(?i)['"/]settings(\.local)?\.json\b|\.claude\.json\b`)
+
 	redirectOrTeeRE = regexp.MustCompile(`(?:[0-9&]?>>?|>\|)\s*(?:"[^"]*"|'[^']*'|\S+)|\btee\s+(?:-a\s+|--append\s+)?(?:"[^"]*"|'[^']*'|\S+)`)
 )
 

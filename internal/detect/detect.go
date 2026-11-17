@@ -460,8 +460,9 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 						}
 					}
 					// The name now holds something else (`path = os.path.join(MIX_DIR, …)` in the next
-					// function): a write through it later is not a write of the settings.
-					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil {
+					// function): a write through it later is not a write of the settings. Assigned a file
+					// still named like one (`join(claudeDir, "settings.json")`), it is kept.
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil && !settingsBaseRE.MatchString(ll.norm) {
 						settingsNames = forgetName(settingsNames, m[1])
 					}
 				}
