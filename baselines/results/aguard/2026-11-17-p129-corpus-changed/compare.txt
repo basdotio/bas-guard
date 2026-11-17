@@ -1,0 +1,39 @@
+corpus: 5272 samples; verdicts main 5272 branch 5272
+   malicious      n   719  flagged main  226  branch  231   SUP-008 on 8  SUP-009 on 2
+   benign         n  4534  flagged main  342  branch  342   SUP-008 on 0  SUP-009 on 3
+   hard-negative  n    19  flagged main    4  branch    4   SUP-008 on 0  SUP-009 on 0
+   benign without alert-justified n 4467  flagged main 326  branch 326
+
+   target mal-mcp-dd-npm-fixthis-exchange-exfil: main -        branch flagged  {('SUP-008', 'high'): 1}
+   target mal-mcp-dd-npm-knowledge-graph-workflow-exfil: main -        branch flagged  {('SUP-008', 'high'): 1}
+   target mal-mcp-dd-npm-redhat-kessel-mcp-worm: main -        branch flagged  {('SUP-008', 'high'): 1}
+   target mal-mcp-dd-npm-squawk-mcp-router-worm: main -        branch flagged  {('SUP-008', 'high'): 1}
+   target mal-skill-sc-T9-supply-chain-easy: main -        branch flagged  {('SUP-008', 'high'): 1}
+== target: 5 of 5 carry a high SUP-008 (line: 5) PASS
+== malicious: lost 0 [] (line: 0); gained 5: ['mal-mcp-dd-npm-fixthis-exchange-exfil', 'mal-mcp-dd-npm-knowledge-graph-workflow-exfil', 'mal-mcp-dd-npm-redhat-kessel-mcp-worm', 'mal-mcp-dd-npm-squawk-mcp-router-worm', 'mal-skill-sc-T9-supply-chain-easy'] PASS
+== benign: SUP-008 on 0 [] (line: 0); verdict changed on 0 [] (line: 0) PASS
+== benign install scripts: 3 of 4 carry SUP-009 FAIL
+== hard negatives: verdict changed on 0 [] (line: 0) PASS
+
+   every corpus sample carrying SUP-008 or SUP-009 on the branch:
+     ben skill-ch-linzmin-bill-reminder-1-0-0                     main -        branch -        SUP-009:mediumx1
+     ben skill-ch-linzmin-daily-report-cn-1-0-0                   main -        branch -        SUP-009:mediumx1
+     ben skill-gh-jiramedfirst-tvideo-tvideo                      main -        branch -        SUP-009:mediumx1
+     mal mcp-dd-npm-antv-mcp-chart-preinstall                     main flagged  branch flagged  SUP-008:highx1
+     mal mcp-dd-npm-fixthis-exchange-exfil                        main -        branch flagged  SUP-008:highx1
+     mal mcp-dd-npm-knowledge-graph-workflow-exfil                main -        branch flagged  SUP-008:highx1
+     mal mcp-dd-npm-lanyer640-runcommand-revshell                 main flagged  branch flagged  SUP-009:mediumx1
+     mal mcp-dd-npm-namecheap-affiliate-injection                 main flagged  branch flagged  SUP-009:mediumx1
+     mal mcp-dd-npm-postman-mcp-shai-hulud                        main flagged  branch flagged  SUP-008:highx1
+     mal mcp-dd-npm-redhat-kessel-mcp-worm                        main -        branch flagged  SUP-008:highx1
+     mal mcp-dd-npm-squawk-mcp-router-worm                        main -        branch flagged  SUP-008:highx1
+     mal skill-sc-T9-supply-chain-easy                            main -        branch flagged  SUP-008:highx1
+     mal skill-sc-T9-supply-chain-medium                          main flagged  branch flagged  SUP-008:highx1
+
+held-out (totals only): 459 samples
+   malicious  n  243  flagged main   80  branch   80   SUP-008 on 0  SUP-009 on 0
+   benign     n  216  flagged main    6  branch    6   SUP-008 on 0  SUP-009 on 0
+== held-out malicious: 80 -> 80 (line: not lower) PASS
+== held-out benign: 6 -> 6 (line: at most one more) PASS
+
+GATE: FAIL
