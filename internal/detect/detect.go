@@ -343,11 +343,12 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		if u.role != roleDoc && u.role != roleToolDesc && u.role != roleNamedDoc {
 			fileChain.assigns = urlAssignments(u.text)
 		}
-		// File-level half of PERM-007: a script that names a Claude settings file on one line and
-		// writes on that line or another (P-124). Only real scripts and hook commands — an
-		// instruction file naming settings.json is telling a person where to paste, and a config
-		// unit is data.
-		var settingsNameEv, settingsWriteEv *model.Evidence
+		// File-level half of PERM-007: a line that names a Claude settings file and writes it in code (P-124),
+		// or a line that assigns its path to a name and a later line that writes through that name (P-134,
+		// permfile.go). Only real scripts and hook commands — an instruction file naming settings.json is
+		// telling a person where to paste, and a config unit is data.
+		var settingsNames []settingsName
+		var perm007Ev []model.Evidence
 		permFileWriteScope := (u.role == roleScript && !u.synthetic) || u.role == roleHookCmd
 		perm007Fired := false
 		// File-level half of FS-005 (P-092): a log's path assigned to a name, the name erased on a
@@ -439,14 +440,31 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 					}
 				}
 			}
-			if permFileWriteScope && !ll.comment {
-				if settingsNameEv == nil && settingsFileRE.MatchString(ll.norm) && !settingsReadRE.MatchString(ll.norm) {
-					settingsNameEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
-				}
+			if permFileWriteScope && !ll.comment && perm007Ev == nil {
+				at := model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
+				names := settingsFileRE.MatchString(ll.norm) && !settingsReadRE.MatchString(ll.norm)
+				switch {
 				// raw first, as the rules read it: the normalized view folds a quoted word that
 				// splits a word, so open("w") reads there as open(w) and its mode is gone (P-124).
-				if settingsWriteEv == nil && (writesAFile(ll.raw) || writesAFile(ll.norm)) {
-					settingsWriteEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
+				case names && (writesItself(ll.raw) || writesItself(ll.norm)):
+					perm007Ev = []model.Evidence{at} // one line is the whole story
+				case names:
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil {
+						settingsNames = append(forgetName(settingsNames, m[1]), settingsName{name: m[1], write: writesName(m[1]), at: at})
+					}
+				default:
+					for _, sn := range settingsNames {
+						if sn.write.MatchString(ll.raw) || sn.write.MatchString(ll.norm) {
+							perm007Ev = []model.Evidence{sn.at, at}
+							break
+						}
+					}
+					// The name now holds something else (`path = os.path.join(MIX_DIR, …)` in the next
+					// function): a write through it later is not a write of the settings. Assigned a file
+					// still named like one (`join(claudeDir, "settings.json")`), it is kept.
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil && !settingsBaseRE.MatchString(ll.norm) {
+						settingsNames = forgetName(settingsNames, m[1])
+					}
 				}
 			}
 			// Exfil chain is a code behavior — only on script/instruction files, per file (F4).
@@ -470,15 +488,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		// The two legs may close on one line (P-124). Before, they had to be different lines, so a
 		// path built and written in one statement passed both halves — and in a hook command, a
 		// synthetic unit whose every line is 0, this half could never fire at all.
-		if !perm007Fired && settingsNameEv != nil && settingsWriteEv != nil {
+		if !perm007Fired && perm007Ev != nil {
 			if r, ok := e.byID("PERM-007"); ok {
-				ev := []model.Evidence{*settingsNameEv, *settingsWriteEv}
-				if *settingsNameEv == *settingsWriteEv {
-					ev = ev[:1] // one line is the whole story; citing it twice reads as a rendering bug
-				}
 				findings = append(findings, model.Finding{
 					RuleID: r.ID, Dimension: r.Dimension, Severity: r.Severity, Title: r.Title, Why: r.Why,
-					Source: model.SrcStatic, Evidence: ev,
+					Source: model.SrcStatic, Evidence: perm007Ev,
 				})
 			}
 		}

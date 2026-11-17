@@ -35,7 +35,7 @@ paths:
     那些规则的事,`decodeOnlyRE` 负责把明显在解码的行从编码腿上摘下来。**压缩(gzip/tar)故意不算** ——
     构建和上传脚本天天压缩,一条到处都响的腿会把 `EXFIL-003` 变成 `EXFIL-001` 的改名。
   - **配置面四条规则与两个新标记**(P-016):`EXEC-010` env 里的解释器预加载(`NODE_OPTIONS --require`、`LD_PRELOAD`…,high);`PERM-007` 脚本写 Claude 的
-    `settings(.local).json`/`.claude.json`(high,两半:同一行写动词紧接文件名,或同文件"命名该文件的非读取行 + 写调用行",**这两行可以是同一行**(P-124:`fs.writeFileSync(path.join(os.homedir(), '.claude', 'settings.json'), …)` 以前两半都接不住;hook command 是合成 unit、行号全 0,以前这一半在那里从没响过);写的那条腿(`writesAFile`)先读 raw(norm 里 `open("w")` 是 `open(w)`)、认 `open()` 里套两层的调用、先去掉 `/dev/null`/`/dev/stderr` 这类流设备——否则命名行上的 `2>/dev/null` 会顶替后面真正的写入;文件名必须带 `.claude` 上下文,
+    `settings(.local).json`/`.claude.json`(high,两半:同一行写动词紧接文件名,或同文件"把路径赋给一个名字的非读取行 + 后面**经这个名字**写的行"(P-134,[permfile.go](../../internal/detect/permfile.go):只追一层,和 FS-005 的文件级半边同一纪律;名字再被赋成不像 settings 文件的值就不再追;以前"任何一行写任何文件"就闭合,公开 status line 脚本上 136 条里 118 条、语料 21 条里 17 条是读 settings 再写缓存的误报),**也可以是同一行**(只认代码里的写调用,重定向/`tee` 归行规则)(P-124:`fs.writeFileSync(path.join(os.homedir(), '.claude', 'settings.json'), …)` 以前两半都接不住;hook command 是合成 unit、行号全 0,以前这一半在那里从没响过);写的那条腿(`writesAFile`)先读 raw(norm 里 `open("w")` 是 `open(w)`)、认 `open()` 里套两层的调用、先去掉 `/dev/null`/`/dev/stderr` 这类流设备——否则命名行上的 `2>/dev/null` 会顶替后面真正的写入;文件名必须带 `.claude` 上下文,
     `/etc/app/settings.json`、`.vscode/settings.json` 不算);`PERM-008` hook 输出 `permissionDecision: allow`(medium);`EXFIL-006` settings env 的
     `ANTHROPIC_BASE_URL` 指第三方(medium 披露,官方端点与回环用 `exceptWhen` 否决)。`scriptOnly()` 只在 `roleScript`/`roleHookCmd` 跑——15 个真实 skill
     贴过同一段 hook JSON,7 个写着 "add this to `.claude/settings.json`"。`envUnit` 把 env 渲染成 `KEY=VALUE`(键是信号);settings `env` 块以前整个被丢掉,
