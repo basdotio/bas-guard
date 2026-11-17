@@ -94,6 +94,10 @@ var asiByRule = map[string][]string{
 	"EXEC-013": {"ASI-05"}, // a script hooked into every new shell: execution that outlives the skill and needs no further invocation
 	"EXEC-012": {"ASI-05"}, // curl|bash spelled with $(…) or <(…) — the same unrestricted execution of whatever a URL serves // a base64 payload decoded straight into a shell — unrestricted execution of hidden code
 
+	// A skill's own shell runs code it downloads, on invocation and unread (P-132): execution, and the
+	// code comes from outside the tree.
+	"EXEC-014": {"ASI-05", "ASI-04"},
+
 	// Reverse shell: a shell handed to a remote party is unrestricted code execution. Unlike
 	// BD-001/002/003 (advisory heuristics, deliberately unmapped) this is a definite construct.
 	"BD-004": {"ASI-05"},
@@ -104,6 +108,7 @@ var asiByRule = map[string][]string{
 	"SUP-003": {"ASI-04"},
 	"SUP-004": {"ASI-04"}, // instructions pointing the agent into a tree the scan does not read
 	"SUP-007": {"ASI-04"}, // code fetched over plaintext http: the network path chooses what runs
+	"SUP-011": {"ASI-04"}, // a skill's own shell runs a registry package at a version that can move
 
 	// Filesystem — reach beyond what the task needs, and destructive reach.
 	"FS-001": {"ASI-02"},

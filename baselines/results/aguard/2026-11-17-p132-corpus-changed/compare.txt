@@ -1,0 +1,30 @@
+corpus c314e4d9: 5272 samples; verdicts main 5272 branch 5272
+   malicious      n   719  flagged main  231  branch  231   EXEC-014 on 0  SUP-011 on 0
+   benign         n  4534  flagged main  342  branch  342   EXEC-014 on 0  SUP-011 on 0
+   hard-negative  n    19  flagged main    4  branch    4   EXEC-014 on 0  SUP-011 on 0
+
+== verdict changed on 0 [] (line: 0) PASS
+== benign carrying EXEC-014 or SUP-011: 0 (line: 0)
+== samples whose (rule, severity) multiset changed: 0 []
+
+   every corpus sample with a command Claude Code runs on invocation (its two 2.1.107 patterns over the body
+   of each SKILL.md and command file), with the rules each carries on the branch:
+     ben skill-gh-robertosobachi-claude-skills-commit                3 cmd  main -        branch -        -
+     ben skill-gh-satoshoe-dev-niri-dms-skill-niri-dms               1 cmd  main -        branch -        -
+     ben skill-gh-t0nyn1-mishu-skill-mishu                           1 cmd  main -        branch -        EXEC-004:mediumx1
+     ben skill-md-attuned-corp-skills-ask                            1 cmd  main -        branch -        -
+     ben skill-md-ben-alkov-agents-swe-master-prompter               1 cmd  main -        branch -        -
+     ben skill-md-bendrucker-claude-fix                              1 cmd  main -        branch -        -
+     ben skill-md-caesiumy-caesiumy-github-io-blog-writer            2 cmd  main -        branch -        -
+     ben skill-md-codewithbehnam-cc-docs-explain                     1 cmd  main -        branch -        -
+     ben skill-md-dparedesi-agent-global-skills-commit-and-push      4 cmd  main -        branch -        -
+     ben skill-md-e-l-l-ske-l-ls-fix-pr-comments                     1 cmd  main -        branch -        -
+     ben skill-md-francisvarga-coconut-claude-code-plugins-workflow  4 cmd  main -        branch -        -
+     ben skill-md-guipimenta-ascii-snake-c-review-c                  1 cmd  main -        branch -        -
+     ben skill-md-laurigates-claude-plugins-hooks-session-start-hoo  5 cmd  main -        branch -        -
+     ben skill-md-nakt-dotfiles-update-arch                          2 cmd  main -        branch -        -
+     ben skill-md-nangohq-ai-ide-prompts-slash-command-builder       9 cmd  main -        branch -        -
+     ben skill-md-neversight-skills-feed-railway                     1 cmd  main -        branch -        -
+     ben skill-md-vinhnxv-rune-plugin-audit                          2 cmd  main -        branch -        -
+     ben skill-sk-JDetmar__pulumi-webflow__.claude__skills__pre-com  2 cmd  main -        branch -        -
+     mal perm-allowed-tools-backtick                                 1 cmd  main flagged  branch flagged  BD-004:highx1
