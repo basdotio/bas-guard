@@ -60,9 +60,9 @@ Code:
   between them raise nothing.
 - [ ] Every row of `TestLureReason` that is there today keeps its answer, and so do `TestLure_WhereItIsRead`,
   `TestLure_HiddenCharactersDoNotHideTheHost`, `TestLure_LineIsRedacted`, `TestLure_OrdinaryPrerequisitesRaiseNothing`.
-- [ ] `rulesEpoch` 25 → 26 (the change is outside the rule table); `make docs` leaves `docs/rules.md` as it is (the
-  rule's text already says "a phrase that makes it a prerequisite or a download"); `make verify` green from its own
-  exit code; `go.mod` line 2 still `go 1.23.5`.
+- [ ] `rulesEpoch` 25 → 26 (the change is outside the rule table); `make docs` moves only the rules version line of
+  `docs/rules.md` (the rule's text already says "a phrase that makes it a prerequisite or a download"); `make verify`
+  green from its own exit code; `go.mod` line 2 still `go 1.23.5`.
 
 Measurement (static, threshold high, `main` against the branch). Lines set before the runs:
 

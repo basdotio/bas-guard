@@ -60,10 +60,16 @@ var platformName = regexp.MustCompile(`(?i)open-?claw|clawd-?bot|claw-?hub|molt-
 // platformOwn are the hosts those platforms publish from. A host that ends in one of these is the
 // platform's own; so is the platform's organisation page on a code host. Only hosts known to be the
 // platform's are here: a wrong entry would be a way in, a missing one is a false alarm someone reports.
-var platformOwn = regexp.MustCompile(`(?i)(^|\.)(openclaw\.ai|clawhub\.ai|clawd\.bot|molt\.bot|claude\.ai|claude\.com|anthropic\.com|openai\.com|chatgpt\.com|openai\.azure\.com|cursor\.com|cursor\.sh)$|^(openclaw|clawhub|anthropics?|openai|getcursor)\.(github|gitlab)\.io$`)
+// clawhub.com is the default registry in OpenClaw's own skills/clawhub/SKILL.md (P-139).
+var platformOwn = regexp.MustCompile(`(?i)(^|\.)(openclaw\.ai|clawhub\.ai|clawhub\.com|clawd\.bot|molt\.bot|claude\.ai|claude\.com|anthropic\.com|openai\.com|chatgpt\.com|openai\.azure\.com|cursor\.com|cursor\.sh)$|^(openclaw|clawhub|anthropics?|openai|getcursor)\.(github|gitlab)\.io$`)
 
 // needCue makes the URL a prerequisite or a place to download from, on the same line.
-var needCue = regexp.MustCompile(`(?i)must be installed|\b(is|are) required\b|\brequired for\b|\bprerequisite|\bdownload and (install|run)\b|\binstall(ed|ation)?\s+(it\s+)?(from|here)\b|\bquick setup\b|\bset ?up here\b|\bget it (here|from)\b`)
+//
+// The verb form takes its object (P-139): "install the Claude Code helper from" is how a sentence
+// says what is installed, and the literal "install from" it replaces let the commonest way of
+// writing the lure through. Up to six words, none ending a sentence (a word may hold a dot inside,
+// Node.js, not at its end), so the verb and the "from" are one clause.
+var needCue = regexp.MustCompile(`(?i)must be installed|\b(is|are) required\b|\brequired for\b|\bprerequisite|\bdownload and (install|run)\b|\b(install|download)\w*\s+(?:[^\s.!?;:]+(?:\.[^\s.!?;:]+)*\s+){0,6}?(from|here)\b|\bquick setup\b|\bset ?up here\b|\bget it (here|from)\b`)
 
 // maxLureLine keeps the check off minified or generated lines, where a URL and a word are neighbours
 // by accident.
