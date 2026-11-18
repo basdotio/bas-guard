@@ -118,21 +118,26 @@ Measurement (static, threshold high, `main` against the branch). Lines set befor
 
 ## Open questions
 
-Decided by the recommended answer unless the maintainer says otherwise:
+Asked all at once; the maintainer answered all three on 2026-11-18, each as recommended:
 
 1. **`clawhub.com` as ClawHub's own host.** Recommended: yes. `skills/clawhub/SKILL.md` in the `openclaw/openclaw`
    repository says "Default registry: https://clawhub.com (override with CLAWHUB_REGISTRY or --registry)", and 12 repositories
    in SkillMD-138K link it as ClawHub. Left out, the widened phrase reports "Search and install skills from
    [clawhub.com](https://clawhub.com)", a line of a real skill. `platformOwn` takes only hosts known to be the
    platform's, and this is the platform's own source saying so; `clawhub.org` (one repository) is not added.
+   **Decided (2026-11-18)**: yes, as recommended (the maintainer: "all as recommended"). The branch already implements
+   it; nothing changed.
 2. **How many words between the verb and `from`.** Recommended: six. "install the official OpenClaw command-line
    companion from" is five; a longer gap stops being one clause, and every word allowed is a line further from the
    verb the phrase is about.
+   **Decided (2026-11-18)**: six, as recommended. The branch already implements it; nothing changed.
 3. **A platform's name inside another word.** Recommended: leave P-131's substring match as it is. Of the 51
    distinct hosts in the SkillMD-138K lines that carry a name and are not the platform's own, one has the name inside
    another word (`api.openaire.eu`), and its line has no phrase on `main` or the branch. A list of such words would
    be a way around the rule for whoever registers one (`openair…` is also a typo of `openai`), for a cost that was
    not seen.
+   **Decided (2026-11-18)**: leave the substring match as it is, as recommended. Nothing changed; a name inside
+   another word stays in Out of scope.
 
 ## Readings
 
