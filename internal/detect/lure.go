@@ -66,7 +66,7 @@ var platformOwn = regexp.MustCompile(`(?i)(^|\.)(openclaw\.ai|clawhub\.ai|clawhu
 // needCue makes the URL a prerequisite or a place to download from, on the same line.
 //
 // The verb form takes its object (P-139): "install the Claude Code helper from" is how a sentence
-// says what is installed, and the literal "install from" it replaces let the commonest way of
+// says what is installed, and the literal "install from" it replaces let an ordinary way of
 // writing the lure through. Up to six words, none ending a sentence (a word may hold a dot inside,
 // Node.js, not at its end), so the verb and the "from" are one clause.
 var needCue = regexp.MustCompile(`(?i)must be installed|\b(is|are) required\b|\brequired for\b|\bprerequisite|\bdownload and (install|run)\b|\b(install|download)\w*\s+(?:[^\s.!?;:]+(?:\.[^\s.!?;:]+)*\s+){0,6}?(from|here)\b|\bquick setup\b|\bset ?up here\b|\bget it (here|from)\b`)
