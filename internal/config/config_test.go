@@ -109,8 +109,9 @@ func TestLoad_PresetFillsEndpoint(t *testing.T) {
 	if cfg.LLM.Model != "deepseek-reasoner" || cfg.LLM.BaseURL != "https://proxy.example/v1" {
 		t.Errorf("explicit model/base_url must win over the preset: %+v", cfg.LLM)
 	}
-	if _, err := Load(write("c.yaml", "llm:\n  provider: deepsek\n")); err == nil || !strings.Contains(err.Error(), "deepseek") {
-		t.Errorf("unknown provider: err = %v, want an error listing the presets", err)
+	// An unknown provider sets the section aside (P-084); the judge paths refuse with this message.
+	if c, err := Load(write("c.yaml", "llm:\n  provider: deepsek\n")); err != nil || c.LLM.Problem() == nil || !strings.Contains(c.LLM.Problem().Error(), "deepseek") {
+		t.Errorf("unknown provider: problem = %v, err = %v, want a problem listing the presets", c.LLM.Problem(), err)
 	}
 	cfg, err = Load(write("d.yaml", "llm:\n  provider: openai_compatible\n  base_url: http://localhost:8000/v1\n"))
 	if err != nil || cfg.LLM.BaseURL != "http://localhost:8000/v1" {
@@ -179,16 +180,17 @@ func TestLoad_CallBudgetDefaults(t *testing.T) {
 	}
 }
 
-// TestLoad_BadDurationIsAnError: a typo'd timeout must fail loudly at load, not quietly fall
-// back to a default the operator did not ask for.
+// TestLoad_BadDurationIsAnError: a typo'd timeout must fail loudly, not quietly fall back to a
+// default the operator did not ask for. Since P-084 it is the llm section's problem rather than a
+// Load error: every judge path refuses with it, and a static run never reads it.
 func TestLoad_BadDurationIsAnError(t *testing.T) {
 	for _, bad := range []string{"60 seconds", "-5s", "0s"} {
 		p := filepath.Join(t.TempDir(), "c.yaml")
 		if err := os.WriteFile(p, []byte("llm:\n  timeout: \""+bad+"\"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Load(p); err == nil {
-			t.Errorf("timeout %q accepted; want a config error", bad)
+		if c, err := Load(p); err != nil || c.LLM.Problem() == nil {
+			t.Errorf("timeout %q: problem = %v, err = %v; want the section set aside with a problem", bad, c.LLM.Problem(), err)
 		}
 	}
 }
@@ -264,23 +266,33 @@ func TestLoad_RequestOptions(t *testing.T) {
 		}
 		return Load(p)
 	}
+	// refused is why the section was set aside: since P-084 a bad llm section does not fail the file,
+	// it is kept as the section's Problem, which every judge path returns as the load-time message.
+	refused := func(t *testing.T, body string) error {
+		t.Helper()
+		cfg, err := load(t, body)
+		if err != nil {
+			t.Fatalf("%q: Load = %v; an invalid llm section must be set aside, not fail the file (P-084)", body, err)
+		}
+		return cfg.LLM.Problem()
+	}
 	cfg, err := load(t, "llm:\n  enabled: true\n")
 	if err != nil || cfg.LLM.RequestOptions != nil {
 		t.Fatalf("no key: options %v, err %v", cfg.LLM.RequestOptions, err)
 	}
 	cfg, err = load(t, "llm:\n  request_options:\n    thinking:\n      type: disabled\n    max_tokens: 800\n")
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || cfg.LLM.Problem() != nil {
+		t.Fatal(err, cfg.LLM.Problem())
 	}
 	if got, err := cfg.LLM.RequestOptionsJSON(); err != nil || got != `{"max_tokens":800,"thinking":{"type":"disabled"}}` {
 		t.Errorf("options read as %q (%v)", got, err)
 	}
 	for _, key := range ReservedRequestOptions {
-		if _, err := load(t, "llm:\n  request_options:\n    "+key+": x\n"); err == nil || !strings.Contains(err.Error(), key) {
+		if err := refused(t, "llm:\n  request_options:\n    "+key+": x\n"); err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("request_options.%s: err %v, want a refusal naming it", key, err)
 		}
 	}
-	if _, err := load(t, "llm:\n  request_options:\n    weird:\n      1: x\n"); err == nil {
+	if err := refused(t, "llm:\n  request_options:\n    weird:\n      1: x\n"); err == nil {
 		t.Error("a value with no JSON form (a map keyed by a number) was accepted")
 	}
 	// The same answer on every toolchain: the encoder refuses a number for a member name when built with
@@ -291,18 +303,18 @@ func TestLoad_RequestOptions(t *testing.T) {
 		"llm:\n  request_options:\n    list:\n      - ok\n      - 2: x\n":             "llm.request_options.list[1]",
 		"llm:\n  request_options:\n    first:\n      1: x\n    second:\n      2: x\n": "llm.request_options.first",
 	} {
-		if _, err := load(t, body); err == nil || !strings.Contains(err.Error(), "config "+at+": a member name must be a string") {
+		if err := refused(t, body); err == nil || !strings.Contains(err.Error(), "config "+at+": a member name must be a string") {
 			t.Errorf("%q: err %v, want a refusal naming %s", body, err, at)
 		}
 	}
 	// A value that has no JSON form on any toolchain is still refused by the encoder.
-	if _, err := load(t, "llm:\n  request_options:\n    bad: .nan\n"); err == nil || !strings.Contains(err.Error(), "JSON form") {
+	if err := refused(t, "llm:\n  request_options:\n    bad: .nan\n"); err == nil || !strings.Contains(err.Error(), "JSON form") {
 		t.Errorf("a NaN was accepted: %v", err)
 	}
 	// Reverse: text that looks like a number is a string member name, and nested lists and maps load.
 	cfg, err = load(t, "llm:\n  request_options:\n    extra_body:\n      \"1\": x\n      stop: [a, b]\n      nested: {k: {deep: 1}}\n")
-	if err != nil {
-		t.Fatalf("string member names refused: %v", err)
+	if err != nil || cfg.LLM.Problem() != nil {
+		t.Fatalf("string member names refused: %v / %v", err, cfg.LLM.Problem())
 	}
 	if got, _ := cfg.LLM.RequestOptionsJSON(); got != `{"extra_body":{"1":"x","nested":{"k":{"deep":1}},"stop":["a","b"]}}` {
 		t.Errorf("options read as %q", got)
