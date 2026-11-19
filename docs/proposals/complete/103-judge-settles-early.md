@@ -158,5 +158,8 @@ the branch. What that showed:
   `judge-excerpt=10`, the values `main` prints. The Evidence above names the build of 2026-10-26; the measured numbers
   are that build's and were not taken again.
 
+- **Again at `0bf9758`**, after P-084 and the P-113 record landed: one line of `docs/spec/spec.zh-CN.md`, where P-084
+  and this proposal each added words to the same configuration comment; kept both. No code conflicted.
+
 `make verify`: all gates passed on the merged branch; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod
 line 3 "go 1.23.5".
