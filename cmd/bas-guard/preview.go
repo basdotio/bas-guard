@@ -130,6 +130,9 @@ func runLLMPreview(w io.Writer, o previewOpts) error {
 	if err != nil {
 		return err
 	}
+	if err := cfg.LLM.Problem(); err != nil {
+		return err // a plan for a judge that cannot run would describe a configuration nobody wrote (P-084)
+	}
 	sink := newPreviewSink()
 	rep := previewReport{Endpoint: redact.Endpoint(cfg.LLM.BaseURL), Model: judge.RequestModel(cfg.LLM.Model),
 		RequestOptions: requestOptionsShown(cfg.LLM),

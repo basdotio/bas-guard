@@ -125,7 +125,7 @@ llm:
 | Field | Meaning |
 |-------|---------|
 | `enabled` | Master switch. Must be `true` **and** `--llm` must be passed. |
-| `provider` | A preset — `deepseek`, `openai`, `qwen` — or `openai_compatible` for any OpenAI-style endpoint (Ollama, vLLM, LM Studio, a proxy…). An unknown name is a load error, not a fallback. |
+| `provider` | A preset — `deepseek`, `openai`, `qwen` — or `openai_compatible` for any OpenAI-style endpoint (Ollama, vLLM, LM Studio, a proxy…). An unknown name is an error, not a fallback (see below). |
 | `base_url` | Endpoint root. The tool POSTs to `<base_url>/chat/completions`, the suffix going on the path: a query in `base_url` (`https://gw.example/v1?api-version=2024-01-01`) is sent as written after it, a trailing `/` makes no difference, and a fragment is dropped. A preset fills it in; set it to override. |
 | `model` | **Which model to use.** A preset supplies a default; write the exact name your endpoint serves to override. |
 | `api_key_env` | The **name** of an env var holding the key. Checked first; for CI and for people who prefer it. |
@@ -137,8 +137,16 @@ llm:
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
 | `result_pass` | `false` skips the result question (`LLM-011`, P-068) for every skill; default `true` (P-106). About a third of a skill's calls; what it catches is output manipulation — see [What it checks](#what-it-checks). |
-| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads. Recorded in the judge block. See [Thinking models](#thinking-models). |
+| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads, like any setting below that this build cannot use. Recorded in the judge block. See [Thinking models](#thinking-models). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
+
+**An `llm` section this build cannot use stops the judge, nothing else.** An unknown `provider` or
+`authority`, a `timeout` / `total_timeout` that does not parse, or a `request_options` member the
+judge sets itself, makes `--llm`, `--fail-on-llm`,
+`llm test`, `llm status` and `llm preview` exit 2 with the reason. A run without the judge never
+reads the section: `scan` and `check` go ahead with the same report and say once on stderr that the
+section was ignored (not under `--quiet`), and the load-time gate keeps auditing. A file that does not
+parse as YAML, or an invalid `gate` value, still stops every command.
 
 Every run prints one line to stderr — `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed
 · 41k tokens in / 900 out`; `--quiet` suppresses it. The same cost is in the JSON summary
