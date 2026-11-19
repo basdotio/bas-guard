@@ -274,8 +274,8 @@ benchmark number, the probes. Open question 1 was answered by the reading (contr
 not reported.
 
 ```
-Merged: PR #165 (find the date and sha with git log --grep P-138 after the merge)
-Released: (fill in after the release)
+Merged: PR #165 (2026-11-17 UTC; find the sha with git log --grep P-138)
+Released: v0.38.0
 Evidence: TestIgnorable_IsUnicodesList, TestFoldCharacters_ReadsWhatAReaderSees, TestUnseenCharacters_DoNotHideAWord,
   TestOtherSpaces_SeparateWordsLikeASpace (internal/detect/ignorable_test.go; the first also under Go 1.23.5); probes,
   main 9bda8d1 → branch 5238689 (rulesEpoch 25): one character inside the word, rows found 10 → 36 of 46; a space

@@ -169,8 +169,8 @@ comments in fenced code not reported, the corpus figure quoted as measured and n
 quoted.
 
 ```
-Merged: PR #164 (find the date and sha with git log --grep P-137 after the merge)
-Released: (fill in after the release)
+Merged: PR #164 (2026-11-17 UTC; find the sha with git log --grep P-137)
+Released: v0.38.0
 Evidence: TestHiddenComment_AddressesTheModel, TestHiddenComment_OtherInjectionRulesAreUnchanged,
   TestHiddenComment_SnippetIsRedacted (internal/detect/hiddencomment_test.go); corpus c314e4d9 static, the P-136
   build 9e8ab98 → branch 0a0dcbc (rulesEpoch 24): the seven trees 0 → 7 at high INJ-007, malicious 238 → 243 of 719
