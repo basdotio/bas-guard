@@ -198,8 +198,8 @@ The maintainer said to merge it on 2026-11-18 ("好，都合了"). The three ope
 `OBF-009` at high, a run of four selectors that differ, the wallet list as written.
 
 ```
-Merged: PR #163 (find the date and sha with git log --grep P-136 after the merge)
-Released: (fill in after the release)
+Merged: PR #163 (2026-11-17 UTC; find the sha with git log --grep P-136)
+Released: v0.38.0
 Evidence: TestSelectorRun_IsACarrier, TestObfuscatorNames, TestWalletStore_IsACredential
   (internal/detect/unreviewable_test.go); corpus c314e4d9 static, main f28029f → branch 9e8ab98 (rulesEpoch 23): the
   three missed trees 0 → 3 at high (OBF-008, EXFIL-003, OBF-009), malicious 235 → 238 of 719 with none lost, benign

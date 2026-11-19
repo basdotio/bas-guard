@@ -194,3 +194,17 @@ sit, and none has one.
 `SUP-010`, overall 69 on both. One finding differs only in its evidence file: an `MCP-002` on the desktop
 `visualize` connector cites the newest desktop session cache, and a new session file was written between the two
 scans.
+
+## Done
+
+The maintainer answered the three open questions as recommended (2026-11-18) and had it merged.
+
+```
+Merged: PR #166 (2026-11-18 UTC; find the sha with git log --grep P-139)
+Released: v0.38.0
+Evidence: TestLureReason (internal/detect/lure_test.go): seven fire rows (Claude, OpenClaw, Anthropic, OpenAI and
+  ChatGPT look-alikes; six words), thirteen quiet rows (own hosts incl. clawhub.com; the name only in a path or query;
+  a sentence break; seven words), every earlier row unchanged; the Problem table's rows 2, 3, 4: 0 -> 3 of 3 carry a
+  high SUP-010; corpus c314e4d9 unchanged finding by finding (6,128 on both builds); held-out malicious 116 -> 117 of
+  118, benign 6 -> 6 of 208; npm packages 29 -> 29 of 958 flagged at high
+```
