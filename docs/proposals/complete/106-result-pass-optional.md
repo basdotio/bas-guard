@@ -145,5 +145,9 @@ the branch. What that showed:
 - **P-103** (PR #128), also landing now, touches the usage log line, its fold test and the same spec line: whichever
   merges second takes `main` again, keeping both.
 
+- **Again at `0bf9758`**, after P-084 and the P-113 record landed: documentation only, where P-084 and this proposal
+  each added to the same option table row or configuration comment (both `docs/llm-judge` files and
+  `docs/spec/spec.zh-CN.md`); kept both. No code conflicted.
+
 `make verify`: all gates passed on the merged branch; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod
 line 3 "go 1.23.5".
