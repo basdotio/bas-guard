@@ -65,6 +65,13 @@ progress, what is recorded but not scheduled, and the limitations we state out l
   report can say which of its outputs SERVE a record-keeping duty. It must not say "compliant" —
   that is a claim about an organisation, not about a scan, and overreaching here would poison the
   disclosure discipline the rest of the tool is built on.
+- **A judge category for writes to an agent's memory files** (left out of P-115 by the maintainer,
+  2026-11-05) — a skill that silently appends a standing rule to `MEMORY.md` is filed by the result
+  pass as `unrequested-artifact` (medium), and on the full corpus of 2026-11-04 one malicious sample
+  was missed that way. A row or a `persistence` clause naming `CLAUDE.md`/`MEMORY.md`/`AGENTS.md`/
+  `SOUL.md` would recover it, but 214 benign `SKILL.md` files in the corpus name those files against
+  40 malicious ones: self-improving and memory-keeping skills write there by design. Doing it means
+  its own measurement on those skills first.
 
 ## Known limitations (honest)
 
@@ -138,7 +145,7 @@ progress, what is recorded but not scheduled, and the limitations we state out l
 
   - ~~A file whose extension is not in `textExts` — an extensionless `bootstrap`, a dotfile like `.bashrc` — is not scanned.~~ **CLOSED.** The allowlist is a fast path now, not the decision: a file it does not cover is read when a content sniff says it is text. This was the cheapest evasion in the corpus — it required no technique, only the omission of a suffix. Binaries are still unread and still silent (a PNG is not an instruction).
   - ~~Rules match one line at a time, so a shell line continuation splits the pattern in half.~~ **CLOSED** by the lexical pass (`internal/detect/logical.go`), which folds continuations — and interior quoting, so `cu""rl` is `curl` — before any rule runs, while keeping a raw view so evidence still quotes what the file says at the line the command starts on.
-  - ~~Rules are literal regexes over raw bytes: a zero-width space or a confusable inside a command name defeats them.~~ **CLOSED** by the same pass: invisible code points (including the bidi controls behind "Trojan Source") are stripped and homoglyphs mapped to ASCII through a small hand-written confusables table. The concealment is reported in its own right — `INJ-004` for invisible characters, `OBF-005` for a token mixing ASCII with Cyrillic/Greek — so an evasion attempt surfaces even when what it was hiding has no rule.
+  - ~~Rules are literal regexes over raw bytes: a zero-width space or a confusable inside a command name defeats them.~~ **CLOSED** by the same pass: invisible code points (including the bidi controls behind "Trojan Source") are stripped and homoglyphs mapped to ASCII through a small hand-written confusables table. The concealment is reported in its own right — `INJ-004` for invisible characters, `OBF-005` for a token mixing ASCII with Cyrillic/Greek — so an evasion attempt surfaces even when what it was hiding has no rule. "Invisible code points" was a short hand-written table until P-138: a variation selector or any other default-ignorable character inside a word, and a no-break space between two words, still hid a sentence from every rule. The normalized view now drops everything Unicode displays as nothing and reads every other space as the ASCII one; those characters are folded, not reported. **Still open: a control character inside a word** (`prev<U+007F>ious`) hides it. Dropping control characters was built and measured: it made a table of escapes in an ordinary package read as a base64 blob, so they stay in the line until there is an answer that tells the two apart.
 - **Project scope walks UP to an ancestor `.claude`** — measured: with cwd `<x>/trashlab/proj`,
   Claude Code resolved project skills to `<x>/.claude/skills`. So `--root <project>/.claude`
   can report clean while the session loads skills from an ancestor directory the scan never saw.

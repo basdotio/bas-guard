@@ -1,0 +1,10 @@
+== benign: 163 trees with a package.json; SUP-008 on 4 trees, SUP-009 only on 143; SUP-008 findings by reason {'fetches and runs': 8}
+     mcp-gh-82deutschmark-chlorpromazine-mcp | "test": "node test/index.js", | ['fetches and runs'] | ['test/index.js']
+     skill-gh-axtonliu-video-illustrator | "test": "node --test tests/render.test.mjs tests/audio.test. | ['fetches and runs'] | ['tests/three.test.mjs']
+     skill-gh-chrishan17-video-gaga | "doctor": "node scripts/gaga.mjs doctor", | ['fetches and runs'] | ['scripts/gaga.mjs']
+     skill-gh-chrishan17-video-gaga | "examples": "for p in launch-keynote studio-3d clear-explain | ['fetches and runs'] | ['scripts/gaga.mjs']
+     skill-gh-chrishan17-video-gaga | "music": "node scripts/gaga.mjs music", | ['fetches and runs'] | ['scripts/gaga.mjs']
+     skill-gh-chrishan17-video-gaga | "render": "node scripts/gaga.mjs render", | ['fetches and runs'] | ['scripts/gaga.mjs']
+     skill-gh-chrishan17-video-gaga | "still": "node scripts/gaga.mjs still", | ['fetches and runs'] | ['scripts/gaga.mjs']
+     skill-gh-kiselas-every-slide-is-code | "deck": "node deck.mjs" | ['fetches and runs'] | ['export/deck.mjs']
+== malicious: 21 trees with a package.json; SUP-008 on 10 trees, SUP-009 only on 9; SUP-008 findings by reason {'fetches and runs': 4, 'packed line': 3, 'not read': 2, 'inline code': 2}

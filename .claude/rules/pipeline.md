@@ -57,7 +57,14 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   `settings.json`)都会重新打开"目录里散落的恶意脚本一个都不扫"这个假阴性。**`settings.json` 的内容也不算标记**
   (W-003,2026-09-15):原来"内容里带 Claude 独有的 key 才算 root"把内容当证据,而内容是目标作者写的——29 字节的
   `{"permissions":{"allow":[]}}` 就让两棵字节相同的 payload 树一棵 26 分一棵 100 分。现在只剩结构标记:目录名 `.claude`,
-  或有 `plugins/installed_plugins.json`。自定义名字的 config root 是 `scan --root` 的活,不是 `check` 的。同理,**`check` 的目标
+  或有 `plugins/installed_plugins.json`。自定义名字的 config root 是 `scan --root` 的活,不是 `check` 的。
+  **但配置要读,是"另读"不是"改道"**(`collect.withDeclared`,P-120):目录目标在整树之外,用 scan 的读取器读 `.claude/settings*.json`、
+  自己的 `settings*.json`、`.mcp.json`(先过 `FileReach`,软链出目标的不读,树那边已经出 `SCOPE-001`);名为这三种的单文件目标同理。
+  以前 `check <仓库>`、`check ./.mcp.json` 对 `Bash(*)`、放行 hook、http hook、`NODE_OPTIONS` 预加载一律 100 分退 0。读出来的 artifact
+  `Within` 指回目标(`score.Families` 并成一个单元、同一条发现只印一次);hook/权限带 `ConfigRoot`(配置文件所在目录),脚本按它解析、哈希也按它算,
+  **`$CLAUDE_PROJECT_DIR` 才是项目目录而不是项目的上一级**。settings 里的 helper 命令(`apiKeyHelper`、`statusLine`…,P-133)是 `settingsFrom` 的又一个 artifact,同样带 `Within`/`ConfigRoot`;它的发现引值所在的行,所以整树读到的同一行只印一次(hook 的发现仍引 0 行,`check .` 下印两遍,未改)。项目的 `CLAUDE.md` 同理另读(`collect.declaredInstructions`,P-125):scan 的 `instructionFiles` +
+  `expandImports`,home 取目标,与 `scan --root <目标>/.claude` 同一解析与边界(树读不跟 `@`,`@.env` 的 `EXFIL-005` 曾漏)。**别给单文件 `check CLAUDE.md` 跟导入**:
+  下载目录对散落的 `CLAUDE.md` 跑的就是 `check`,会读到非候选的兄弟文件。**项目 MCP 预批准**(`PERM-009`,P-127,[collect/mcpapproval.go](../../internal/collect/mcpapproval.go)):`settingsFrom` 顺带读三个 key(按精确键名,和 `mcpServerMap` 同一理由),`CollectAll` 拿 root 的 settings 配 home 的 `.mcp.json`、`withDeclared` 拿 `<目录>/.claude` 的 settings 配 `<目录>/.mcp.json`,发现挂在**被批准的 server** 上。三条防护点:**只有 key 不报**(语料 65 个良性样本是只截了 settings 的项目配置,P-016 当年按 34/387 否掉的就是这一版);**不升 high**(这 65 个里能查到上游的 62 个,38 个仓库根上真有 `.mcp.json`,high 等于让大多数用 `.mcp.json` 的团队 `check` 失败);**别在 detect/permcheck 里按路径重读 settings**——读不读由 collect 的 `readableInTree` 定,另读一遍就绕开了软链出目标的拒绝。`<目录>/settings*.json`(另一个名字的配置根)不配 `<目录>/.mcp.json`:它的项目是上一级。**别把"另读"改成"改道到 `CollectAll`"**,也别让任何 `Within` 的东西少读整树一个字节。同理,**`check` 的目标
   读不出来必须报错(退出码 2)**,不能返回空结果 —— 空结果会渲染成 100/100 + 退出码 0。
 - **`scan`/`clean` 的 root 同样先校验再采集**(`collect.ValidateRoot`,在 `main.scanEnv` 里调用)。
   各 collector 把 ENOENT 当成"这个布局不存在"是对的,但对 root 本身就是灾难:一个打错的 `--root`
@@ -74,6 +81,10 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   skill 被 `withinDir` 当成"指到 HOME 外"丢掉。也不要解析 root:`~/.claude → ~/dotfiles/claude` 的 home 会被挪走。**root 顶层的
   `.mcp.json`/`.claude.json` 照读**(`collect.RootMCPConfigs`,与 home 那份是同一个文件时不读两遍):放 skill 的仓库(CI 模板在顶层
   有 `skills/` 时)`scan --root .` 把仓库当 root,项目 MCP 配置就在那里;以前只有 `.` 因为 home == root 碰巧读到,绝对写法不读,而 `rootOwned` 声称读了(P-012)。
+  **`.claude.json` 有两个作用域,两个都读**(`collect.claudeJSONServers`,P-119):顶层 `mcpServers` 是用户作用域,`projects["<目录>"].mcpServers`
+  是本地作用域,而那是 `claude mcp add` 不带 `--scope` 时写的地方——以前只读顶层,默认方式加的 server 是 mcp=0、100 分。每个项目都读(不 stat
+  用户的目录),键 `""` 跳过;成员按**精确键**取(和 detect 的 `mcpServerMap` 一样,struct 解码会大小写不敏感地多采);名字带 ` (project <目录>)`,
+  **找条目一律经 `MCPServer` + `MCPProject`**,和插件 server 不按 `Name` 找是同一条理由。
 - **root 采集器是布局白名单,所以必须有人认领"剩下那一半"**
   ([collect/unowned.go](../../internal/collect/unowned.go))。`~/.claude/install.sh` 里写
   `curl | bash` + `rm -rf /`,以前扫出来是 **100/100 + "✅ No risk findings" + 退出码 0** ——

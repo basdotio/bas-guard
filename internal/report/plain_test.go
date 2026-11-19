@@ -17,6 +17,8 @@ func TestFriendlyArtifact(t *testing.T) {
 		"hook:PreToolUse[Bash]#1":                        "hook PreToolUse[Bash]#1",
 		"permission:permissions":                         "permission rules (settings.json)",
 		"permission:permissions (local)":                 "permission rules (project settings.local.json)",
+		"permission:settings helpers":                    "helper commands (settings.json)",
+		"permission:settings helpers (local)":            "helper commands (project settings.local.json)",
 		"mcp:github":                                     "MCP server github",
 		"no-colon":                                       "no-colon",
 	}

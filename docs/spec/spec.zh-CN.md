@@ -48,6 +48,7 @@ bas-guard clean [--root ~/.claude] [--apply] [--undo <id>|last] [--ask] [--dry-r
              # 默认只列;--apply 只「移动」到 <root>/.aguard-trash,永不删除;--undo 按批次恢复
 bas-guard check <path-or-zip> [--json] [--sarif out.sarif] [--md out.md|-] [--fail-on high] [--llm] [--fail-on-llm <level>]
                                                        # 装前闸门:单个 skill/插件/目录/文件/zip;默认静态,--llm 与 scan 是同一个开关
+                                                       # 目录和 settings*.json / .mcp.json 文件另读它们声明的配置(整树照读,P-120)
                                                        # 基线不自动发现:目标即被审对象,只认显式 --ignore
 bas-guard hook install|uninstall|status [--dry-run]       # 加载时闸门:注册为 Claude Code hook,见 §17
 bas-guard hook                                            # hook runner:从 stdin 读事件(由 Claude Code 调用)
@@ -74,7 +75,7 @@ bas-guard version                                         # 版本 + 与已装�
 | 类型 `ArtifactKind` | 来源路径 | 采集内容 |
 |---|---|---|
 | `skill` | `<root>/skills/*/SKILL.md` + 同目录脚本/资源 | frontmatter(name/description/allowed-tools/version)、脚本文件列表、bin/、node_modules 存在性。frontmatter 只认从文件第一个字节开始的那份,BOM 或空行之后的 `---` 是正文——Claude Code 就是这么读的(2.1.107 实测,P-024;子 agent、斜杠命令同一个解析器) |
-| `mcp` | `~/.claude.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。哈希 = 该条目的内容哈希(§8),不含 server 名与文件路径 |
+| `mcp` | `~/.claude.json`(设了 `CLAUDE_CONFIG_DIR` 时是 `<root>/.claude.json`)→ `mcpServers`(用户作用域)和 `projects["<目录>"].mcpServers`(本地作用域,`claude mcp add` 的默认,P-119);项目 `.mcp.json` → `mcpServers` | 每个 server 的 command/args/env(env 值脱敏)。本地作用域的每个项目都采(目录在不在都采,Claude Code 在那个目录里跑就启动它们),名字 `<key> (project <目录>)`,条目经 `MCPServer` + `MCPProject` 定位。哈希 = 该条目的内容哈希(§8),不含 server 名、项目目录与文件路径:同一份条目在哪个作用域都是同一个身份 |
 | `hook` | `<root>/settings.json` → `hooks` | 每条 hook 的 matcher + command(type=command),或 type=http 时的 matcher + url。HTTP hook 把完整事件 payload(工具输入、命令行、授权提示)POST 到该 url,仍是一等审计对象。哈希 = 内容哈希(§8):event + matcher + 整个条目 + 它跟进的脚本内容 |
 | `permission` | `<root>/settings.json` → `permissions.allow/deny`;另有一个同 kind、名为 `settings env` 的 artifact 承载 `env` 块(P-016,2026-09-23) | 规则条目原文;`env` 块渲染为 `KEY=VALUE` 行进全部规则,permcheck 不在它上面重跑。哈希 = 内容哈希(§8):整个 `permissions` 对象 + allow 引用的脚本内容;`env` 块单独一个域 |
 | `subagent` | `<root>/agents/*` | 定义文件全文 |
@@ -82,7 +83,7 @@ bas-guard version                                         # 版本 + 与已装�
 | `plugin` | `<root>/plugins/installed_plugins.json` → 各条 `installPath` | 插件打包的 skills/commands/hooks/MCP —— 展开后按对应 kind 再扫(B4,不可整块漏)。**只采「已安装」的那份**:marketplace 镜像不进任何会话,扫了只是噪声。`installPath` 出自配置文件、可被影响,须过 §16.2 边界收敛 |
 | `instruction` | `<root>/CLAUDE.md`、`skills/*/SKILL.md` 正文 | 指令文本(injection 扫描面) |
 | `rule` / `workflow` / `output_style` / `memory` | `<root>/rules/*`、`workflows/*`、`output-styles/*`、`memory/*` | 自动加载的指令面,各自单文件;清单里单列(「你有 14 条 rule 每次会话都进上下文」和「你有一个 CLAUDE.md」是不同的事实)。rule 的名字带 ` (path-scoped)` 当且仅当 Claude Code 会遵守它的 `paths:`:frontmatter 从第一个字节开始,且 `paths` 按逗号切分、花括号展开、去掉结尾的 `/**` 之后至少剩一条非空、不是 `**` 的 glob;否则它每次会话都加载(2.1.107 实测,P-024) |
-| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报 |
+| `directory` | `skills/` 下缺 `SKILL.md` 的目录、`check <dir>` 未识别布局 | 整树读:它在加载命名空间里,跳过等于静默漏报。`check <dir>` 另读目录顶层声明的配置:`.claude/settings*.json`、自己的 `settings*.json` 用 `settings.json` 的读取器,`.mcp.json` 用 MCP 的读取器(P-120);这些 artifact 的 `Within` 指回目录,与目录算一个单元(§5.3),hook/权限跟进的脚本按配置文件所在目录解析(`ConfigRoot`),与 `scan --root <那个目录>` 同一个哈希。整树里 `.claude/commands/` 下的 `.md` 按斜杠命令跑全部规则。目录的 `CLAUDE.md`、`CLAUDE.local.md` 及 `.claude/` 下的这两个用 `instruction` 的采集器读、跟进 `@` 导入,home 取目录本身——与 `scan --root <目录>/.claude` 同一份清单、同一个解析与边界(P-125) |
 | `connector` | 桌面版会话缓存 `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json` → `remoteMcpServersConfig` | 远程 MCP connector(Figma/Notion/Slack…)向模型**通告的工具清单**:每个工具的 name/description/参数 description。**从不联网连它们**,读的是桌面版已缓存的那份;这是 tool-poisoning 面,也是不联网能拿到工具说明的唯一地方。每个 connector 一个 artifact,哈希覆盖工具清单。只解码 connector 段(会话文件还装着用户会话状态);覆盖=本机会话见过的,报告不说「所有 connector」 |
 | `quarantined` | `<root>/.aguard-trash/` | `clean --apply` 隔离过的东西,仍扫、单列,不计入清单主数 |
 
@@ -178,6 +179,14 @@ type Rule struct {
   行连接符、命令名里的零宽/双向控制字符、以及**把词切开的引号**(`cu""rl`/`cur'l'`/`c\url`)—— 再交给规则匹配。
   产出两份**故意不同**的文本:`norm` 供匹配,`raw` 进证据(报告必须显示文件里真正写的那一行,否则等于把规避替用户抹平了);
   且**规则先匹配 raw、未命中才看 norm**,因为归一化只做删除,这个顺序只会多报不会漏报,反过来会让 `INJ-004`(专门报告零宽字符的规则)自己消音。
+  Unicode tag 字符(U+E0000–E007F)在 norm 里**解码**成它镜像的 ASCII(P-123):模型就是这么读的,整句写成 tag 的指令以前对每条规则都不可见。
+  它们**不进** `detect.Invisible` 那张表:emoji 旗帜(U+1F3F4 + 1–6 个小写/数字 tag + U+E007F)正是用它们写的,而判官的垫料折叠读那张表,
+  一句 tag 写的指令会被折成空。"非旗帜的 tag"由 `INJ-006`(high)报告,`report.Sanitize` 对同一谓词(`detect.HidesTagText`)成立的字符串把 tag 换成 U+FFFD。
+  **norm 读的是读者看到的样子**(P-138,`detect/ignorable.go`):Unicode 规定显示为空的每个字符(Default_Ignorable_Code_Point:变体选择符、组合字形连接符、蒙古文自由变体选择符、保留码位……)
+  在 norm 里**去掉**;ASCII 之外的每个空白(NBSP、U+2000–U+200A、U+2028/U+2029、U+3000、垂直制表符、NEL……)以及画成一个空格子的五个字符(四个韩文填充符、盲文空格)**读成一个 ASCII 空格**。
+  此前词中间插一个变体选择符(`prev<U+FE00>ious`)、或把句子里的空格换成 NBSP,`INJ-001` 就看不见这句话 —— Go 正则的 `\s` 只认 ASCII。它们同样**不进** `detect.Invisible`:
+  每个带文本形态的 emoji 后面都跟一个 U+FE0F,进了那张表报告里就全是 U+FFFD;`OBF-008` 数的选择符串也会被判官的垫料折叠折掉。手写的区间由 `TestIgnorable_IsUnicodesList` 逐码位对照工具链的 Unicode 表。
+  **控制字符不去**(第一版去了,量出来不干净):prettier 的 flow 插件里一张词法表是 `z0("<U+0001>\0<U+0001><U+0001>\0\0\0…`,去掉控制字符后那串 `\0` 紧跟在引号后面,`OBF-002` 把它读成 base64;词中间夹一个控制字符(`prev<U+007F>ious`)因此仍然查不到,留给单独的提案。
   **仍然缺的是真语法树才能给的东西**:链式表达式(`Buffer.from(secret).toString('base64')`)、跨语句的取值追踪,以及同形异义字折叠(需要 Unicode confusables 表)。
   这三项记在 ROADMAP,**不得在文档中含糊为已完成**。要补,前提是先决定是否接受一个 parser 依赖 —— 那是交付形态的决定,不是实现细节。
 - **structural**:内置检查器(非文本模式),如「读 env/凭证 AND 有外连 host」= exfil 链、「hook command 含 shell 元字符」、「MCP env 里疑似明文 secret」。
@@ -195,9 +204,13 @@ type Rule struct {
   的输出也动不了 `overall`/`--fail-on`(§5.2.1)。判据是"能不能写成词表 + 组合规则" —— 能,就归静态。
 
 - **形状检查**(`detect/shape.go`,2026-09-08;定级 2026-09-16 P-005:`OBF-006`/`SUP-005`/`SUP-006` high,`OBF-007` low——原先四条全 medium,在 high 闸门下 0/4 拦截且被记为信任;三条提 high 前在真实安装上量到零命中):问的是「这个文件是不是排成了让逐行读者到不了要害的样子」,不是「这一行说了什么」。四条各对应 Trail of Bits `overtly-malicious-skills` 里一个 4/4 绕过逐行规则的样本:`OBF-007` 空行填充(≥200 连续空行后还有代码,证据指向填充之后那一行);`OBF-006` 扩展名与魔数不符(.txt 里是 zip/ELF/Mach-O,只报容器和可执行格式,图片和 PDF 故意不报);`SUP-005` 随包 `.pyc`(`__pycache__` 照旧不读,但**列出其中的文件并计分**,Python 会优先加载匹配的 .pyc);`SUP-006` 改包源(.npmrc/.yarnrc/pip/GOPROXY 指向非官方、非镜像、非回环 host;同文件一层 shell 变量会解析,解析不了的**按未知报,不跳过**;目标必须是 URL 或变量,注释行不算)。配套 `EXFIL-004`(整个环境被枚举:`os.environ.items()`、`printenv`、`env >`)是普通规则,同时 `envWholeRE` 放行了 `.items()/.keys()/.values()/.copy()` 作外泄链的凭证腿。**URL 字面量只在真实脚本文件上算网络腿(P-013,2026-09-21)**:由配置文件拼出的合成单元(`.mcp.json`/`.claude.json`/插件 mcp.json 的 server 条目)里,`url` 是这份配置要联系的端点、`Authorization` 头是联系它的方式,两者凑成的不是外泄链;配置里真实的动作(`args` 里的 `curl`、隐蔽信道工具)照样进链。链的门同时排除 connector 的工具说明单元(`roleToolDesc`),它是散文,"把数据发到某地址"归 `MCP-004`。**网络腿分两半(P-012,2026-09-21)**:出站动作(`curl`/`wget`/`fetch(`/`requests.`/`urllib`/隐蔽信道工具)处处算腿;URL 字面量只在脚本里算(客户端可能不在动词表里,字面量是唯一可见的那一半),在 `SKILL.md`/`CLAUDE.md` 里是文档不是请求,不算腿也不参与回环判定。同一条里,词法层对 Markdown 指令文件中 ```` ```bash ````/`sh`/`zsh`/`shell`/`console` 围栏内的行做 shell 行连接,且行连接按 shell 语义:`\`+换行整个删掉,反斜杠前有空白才保留一个空格(`cur\`+`l` 是 `curl`,不是 `cur l`)。**凭证腿另认两类形态(P-010,2026-09-21)**:shell 的整环境导出在命令位置且后接管道或重定向再接命令(`env |`、`printenv |`、`set |`、`export -p |`、`env >`、`/proc/self/environ`;整行以 `|` 开头的是 Markdown 表格行,不算),以及被**读取动词**(`cat`/`source`/`.`/`<`/`@` 等)读取的凭证 dotfile(`.env` 及 local/production 等阶段后缀、`.netrc`、`.npmrc`、`.git-credentials`、`.pypirc`;裸词 `.env`、`.env.example`、光有 home 路径的散文提及、`.kube/config`、`.docker/config.json` 都不算)。两类都只是凭证腿,不加规则、不动 severity;`EXFIL-004` 照旧报"倒出来",链报"发出去"。
+- **安装期脚本检查**(`detect/installscript.go`,P-129,2026-11-17):树里每个 `package.json`(`node_modules/` 下的不读)的 `preinstall`/`install`/`postinstall`(键名按不分大小写比,拼成 `postInstall` 的照报并写明 npm 不认)各出**一条**发现:脚本运行的本地文件**在树里但没被读**(超 1 MiB 上限或不是文本)、有一行 ≥ 4,096 字节(打包或压缩过)、同一文件**既能联网又起进程**,或脚本是**内嵌解释器代码**且读写文件/读环境/联网/起进程/eval → `SUP-008`(high,维度 5);否则 `SUP-009`(medium)。跟一层:脚本运行的文件、`npm run <名字>`(yarn、pnpm、bun 同)、`sh -c`。它只问树遍历已经知道的事(读了哪些、哪些超上限),自己不开任何文件,所以 §16.2 的边界照旧成立。依据同 `HOOK-002`:自动运行的东西没被读过是风险,不只是覆盖缺口。`prepare`、依赖的安装脚本、其他包管理器不在范围内。
+- **前置依赖诱导检查**(`detect/lure.go`,P-131,2026-11-17):指令文件和随包文档(不含脚本、hook 命令、工具说明)的**一行**里,把读者引去装或跑一个"前置依赖",而去处是下面三种之一 → `SUP-010`(high,维度 5):粘贴站的 URL 且同行有运行/安装的词;压缩包或可执行文件的下载 URL 且同行给了打开它的密码;主机名带 agent 平台名字(OpenClaw 及其旧名、ClawHub、Claude、Anthropic、OpenAI、ChatGPT、Codex、Cursor)却不是该平台自己的主机,且同行有"必须先装/从这里下载安装"一类的话。一行里的每个 URL 各按自己的主机判(旁边放一个官方链接不算开脱),提示词在 URL 之外找。不联网、不取链接指向的内容。免费托管、项目主页、少见顶级域名量过不干净,不是理由;这一波的具体域名归信誉名单。动词与 `from`/`here` 之间可以有至多六个词的宾语(P-139,`install the Claude Code helper from …`);`clawhub.com` 算 ClawHub 自己的主机。
+- **没人读得了的文件**(`detect/unreviewable.go`,P-136,2026-11-18;与形状检查同一处调用,每文件一条):`OBF-008`(high,维度 6)文件里有**连续四个及以上、且不全相同的变体选择符**(U+FE00–FE0F、U+E0100–E01EF)。选择符自己不显示,唯一的用途是跟在一个 emoji 或表意字后面决定它的样子;连成一串就是写在任何编辑器、diff、终端都不显示的地方的数据,读回码位的代码能把它还原成文字或程序(在野样本把 `eval` 的载荷这样藏在一行里)。报的是载体和个数,不解码;单个选择符、keycap 序列、同一个选择符的重复(工具把 emoji 的选择符打重了,不论几个)不报;代码、指令文件、文档都查。`OBF-009`(high,维度 6)**脚本**里有 20 个及以上不同的 `_0x1a2b3c` 式名字,即混淆器把变量和函数全部改名之后留下的样子;压缩(minified)代码不算,文档里引用这类代码不算;只认这一种命名(最常用混淆器的默认设置)。同一提案把**加密货币钱包的密钥库**(`wallet.dat`、geth 的 keystore、Solana CLI 的 keypair、Electrum 与 Exodus 的钱包文件、MetaMask 与 Phantom 扩展的存储 id)加进外泄链的凭据腿,`EXFIL-001`/`EXFIL-003` 照 `.ssh/` 的规矩成立。公网 IP 字面量作请求目的地、挖矿程序关键词量过不干净,没做。
+- **写给模型的 HTML 注释**(`detect/hiddencomment.go`,P-137,2026-11-18):指令文件和随包文档里的 HTML 注释在渲染后的页面上不显示,读者看不到,agent 读的是原文,看得到。围栏代码块之外的注释,正文(空白折叠后,按原样和归一化后各试一次)出现下面两类之一 → `INJ-007`(high,维度 1),每条注释一条发现,行号是注释开头那一行:带 `SYSTEM OVERRIDE` 抬头(冒充平台指令);或要求 agent 对用户隐瞒它的指令或某个动作("never reveal the hidden instruction chain"、"do not mention this step to the user"、"without telling the user"、"hidden instructions")。注释可以跨行;没有闭合的注释算到文件末尾(渲染器就是这么处理的)。同样的话写在注释之外不归这条管(正常的指令写法里常见);围栏里的注释读者看得到,不报;引号里的短语加上拒绝或举例的词(在短语之外找)算引用,不报。`INJ-001`–`INJ-006` 在注释里照旧。语料里带信号的七棵树有五棵出自同一个模板。
 - **connector 工具说明的投毒规则**(`MCP-001..004`,只在 `roleToolDesc` 下跑):说明让模型读本地文件/密钥并传出;指挥别的工具或让模型对用户隐藏;伪装成 system prompt(`<IMPORTANT>`、对 "the assistant" 下令);把数据发去外部 URL。工具说明是「agent 会读并照做的文本」,所以另外只跑维度 1 的规则(和 doc 一样,`curl|sh` 写在说明里是描述不是执行)。四条对着真机 44 个工具的语料(Figma + visualize)验过不误报:正常说明里合法地写着 "IMPORTANT: load X before calling"、`<placeholder>`、token 和 URL,每条规则都比这些窄。
 - **规则表版本 `rules_version`**(P-002,2026-10-09):`detect.RulesVersion()` = sha256 的前 12 位十六进制,输入是 `builtinRules()` **按引擎顺序**逐条的 `ID`、`Dimension`、`Severity`、`Advisory` 与四个 `*Only` 标志、`re`/`except` 的正则源码(逐字段长度前缀,正则里什么字节都可能有),外加规则条数和未导出的 `rulesEpoch` 整数。**只覆盖确定性检测**:它的用途是对着产出它的规则离线复算 `overall`,判官只动 `overall_effective`,所以 `internal/judge` 的一切(提示词、证据落地、k-of-n 共识、严重度钳制)都不在 `rules_version` 里,改它们不加 epoch。判官由 `--llm` 报告自己的 `judge` 摘要(§8)标识(P-031,§5.2):`prompt_version`(算出来的)与 `excerpt_version`(手动加一)标判官的代码,`model` 与 `samples` 标它怎么跑;`authority` 与其余 `llm` 配置不进报告。**`Title`/`Why`/`Ref` 不进**:它们解释一条发现,不决定它响不响、多重。**按引擎顺序、不排序**:同一行上的发现按规则顺序 append,重排可能改变报告,版本号就该变。`Rule` 加字段必须表态进不进哈希(`TestRulesVersion_EveryRuleFieldIsDecided`)。
-  **`rulesEpoch` 的纪律**:规则表之外的确定性检测代码 —— 结构化/形状/外泄链检查、角色门(`roleAllows`/`roleForPath`)、词法层(`logical.go`)、注释处理、读哪些文件、`collect` 的凭据 import 检查(`EXFIL-005`)、`permcheck` —— 只要改变了"某个输入产出哪些确定性发现,或某条发现的 ID/维度/严重度/advisory",**同一个提交里加一**;判官不在其列(见上);标题、解释、证据格式、评分权重的改动不加。**没有机械强制**:哈希源码会被只改注释的提交推动,那正是这个版本号要避免的假警报。所以对它只能说"不同 ⇒ 规则变了;相同 ⇒ 规则表相同",**不能说"相同 ⇒ 检测逻辑相同"**。
+  **`rulesEpoch` 的纪律**:规则表之外的确定性检测代码 —— 结构化/形状/外泄链检查、角色门(`roleAllows`/`roleForPath`)、词法层(`logical.go`)、注释处理、读哪些文件、`collect` 的凭据 import 检查(`EXFIL-005`)与项目 MCP 预批准检查(`PERM-009`)、`permcheck` —— 只要改变了"某个输入产出哪些确定性发现,或某条发现的 ID/维度/严重度/advisory",**同一个提交里加一**;判官不在其列(见上);标题、解释、证据格式、评分权重的改动不加。**没有机械强制**:哈希源码会被只改注释的提交推动,那正是这个版本号要避免的假警报。所以对它只能说"不同 ⇒ 规则变了;相同 ⇒ 规则表相同",**不能说"相同 ⇒ 检测逻辑相同"**。
   它出现在三处:`ScanResult.RulesVersion`(§8)、`bas-guard version` 行末(` · rules=<v>`,`$2` 仍是版本号)、`docs/rules.md` 页眉 —— 后者让漂移检查也覆盖"只改正则、不改标题"的提交。**评分权重和信誉名单不在里面**:前者属于另一类原因"分数不可复现"(与"规则变了""输入变了"分开),后者在 version 行上有自己的计数,且 `--no-reputation` 可关。`inputs_digest` 与 `bas-guard verify`(输入摘要与离线复核)未做。
 
 **10 维度规则集**(每维度一组,P0 各给种子规则):注入/过度权限/数据外泄/代码执行/供应链/混淆/后门/资源滥用/文件系统/意图不符。**规则从 OWASP Agentic Top 10 / MITRE ATLAS 公开分类重新推导,每条注释标注依据 ID;skill-guard/NOVA 仅作参考对照,不移植文件**(决策3,规避 copyleft 传染)。
@@ -315,6 +328,7 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
              overall_effective = min(overall,
                                      round(加权平均(各单元的 score_effective)) + 木桶封顶(含合格 LLM 发现))
 单元:         一个 artifact;插件和它的子项(Plugin 字段指回它的 skill/命令/子 agent)合成一个单元,
+             `check` 目标和它声明的配置(Within 字段指回目标的 hook/权限/env/MCP/指令文件,P-120、P-125)也合成一个单元,
              单元分 = 把它们的发现合在一起按「每 artifact」那两行算
              木桶封顶:任一 artifact 出现 critical → ≤ 49(高危);任一 high(无 critical)→ ≤ 69(中危)
 风险等级:     ≥85 低危 · 70–84 关注 · 50–69 中危 · <50 高危        // 两个数共用同一张分级表
@@ -323,6 +337,8 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
   就是 `issues/008` 当年放弃拆产物的 86 → 97);合成单元后重复的发现不加罚分(同维度取最高),子项独有的发现照样算,子项上合格的 LLM
   发现经单元进 `overall_effective`。只要子项的确定性发现是插件的子集(真机上 28 条全是),`overall` 与拆之前逐字节相同。每 artifact 的
   `score`/`score_effective` 定义不变。插件的 hook 和 MCP 仍各算一项(并入单元会改今天的分,`issues/023` 的后续)。
+- **`check` 目标和它声明的配置是一个单元(P-120)**。理由同上:干净的 hook、server 各算一项会把目录树自己的发现稀释掉。与插件子项不同,
+  这些 artifact 带着目录那一行没有的发现(授权的形状、http hook、env 里的预加载),单元把它们原样算进去;同一条发现两边都有时只印一次。
 - **`min(...)` 是结构性保证,不是算术必要**。多加发现本来就只会加罚分,但把单向性写成**代码形状**,可以让"LLM 把分数改高了"从一类可能的 bug 变成不可表达的状态。配一条 `overall_effective ≤ overall` 恒成立的属性测试(§13)。
 - **不开 `--llm` 时 `overall_effective == overall`**;两个数在报告与 JSON 中**并列输出**,各自标明含义(§8/§9)。
 - **§10 的 attestation 载荷只取 `overall`** —— 上链的数必须能被第三方用同一份内容离线复算,含 LLM 的数做不到。
@@ -353,6 +369,7 @@ MCP 配置按 `detect.ConfigLines` 渲染成 `key=value` 行(与静态读同一�
 - 解析 allow/deny 条目,分类:精确命令 / 通配 / 路径读写 / 内联 secret。
 - 规则:通配代码执行(如 `Bash(python3 -c '*)`)= 🟠 过度授权;allow 内含 secret 模式 = 🔴;宽泛路径读(`/tmp/**`)= 🟡;无 deny 兜底 = 提示。
 - 输出 allow/deny 摘要 + 收窄建议。
+- **项目 MCP 预批准**(`PERM-009`,P-127,🟠):同一项目的 `.claude/settings(.local).json` 用 `enableAllProjectMcpServers: true` 或 `enabledMcpjsonServers` 预先批准它 `.mcp.json` 里的 server,信任文件夹之后这些 server 随会话启动、不再逐个询问。由 `collect` 在同一次采集读到同一项目的 settings 和 `.mcp.json` 时挂在被批准的 server 上;优先级照 Claude Code:任何文件里的 `disabledMcpjsonServers` 否决,`enableAllProjectMcpServers` 由设置它的最高优先级文件决定(`settings.local.json` 高于 `settings.json`)。只有 key、视野里没有 `.mcp.json` 时不报。
 
 ---
 
@@ -417,7 +434,7 @@ type ScanResult struct {
     OverallEffective int  // 含合格 LLM 发现;恒 ≤ Overall;不开 --llm 时二者相等
     ToolVersion string
     RulesVersion string // 规则表版本(§5.1),json:"rules_version",总是出现:tool_version 标的是提交,不是规则;只覆盖确定性检测(Overall 的来源),判官不在内,由 `judge` 摘要的 prompt_version/excerpt_version 标识(P-031);两份报告的它不同 = 规则变了,相同 = 规则表相同(不等于检测逻辑相同,见 §5.1 的 epoch 纪律)
-    Judge     *JudgeSummary `json:",omitempty"` // --llm 时必填:跑没跑、判了几个、几次调用(其中 triage 几次、重试几次;回复靠"提前合上"的修补才读出来的几次,`repaired`,P-034)、端点自报的 token(没报则缺省;其中端点自报从提示词缓存取的那部分另记 `cached_prompt_tokens`,是 `prompt_tokens` 的子集、不另加,厂商按自己的费率计,为 0 或端点不报时缺省,P-071)、按趟分的用量(`usage_by_pass`,P-072:键是 `bas-guard llm preview` 给这一趟的名字 `intent` `injection` `result` `deobfuscation` `collusion` `capability` `mcp-config` `server` `triage`,每项 `calls`、`reasked` 加端点报的三个 token 数;重试和重问都记在发出它的那一趟里,各项相加**恰好**等于块上的 `calls`、`reasked` 和三个 token 总数;一次调用都没发就没有这个键;只是 token 数,不是费用)、补了几条、没跑的原因(§16.8 用在判官自己身上:「跑了没发现」和「没跑」以前在报告上一模一样)、是哪个判官(`prompt_version`/`excerpt_version` 每个块都有,`model`/`samples` 配好判官才有,都取实际生效的值;端点拒收 `temperature` 字段、客户端去掉它重发之后 `temperature_omitted: true`,P-052;密钥、请求头、`authority` 不记;P-031,§5.2)
+    Judge     *JudgeSummary `json:",omitempty"` // --llm 时必填:跑没跑、判了几个、几次调用(其中 triage 几次、重试几次;回复靠"提前合上"的修补才读出来的几次,`repaired`,P-034)、端点自报的 token(没报则缺省;其中端点自报从提示词缓存取的那部分另记 `cached_prompt_tokens`,是 `prompt_tokens` 的子集、不另加,厂商按自己的费率计,为 0 或端点不报时缺省,P-071)、按趟分的用量(`usage_by_pass`,P-072:键是 `bas-guard llm preview` 给这一趟的名字 `intent` `injection` `result` `deobfuscation` `collusion` `capability` `mcp-config` `server` `triage`,每项 `calls`、`reasked` 加端点报的三个 token 数;重试和重问都记在发出它的那一趟里,各项相加**恰好**等于块上的 `calls`、`reasked` 和三个 token 总数;一次调用都没发就没有这个键;只是 token 数,不是费用)、补了几条、没跑的原因(§16.8 用在判官自己身上:「跑了没发现」和「没跑」以前在报告上一模一样)、是哪个判官(`prompt_version`/`excerpt_version` 每个块都有,`model`/`samples` 配好判官才有,都取实际生效的值;`request_options`(P-107)是每个请求额外带上的字段,紧凑 JSON 过一遍脱敏,没有则缺省;端点拒收 `temperature` 字段、客户端去掉它重发之后 `temperature_omitted: true`,P-052;密钥、请求头、`authority` 不记;P-031,§5.2)
     Inbox     *InboxReport  `json:",omitempty"` // 下载目录那条流水线的结果(§4.1),永不进 Overall
     Locations []Location    `json:",omitempty"` // 扫了哪里,各标 read/absent/off(§4.3);check 不填
     Sandbox   *SandboxInfo  `json:",omitempty"` // 在云端沙箱里跑时的判断依据(§4.2);nil = 本机
@@ -493,6 +510,7 @@ llm:
   max_retries: 2                  # 429/5xx 退避重试(遵守 Retry-After);重试不计入 max_calls
   authority: advisory             # advisory | escalate —— 是否允许 --fail-on-llm 生效(§5.2.1 前提③)
   samples: 1                      # k-of-n 采样数(1=不采样);>1 时取多数,调用量按 N 倍计
+  # request_options: { thinking: { type: disabled } }  # 原样加进每个请求体的字段(P-107);model/messages/temperature/stream/n 拒绝
 ```
 - **默认 provider = OpenAI 兼容协议**:一套代码兼容本地小模型(Ollama 等)与云 API,满足"独立模型"要求且不锁死;**config 的零值仍指向本地**(`localhost:11434`)。**但用户实际走到的路是在线的**(2026-09-04 决定「先只考虑在线模型」):`bas-guard llm setup --list` 给的预设是 `deepseek` / `openai` / `qwen` 三个在线端点加 `openai_compatible` 自填;`provider` 可以是预设名,只填 base_url 和默认 model,用户写的一律优先,不认识的名字是加载错误而不是悄悄退回 localhost。所以 §16.4「托管端点必须是用户显式选择」靠 setup 让用户**选 provider** 这一步满足,而不是靠默认值。
 - **配置文件默认位置是 `$XDG_CONFIG_HOME/bas-guard/config.yaml`,否则 `~/.config/bas-guard/config.yaml`**(改名前的 `aguard` 目录在只有它存在时照旧读取,两个都在时用新的、`llm status` 注明旧的被忽略,P-082),在扫描 root **之外**:放进 `~/.claude` 会被当成无人认领的散落文件每次披露。

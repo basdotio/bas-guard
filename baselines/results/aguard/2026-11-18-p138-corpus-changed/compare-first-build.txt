@@ -1,0 +1,29 @@
+corpus: 5272 samples
+   malicious      n   719  flagged main  243  branch  243   samples whose findings differ 0
+   benign         n  4534  flagged main  337  branch  337   samples whose findings differ 0
+   hard-negative  n    19  flagged main    4  branch    4   samples whose findings differ 0
+== malicious: lost 0 [] (line: 0); gained 0: [] PASS
+== benign: verdict changed on 0 [] (line: 0); findings differ on 0 (line: 0) PASS
+== hard negatives: verdict changed on 0 [] (line: 0); findings differ on 0 (line: 0) PASS
+
+   every corpus sample whose scored (rule, severity) pairs differ between main and the branch:
+
+held-out (totals only): 459 samples
+   malicious  n  243  flagged main  133  branch  133   samples whose findings differ 0
+   benign     n  216  flagged main    6  branch    6   samples whose findings differ 0
+== held-out malicious: 133 -> 133 (line: not fewer) PASS
+== held-out benign: 6 -> 6 (line: not more) PASS
+
+fresh skills fresh216: 212 trees  flagged main 9  branch 9  verdict changed []  findings differ on 0
+
+fresh skills fresh200: 200 trees  flagged main 24  branch 24  verdict changed []  findings differ on 0
+== fresh benign skills: verdict changed on 0 of 412 (line: 0); findings differ on 0 (line: 0) PASS
+
+npm packages: 1890 checked on both builds, 0 not readable as a result []
+   exit 1 (a high finding) main 37  branch 37; (rule, severity) pairs that differ: {'+OBF-002:low': 3}
+      ('prettier@3.8.1', [('OBF-002', 'low', False)], [])
+      ('prettier@3.6.2', [('OBF-002', 'low', False)], [])
+      ('prettier@3.3.3', [('OBF-002', 'low', False)], [])
+== npm packages: newly flagged at high 0 [] (line: 0); packages whose findings differ 3 (line: 0); no longer flagged 0; unreadable 0 (line: 0) FAIL
+
+GATE: FAIL

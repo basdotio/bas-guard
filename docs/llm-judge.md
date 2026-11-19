@@ -136,6 +136,7 @@ llm:
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
+| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads. Recorded in the judge block. See [Thinking models](#thinking-models). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 Every run prints one line to stderr — `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed
@@ -171,6 +172,29 @@ bas-guard scan --llm --config config.yaml
 
 Bigger models (gpt-4o, Qwen2.5-72B) judge semantic tasks more accurately; local keeps
 everything on your machine. That trade-off is yours.
+
+### Thinking models
+
+Some models think before they answer unless the request says otherwise, and the thinking is billed as completion
+tokens on every call — calls whose answer is a short JSON verdict. `request_options` passes the vendor's own member
+(P-107). Zhipu's GLM models, for example:
+
+```yaml
+llm:
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-5.3-flash
+  request_options:
+    thinking: { type: disabled }
+```
+
+Other vendors name it differently (`reasoning_effort`, `enable_thinking`, …); the tool passes what you write and knows no
+vendor's members. Run `bas-guard llm test` first: an endpoint that does not take a member answers with an error there,
+before a scan. Measured with `glm-5.3-flash` on 40 benign + 40 malicious corpus skills at `samples: 3` (P-107): thinking
+off cut the completion tokens by about nine tenths (benign −89%, malicious −92%) and one `check` from 110 s to 15 s; at
+the judge verdict benign stayed at 4 of 40 and malicious went from 33 to 32 of 40. That is one model on a small set — a
+thinking model may need its thinking for what you scan, so measure on your own before you gate on it. The options are
+part of which judge produced a report — the judge block, the identity line and the usage
+log record them — so a reading with thinking off is never compared with one that thought without it showing.
 
 ## Privacy
 
@@ -283,6 +307,8 @@ everything on your machine. That trade-off is yours.
   characters — which is how grounding already reads it. Without that, one line padded with a few
   thousand blanks was sent as the omission marker or a prefix of blanks, and the judge never saw the
   directive on it. Padding broken up by a visible character every 128 bytes still counts as content.
+  Unicode tag characters (U+E0000–E007F) are not filler: a sentence written in them is the payload,
+  and it is sent as written (P-123). The static rules read it decoded and `INJ-006` reports it.
 - **The documents a `SKILL.md` names are read too** (P-065). "Read `PREFLIGHT.md` in full before starting"
   makes that file an instruction file, and an agent follows the line. The companion pass sends the `.md`,
   `.txt` and `.pdf` files the body names — by path or by bare name, inside the tree, in the order named,
@@ -343,13 +369,23 @@ everything on your machine. That trade-off is yours.
   |------|------|--------|
   | injection (`LLM-003`) | exfiltration · credential-read · remote-execution · safety-disable · concealed-directive · privilege | other-directive |
   | intent (`LLM-001`) | the five above · software-source · persistence · file-deletion · privilege | other |
+  | server (`LLM-010`) | the intent row's nine · resource-exhaustion · result-tampering | other |
   | hook capability (`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | deobfuscation (`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | collusion (`LLM-006`) | credential-to-network | other |
   | result (`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
 
-  On the intent pass a behaviour the declared purpose states (`disclosed: true`) is one step
-  lower — except a changed software source, which the prompt flags disclosed or not. The prompt
+  The server row's two extra categories (P-115) are behaviour the model was already describing
+  correctly and filing under the medium `other`: a fork bomb, a decompression bomb, search results
+  with products slipped in. `other`'s line now names both. Measured on the 802 server trees, 10 of
+  the 14 malicious servers whose majority was `other` now escalate, Cisco's 127 go from 102 to 118
+  flagged, and no benign server escalates through either row. The same proposal tried a
+  `covert-transmission` row on the result pass (the user's data sent to a recipient the task never
+  named) and withdrew it: the model still filed a hidden BCC and a `full_access` grant under
+  `unrequested-artifact`, and it caught 2 of the 9 misses it was for, against a line of 4.
+
+  On the intent and server passes a behaviour the declared purpose states (`disclosed: true`) is one step
+  lower, and the reason says `[disclosed: one step lower]` — except a changed software source, which the prompt flags disclosed or not. The prompt
   tells the model to name the category for what the text itself shows, never for what a script
   it names might do: a hook that only runs a local file is `process-control` (medium), whatever
   the file is called. Under `samples: 3` the category is a vote too: when a majority of the
@@ -372,7 +408,7 @@ everything on your machine. That trade-off is yours.
 | `LLM-006` | Capability chain across files of one skill (dim 3). |
 | `LLM-008` | Hook capability exceeds its interception point (dim 2). |
 | `LLM-007` | The artifact addressed the analyzer — told it what to conclude, or to ignore its instructions (dim 1). |
-| `LLM-010` | MCP server source does more than its tools say (dim 10). `check <dir>` on a Python MCP server (the SDK imported, a tool declared) asks the intent question of it: DECLARED is each tool's name and first docstring line — all a client is shown, the module docstring never — BEHAVIOR the code, through the skill passes' walker and caps; the intent table and `disclosed` apply. A plain directory is still asked nothing (P-053). **Measured on benign server source at `samples: 3` (P-059)**: 5 of 69 official and example servers, but 65 of 261 third-party Python servers found by code search and 26 of 189 from repositories created after the corpus was built — 95 of 506 in all, one in five — flagged, 142 of 176 escalating votes naming `credential-read` on a server that reads its own key for its own API. Since P-062 a `credential-read` vote grounded in a file whose named credential goes only to its own service or to loopback (the static chain over the whole file, `detect.CredentialGoesHome`) weighs medium with the reason in the note; offline over those 547 trees that is 12 of the 96 flagged — most of the rest rest on reads the chain does not count or on calls in another file. Since P-098 a `credential-read` vote also weighs medium when the file it landed in reaches for nothing beyond the server's own configuration — no other program's secrets, system or `/proc`/`/sys` files, whole-environment read, metadata service, user database, keychain, cookie store or hidden temp file (`detect.CredentialOverreach`) — and sends no credential to a host it spells out that is not the credential's own (`detect.CredentialSentElsewhere`); on 543 benign server trees that took 43 out of high, on Cisco's 127 malicious servers 2 (both categorised `credential-read` for what is an injection or a traversal), and none of the 12 other malicious MCP samples. Treat `LLM-010` as advisory on third-party servers; the numbers and their denominators are in `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`. |
+| `LLM-010` | MCP server source does more than its tools say (dim 10). `check <dir>` on a Python MCP server (the SDK imported, a tool declared) asks the intent question of it: DECLARED is each tool's name and first docstring line — all a client is shown, the module docstring never — BEHAVIOR the code, through the skill passes' walker and caps; the intent table plus `resource-exhaustion` and `result-tampering` (P-115), and `disclosed`, apply. A plain directory is still asked nothing (P-053). **Measured on benign server source at `samples: 3` (P-059)**: 5 of 69 official and example servers, but 65 of 261 third-party Python servers found by code search and 26 of 189 from repositories created after the corpus was built — 95 of 506 in all, one in five — flagged, 142 of 176 escalating votes naming `credential-read` on a server that reads its own key for its own API. Since P-062 a `credential-read` vote grounded in a file whose named credential goes only to its own service or to loopback (the static chain over the whole file, `detect.CredentialGoesHome`) weighs medium with the reason in the note; offline over those 547 trees that is 12 of the 96 flagged — most of the rest rest on reads the chain does not count or on calls in another file. Since P-098 a `credential-read` vote also weighs medium when the file it landed in reaches for nothing beyond the server's own configuration — no other program's secrets, system or `/proc`/`/sys` files, whole-environment read, metadata service, user database, keychain, cookie store or hidden temp file (`detect.CredentialOverreach`) — and sends no credential to a host it spells out that is not the credential's own (`detect.CredentialSentElsewhere`); on 543 benign server trees that took 43 out of high, on Cisco's 127 malicious servers 2 (both categorised `credential-read` for what is an injection or a traversal), and none of the 12 other malicious MCP samples. Since P-117 "sends to a host that is not the credential's own" counts only lines that make a request (a client call, plus the same-file resolution of the base URL it uses): an XML namespace, a licence link, an OAuth scope or a URL in a message string is not a destination. On the 802 Python server trees that took benign servers flagged from 143 to 133 and benign escalating `LLM-010` from 61 to 40, with malicious flagged 134 → 138; the four malicious samples it lowered had votes describing the server's own key, not their attack. The server pass also leaves a server's `.github/` workflows out of what it reads (they run on GitHub, not where the server is installed); the rules still read them. Readings in `baselines/results/aguard/2026-11-05-llm-gpt-4.1-mini-p117-py-branch-s3/`. Treat `LLM-010` as advisory on third-party servers; the numbers and their denominators are in `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`. |
 | `LLM-009` | MCP server configuration risk — source, pinning, transport, credentials (dim 5). **Advisory only**: shown with the model's severity, never escalates, whatever the vote. Unpinned `npx -y` packages holding a token are what real configs look like — measured on 500 benign configs it was the only judge rule to flag benign input (P-019). |
 
 Triage labels (`likely-real` / `likely-benign`) render inline under the matching finding, in plain

@@ -325,6 +325,9 @@ func runJudge(cfg config.Config, arts []model.ArtifactReport, home string, quiet
 	ctx, cancel := context.WithTimeout(context.Background(), total)
 	defer cancel()
 	client := judge.NewHTTP(cfg.LLM.BaseURL, key, cfg.LLM.Model, nil)
+	if err := client.SetRequestOptions(cfg.LLM.RequestOptions); err != nil {
+		return notRun("LLM judge did not run: llm.request_options refused", err)
+	}
 
 	started := time.Now()
 	opts := judgePlanOptions(cfg, home)
@@ -443,10 +446,10 @@ func analyze(root string, res collect.Result, o scanOpts) (model.ScanResult, err
 	// findings would make the reproducible score depend on how the machine is administered.
 	covNotes = append(covNotes, collect.ManagedPolicyNotes()...)
 	// Permission audit: attach findings to the KindPermission artifact so they score.
-	// The settings env block is also KindPermission and sits at the same path; auditing it would
-	// attach every PERM-* finding a second time.
+	// The settings env block and the helper commands (P-133) are also KindPermission and sit at the
+	// same path; auditing them would attach every PERM-* finding a second and a third time.
 	for i := range arts {
-		if arts[i].Kind == model.KindPermission && !strings.HasPrefix(arts[i].Name, collect.SettingsEnvName) {
+		if collect.PermissionList(arts[i]) {
 			arts[i].Findings = append(arts[i].Findings, permcheck.Audit(arts[i].Path)...)
 		}
 	}

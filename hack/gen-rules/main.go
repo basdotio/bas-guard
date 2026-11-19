@@ -45,7 +45,7 @@ var structural = []entry{
 		"A hook command names a script that resolves outside the scan home. Spec §16.2 still forbids reading it; this finding scores the refusal itself, because an unaudited payload at a silent intercept is a risk, not just a coverage gap. Raised to high on PermissionRequest, which takes the authorization decision. The matching COV-000 note is kept: coverage and scoring are different facts."},
 	{"HOOK-003", 4, model.SevHigh, false,
 		"Hook forwards event payload over HTTP",
-		"type=http posts the full event (tool inputs, command lines, permission prompts) to a URL. Ordinary events to loopback are low (a local sidecar). PermissionRequest to loopback is high (it still takes allow/deny). Any non-loopback destination is high, because the operation stream is leaving the machine."},
+		"type=http posts the full event (tool inputs, command lines, permission prompts) to a URL. A command hook that does the same is the same finding (P-128): the hook command, or a shell, Python or Node script it runs, hands a sender (curl, wget, nc, socat, httpie, /dev/tcp, fetch, requests, urllib, https.request …) its stdin, a field that carries the conversation (prompt, tool_input, tool_response, tool_calls, last_assistant_message, compact_summary, custom_instructions), or the transcript file transcript_path names — read in place or through names followed forward in the same file. A fixed message and the notification fields (message, title, cwd, session_id, …) are not reported, nor is the transcript's path sent as text. Ordinary events to loopback are low (a local sidecar). PermissionRequest to loopback is high (it still takes allow/deny). Any non-loopback destination, or one the file does not name, is high, because the operation stream is leaving the machine. A settings file's status line is read the same way (P-133), with one difference: its stdin is session metadata, so only the transcript transcript_path names is a payload there; sending the stdin itself, session_id or cwd is not reported."},
 	{"SUP-004", 5, model.SevMedium, false,
 		"Artifact points the agent into an excluded directory",
 		"Generated/vendored directories (dist/, node_modules/, …) are not scanned, because the canonical hash must survive a rebuild. This fires when the artifact's readable half steers the agent at the half a directory name made unreadable — a path reference, not a bare word, and not in prose docs."},
@@ -55,12 +55,36 @@ var structural = []entry{
 	{"OBF-007", 6, model.SevLow, false,
 		"Content hidden below a long run of blank lines",
 		"200 or more consecutive blank lines with code after them. No editor page, `head`, or size-capped excerpt reaches past a run that long, so what follows is read by the interpreter and nobody else. Cites the first line after the run."},
+	{"INJ-007", 1, model.SevHigh, false,
+		"HTML comment written for the model",
+		"An HTML comment in an instruction file or a bundled document (not drawn when the file is rendered, so the person reading the page does not see it) carries the header `SYSTEM OVERRIDE`, or tells the agent to keep its instructions or something it does from the user (\"never reveal the hidden instruction chain\", \"do not mention this step to the user\", \"without telling the user\"). The same sentences outside a comment are not reported by this rule, and a comment inside a code fence, which the reader is shown, is not reported. One per comment, at the line it opens on; a comment may span lines, and one never closed runs to the end of the file (P-137)."},
+	{"OBF-008", 6, model.SevHigh, false,
+		"Data hidden in a run of invisible variation selectors",
+		"A file holds four or more Unicode variation selectors in a row (U+FE00–FE0F, U+E0100–E01EF) that are not all the same one. A selector draws nothing and has one use, after an emoji or an ideograph, to pick how that character looks; a run of differing ones is data that no editor, diff, terminal or rendered page shows, and code that reads the characters back turns it into text or a program (an npm MCP server hid an `eval` payload this way). Reports the carrier and how many selectors it holds, not what they spell. A single selector, a keycap sequence, and one selector repeated (an emoji selector stuttered by a tool, however many times) are not reported. One per file, in code, instruction files and documents alike (P-136)."},
+	{"OBF-009", 6, model.SevHigh, false,
+		"Script with obfuscator-renamed identifiers",
+		"A script holds 20 or more distinct names of the form `_0x1a2b3c` — what an obfuscator leaves when it renames every variable and function so the file cannot be read. Minified code keeps short letters and is not reported; a document that quotes such code is not reported. The line rules still run on the file and see little, because its strings and names are built at run time. One naming scheme, the default of the most used obfuscator. One per file (P-136)."},
 	{"SUP-005", 5, model.SevHigh, false,
 		"Compiled Python bytecode shipped alongside the source",
 		".pyc files (in __pycache__ or loose) travel with the artifact. Python loads a matching .pyc instead of compiling the .py beside it, so what runs need not be what anyone read; no text scanner reads bytecode, this one included. Raised from the tree walk, so it lands even though __pycache__ itself is skipped."},
 	{"SUP-006", 5, model.SevHigh, false,
 		"Package source redirected to an unofficial registry",
 		"An .npmrc/.yarnrc/pip key, a `config set registry` command, or GOPROXY/PIP_INDEX_URL/NPM_CONFIG_REGISTRY points a package manager at a host that is not the vendor's registry, GitHub Packages, a known public mirror, or loopback. Shell variables are resolved one level within the same file; an unresolvable target is reported as unknown, not skipped. Comment-only lines are ignored; comments explaining why the redirect is fine are not consulted."},
+	{"SUP-008", 5, model.SevHigh, false,
+		"Install-time script runs unread, packed, inline or self-fetching code",
+		"A package.json's `preinstall`, `install` or `postinstall` script runs on the installing machine with no prompt, before any of the package's code is used. Raised when what it runs could not be vouched for: a file in the tree that was not read (over the 1 MiB cap, or not text), a file with a line of 4,096 bytes or more (packed or minified), a file that both reaches the network and starts a process, or inline interpreter code (`node -e`, `python -c`) that reads or writes files, reads the environment, opens the network, starts a process or evaluates code (printing a notice, or a chmod after a build, is not that). The script is followed one level, through `npm run <name>` and `sh -c` too; a name that differs from npm's only by case (`postInstall`) is reported and the finding says npm does not run it. Says what was not reviewed, not that it is malicious: a package whose install script runs its own minified bundle gets it too. `prepare`, dependencies under node_modules and other package managers are not read."},
+	{"SUP-009", 5, model.SevMedium, false,
+		"Package runs a script at install time",
+		"A package.json has a `preinstall`, `install` or `postinstall` script and none of SUP-008's reasons holds: the file it runs was read and is ordinary, it is absent from the tree (a build output not built yet; the finding names it), or the script runs a tool. Reported because it runs with no prompt; it does not fail `check` at the default threshold. One finding per script, never together with SUP-008."},
+	{"SUP-010", 5, model.SevHigh, false,
+		"Prerequisite offered from a paste site, a password-protected archive or a platform look-alike",
+		"A line of an instruction file or a bundled document tells the reader to install or run something first and points at one of three places skills have delivered malware from without a line of code of their own: a paste or snippet site, beside a word for running or installing; an archive or executable download, beside a password to open it; or a site whose host carries an agent platform's name (OpenClaw and its former names, ClawHub, Claude, Anthropic, OpenAI, ChatGPT, Codex, Cursor) and is not one of that platform's own, beside a phrase that makes it a prerequisite or a download. Each URL is judged by its own host. Not raised on scripts, hook commands or tool descriptions, and nothing is fetched. Free app hosting, project pages and unusual top-level domains are not reasons: documentation sites and tools' own pages live there."},
+	{"EXEC-014", 4, model.SevHigh, false,
+		"Skill shell command downloads code and runs it",
+		"A `` !`command` `` or a `` ```! `` block in a SKILL.md or a custom command (commands/, .claude/commands/) downloads a file with curl or wget and a later stage of the same command runs it — with an interpreter, by `source`, or as the command itself — or pipes the download into an interpreter that reads its program from standard input. Claude Code runs these commands when the skill is invoked, typed or loaded by Claude on its own, before Claude reads the content and without a prompt when the skill's allowed-tools or a permission rule allows them. Over https as much as http: the https exemption P-094 makes for install instructions a person reads does not hold for a line that runs by itself. A line EXEC-001, EXEC-002, EXEC-011 or EXEC-012 already reports is not restated. One per command (P-132)."},
+	{"SUP-011", 5, model.SevMedium, false,
+		"Skill shell command runs a registry package at a moving version",
+		"A `` !`command` `` or a `` ```! `` block in a SKILL.md or a custom command runs a package from a registry at a version that can change: npx or npm exec with -y, --package or a tag or range (`pkg@latest`), bunx with a tag, pnpm or yarn dlx, uvx, uv tool run or pipx run without `==`, go run of a remote module at a branch. The package's code is not in the tree and runs on every invocation, before Claude reads the content. An exact version, a local path, a git URL at a full commit and `npx <tool>` with no -y and no version (a project's own copy, when installed) are not reported. One per command (P-132)."},
 	{"EXFIL-005", 3, model.SevHigh, false,
 		"Instruction file imports a credential into the agent's context",
 		"An @import in CLAUDE.md (or another instruction file) resolves to a credential: a file inside .ssh/.aws/.gnupg/…, or a file named .env, id_rsa, credentials, *.key, *.p12 … Claude Code expands imports into context at launch. The file is NOT read by the scan (a COV-000 says so); this scores the import itself. High for names that hold only secrets; medium for .pem / .npmrc / .pypirc and paths through .config, which often hold configuration. `.env.example` and friends are not credentials and are scanned normally. Also raised when a skill's SKILL.md is a symlink to such a file: Claude Code would load the secret as the skill (never read by the scan)."},
@@ -71,9 +95,9 @@ var structural = []entry{
 		"The artifact's canonical hash matches a curated known-bad entry. Hash-exact, so it is the highest-confidence signal the tool has — critical, forcing the environment score to the High band."},
 }
 
-// permission documents internal/permcheck. These are configuration semantics rather than text
-// patterns, so they are not Rules and cannot be read out of a table — permcheck builds each
-// finding inline. Hand-maintained, and TestEveryRuleIDIsDocumented fails if an ID appears in
+// permission documents internal/permcheck, and PERM-009, which internal/collect raises where it reads
+// a project's settings beside its .mcp.json (P-127). These are configuration semantics rather than text
+// patterns, so they are not Rules and cannot be read out of a table — each is built inline. Hand-maintained, and TestEveryRuleIDIsDocumented fails if an ID appears in
 // the code without appearing here.
 var permission = []entry{
 	{"PERM-001", 3, model.SevHigh, false, "Inline plaintext secret in a permission entry",
@@ -88,6 +112,8 @@ var permission = []entry{
 		"Any shell command may run without confirmation — command-layer protection is effectively off."},
 	{"PERM-006", 2, model.SevMedium, false, "Grant covers a command that can spawn a shell",
 		"The allow covers an everyday binary that reaches arbitrary execution anyway — Bash(git *) via `git -c core.pager=`, and likewise find/awk/tar/docker/ssh/npm/make/xargs/rsync. Same capability as PERM-002 through a narrower-looking disguise, hence the same severity. The grant must be open-ended, so a fully specified Bash(git status) always stays clean. Beyond that, whether pinning a subcommand helps depends on the binary, and this was measured rather than assumed: git parses `git log -c k=v` as a revision, so Bash(git status:*) is genuinely out of reach and stays clean, but make, find, rsync, ssh and vim accept their escape option ANYWHERE in the command line, so Bash(make test *) is as open as Bash(make *) and is reported."},
+	{"PERM-009", 2, model.SevMedium, false, "Project MCP server approved without a prompt",
+		"A project's settings approve the servers its .mcp.json declares in advance — enableAllProjectMcpServers: true for all of them, enabledMcpjsonServers for the ones it names — so once the folder is trusted they start with every session without the per-server prompt that shows the user each command. Raised on each approved server, citing the settings line, only when the project's .claude settings and its .mcp.json are read together (check <dir>, or a scan whose root is the project's .claude; for a scan of ~/.claude, home's own .mcp.json). Follows Claude Code's precedence: a disabledMcpjsonServers entry in any file rejects the server; for enableAllProjectMcpServers the highest-precedence file that sets it decides, settings.local.json above settings.json. Medium: the approved command is in view and every MCP rule reads it, and teams that ship a .mcp.json commit the key for convenience. A settings file with the key and no .mcp.json in view, and a user's settings approving the servers of projects a scan does not read, raise nothing."},
 }
 
 // llm documents internal/judge's findings. All are Source=llm and advisory: they land only in
@@ -117,7 +143,7 @@ var llm = []entry{
 // that no omission is silent (invariant #5). Hand-maintained.
 var notes = []entry{
 	{"COV-000", 0, "", false, "Coverage gap",
-		"Something was not read: a file over the size limit, an unknown extension whose content sniffs as text, an excluded generated directory nobody references, a hook script outside HOME, unowned entries under a root, a named pipe / socket / device node (unbounded to read, so never opened), or a root that collected nothing at all."},
+		"Something was not read: a file over the size limit, an unknown extension whose content sniffs as text, an excluded generated directory nobody references, a hook script outside HOME, a script a settings helper (apiKeyHelper, statusLine, …) names that could not be followed, unowned entries under a root, a named pipe / socket / device node (unbounded to read, so never opened), or a root that collected nothing at all."},
 	{"IO-000", 0, "", false, "Path unreadable",
 		"The location exists but could not be read (permission or I/O error). Surfaced rather than skipped, so a missed scan cannot masquerade as clean."},
 	{"PARSE-000", 0, "", false, "Unparseable configuration",

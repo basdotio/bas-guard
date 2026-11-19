@@ -1,0 +1,43 @@
+P-139 static runs, threshold high, corpus c314e4d9 (worktree), built 2026-11-18.
+main   bas-guard v0.37.0-26-gef3f55d7 (commit ef3f55d, built 2026-11-18T06:52:21Z) · rules=04aa7c69e2f1
+branch bas-guard v0.37.0-28-g60435171 (commit 6043517, built 2026-11-18T06:52:04Z) · rules=64f57c6f747c
+
+== corpus (5,272 samples), per sample:
+malicious      n=  719  flagged main 243  branch 243
+benign         n= 4534  flagged main 337  branch 337
+hard-negative  n=   19  flagged main 4  branch 4
+malicious lost: 0
+verdict changes: 0
+SUP-010 carriers: {('branch', 'malicious'): 8, ('main', 'malicious'): 8}
+samples whose (rule, severity) set differs: 0 ; raw not readable: 0
+
+== held-out: cache/agent-skill-malware/samples.jsonl (326), totals only, no sample named:
+malicious      n=  118  flagged main 116  branch 117
+benign         n=  208  flagged main 6  branch 6
+malicious lost: 0
+verdict changes: 1
+SUP-010 carriers: {('branch', 'malicious'): 108, ('main', 'malicious'): 107}
+samples whose (rule, severity) set differs: 1 ; raw not readable: 0
+
+== every finding, notes included, by (rule, severity, file, line); a count per set, no sample named:
+corpus   5272 samples  findings main 6128  branch 6128  samples that differ 0
+heldout  326 samples  findings main 407  branch 408  samples that differ 1
+
+== SkillMD-138K (138,133 SKILL.md): the 4,253 lines, in 1,949 files, with a URL whose host carries a platform's name; lureReason on each:
+   with a reason: main 1  branch 5
+   both: openclaw/skills skills/kenblive/communicate/SKILL.md 8
+   newly on the branch: diegosouzapw/awesome-omni-skill skills/ai-agents/codex/SKILL.md line 3 (host codex.storage.googleapis.com)
+   newly on the branch: diegosouzapw/awesome-omni-skill skills/ai-agents/codex/SKILL.md line 29 (host codex.storage.googleapis.com)
+   newly on the branch: adampaulwalker/codex-claude-skill SKILL.md line 3 (host codex.storage.googleapis.com)
+   newly on the branch: adampaulwalker/codex-claude-skill SKILL.md line 24 (host codex.storage.googleapis.com)
+
+== npm packages: 958 distinct name@version under this machine's node_modules trees, check <dir>, fake HOME, empty --config (two reruns at 900 s on both sides: lucide-react, next):
+   packages 958 on both 958
+   unreadable main 0 branch 0
+   exit 1 main 29 branch 29
+   other exits main [] branch []
+   SUP-010 carriers main 0 branch 0
+   newly exit 1: []
+   packages whose (rule, severity) set differs: 0
+
+== read, not gated: scan --root ~/.claude --inbox off: 383 artifacts, 779 findings on both builds, none SUP-010, overall 69 on both; one MCP-002 cites a newer desktop session cache file on the second scan.

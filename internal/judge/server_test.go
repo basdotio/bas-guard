@@ -3,6 +3,7 @@ package judge
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -228,5 +229,32 @@ func TestRun_ServerOwnConfigurationCredentialReadWeighsMedium(t *testing.T) {
 				t.Errorf("own-configuration note present = %v, want %v: %s", noted, tc.want == model.SevMedium, f.Why)
 			}
 		})
+	}
+}
+
+// TestServerPass_LeavesOutGitHubWorkflows (P-117): a server's behaviour excerpt does not carry its
+// .github/ workflows; a skill's still does, and the walk of the server's own code is unchanged.
+func TestServerPass_LeavesOutGitHubWorkflows(t *testing.T) {
+	dir := t.TempDir()
+	for name, body := range map[string]string{
+		"server.py":                     "from mcp.server.fastmcp import FastMCP\nmcp = FastMCP(\"x\")\n@mcp.tool()\ndef f():\n    \"\"\"Does f.\"\"\"\n    return 1\n",
+		".github/workflows/publish.yml": "on: push\njobs:\n  p:\n    steps:\n      - run: npm publish\n",
+		"pkg/.github/workflows/ci.yml":  "on: push\n",
+	} {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	server, _ := behaviorExcerptSkipping(dir, egress{}, serverSkipDirs)
+	skill, _ := behaviorExcerpt(dir, egress{})
+	if strings.Contains(server, ".github") || !strings.Contains(server, "server.py") {
+		t.Errorf("server excerpt:\n%s", server)
+	}
+	if !strings.Contains(skill, "publish.yml") {
+		t.Errorf("skill excerpt lost the workflow:\n%s", skill)
 	}
 }

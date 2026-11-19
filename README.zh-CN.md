@@ -236,7 +236,7 @@ Claude Code **没有**"安装"这个 hook 事件,而且就算有也覆盖不全 
 
 ## 检测对象
 
-skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`bas-guard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
+skills(SKILL.md + 脚本 + 资源)· MCP 配置(用户作用域、本地作用域——`claude mcp add` 的默认作用域,按项目存在 `~/.claude.json` 里——以及项目的 `.mcp.json`;静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`bas-guard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
 
 其中两个面单独加强 —— 它们都是"看着很窄、实际交出执行权":
 
@@ -246,8 +246,15 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NOD
   越界的不读(`COV-000`)并另报 `HOOK-002`(计分):覆盖缺口和"静默执行点上有一段审不了的第二阶段"
   是两回事。`PermissionRequest` 升为 high,因为它拿走的是授权决定权。`type: http` 的 hook 是正式
   审计对象:转到本机是 `HOOK-003` low,`PermissionRequest` 转到本机或任何非回环目标都是 high。
+  command hook 把它拿到的东西发出去 —— stdin(`curl --data-binary @-`、`cat | nc`)、承载对话的字段
+  (prompt、工具的输入或输出)、或 transcript 文件 —— 同样是 `HOOK-003`,无论写在命令行里还是它跑的脚本里;
+  往 ntfy 或 Slack 发一条固定消息或通知字段(`message`、`cwd`)的 hook 不报。
   hook command 里出现 shell 串联(`;` `&&` `||` `|` 反引号 `$(`)
   报 `HOOK-001` —— 脚本里有管道再正常不过,hook 里才说明问题,所以这条规则只在 hook command 上跑。
+- settings 里的 **helper 命令**也是命令:`apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、
+  `gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,以及 `statusLine`、`fileSuggestion` 的 `command`,
+  每条都跑全部脚本规则,它们点名的本地脚本在 home 目录内会被读进来(越界的出 `COV-000` 说明)。
+  status line 的 stdin 是会话元数据和 `transcript_path`:把 transcript 发出去是 `HOOK-003`,发其余的不报。
 - **权限白名单**会比对"可逃逸二进制"清单(`PERM-006`):`Bash(git *)` 就是套着窄外衣的任意执行
   (`git -c core.pager=…`),`find` `awk` `tar` `docker` `ssh` `npm` `make` `xargs` `rsync`
   这类开放参数的授权同理。参数写全的授权(`Bash(git status)`)不会被报。授权指向**你自己的脚本**时
@@ -323,6 +330,11 @@ bas-guard scan --llm --config config.yaml
 - **插件**由规则按整棵树扫,它的组成部分还会各自再采一遍:skills、commands、子 agent(Claude Code 会加载的那些——所以
   `--llm` 会判它们;分数把插件和它的这些子项算作一项,两边都带的发现只印一次),hook 按 (event, command),MCP 按 server。
   它的 output style 和 manifest 里内联的命令只在树里当文本读;`check <插件>` 不像 `scan` 那样拆出它的 hook 和 MCP server。
+- **`check <目录>`** 把目录当一整棵树读,并**另外**用扫描用的那些读取器读它在顶层声明的 Claude Code 配置:
+  `.claude/settings.json` 和 `settings.local.json`(hook、权限授权、env)、它自己的 `settings*.json`,以及 `.mcp.json`;
+  `check ./.mcp.json` 和 `check <路径>/settings.json` 也把那个文件当配置读。项目的 `CLAUDE.md`、`CLAUDE.local.md`
+  (以及 `.claude` 下的这两个)也照 `scan` 的方式读,跟进其中的 `@` 导入,所以导入 `.env` 或私钥会报 `EXFIL-005`。项目 `.claude` 的设置预先批准了 `.mcp.json` 里的 server(`enableAllProjectMcpServers`、`enabledMcpjsonServers`)时,每个被批准的 server 报 `PERM-009`,与 `scan --root <仓库>/.claude` 一致。分数把目录和这些配置算作一项。项目 `.claude`
+  下的 skill、子 agent、rule 作为树的一部分读,不逐个列;要逐个列用 `scan --root <仓库>/.claude`。
 - **hook 引用的脚本**只跟进一层,且只在 home 目录内读取。越界不读,并计分为 `HOOK-002`。
 - 配置 root 下**没有采集器认领的顶层目录不读** —— 真机上那些是你自己的会话记录、配置备份和 shell
   快照(`sessions/`、`history.jsonl`、`file-history/`),把它们读进报告等于用一个盲点换一次泄露。
