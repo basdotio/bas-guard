@@ -111,3 +111,27 @@ Evidence: live, glm-5.3-flash: `llm test` answered with the option (26 in / 11 o
 Evidence: measured, the 80 corpus skills under Problem, every check complete on both: benign completion tokens 278,912 → 30,279, false positives 4 → 4; malicious completion tokens 666,583 → 54,618, at the judge verdict 33 → 32 (one sample lost its LLM-001); prompt tokens and calls unchanged (1,334,211 → 1,334,148, 804 both); median check 110 s → 15 s
 Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
+
+### 2026-11-19: merged with `main` before landing
+
+The pull request sat for three weeks while `main` moved 226 commits (the judge's server pass, its category tables and
+its prompt among them), and no longer merged. The maintainer said to land it ("好，先合"), so `main` at `bdfcc67` was
+merged into the branch. What that showed:
+
+- **Conflicts**: two, both documentation, both kept whole: `.claude/rules/judge.md` (this paragraph and P-115's were
+  added at the same place) and the index row. No code conflicted.
+- **With no options the request is still what `main` sends**: the merged build prints `judge-prompt=9cd57da1a4bd` and
+  `judge-excerpt=10`, the values `main` prints. The Evidence line above names the values of 2026-10-26; they moved on
+  `main` since, for reasons that are not this proposal.
+- **One test failed, and not from the merge**: `TestLoad_RequestOptions` asserts that `weird: {1: x}` is refused. That
+  was the JSON encoder's answer, and it depends on the toolchain: built with go1.23.5 (CI and releases) the encoder
+  refuses a map whose member names are not strings; built with go1.27.1 (the maintainer's machine) it writes the number
+  as the name, so the config loaded and the test failed. `Load` now walks the options and refuses such a map itself,
+  naming where (`config llm.request_options.weird: a member name must be a string`); the test covers a nested map, a
+  list element and the order two are named in, a NaN (still the encoder's to refuse, on both), and the reverse: text
+  that looks like a number (`"1"`) is a string name and loads. Green on go1.23.5 and go1.27.1.
+- **Live, on the merged build**: `llm test` against `glm-4.7-flash`, the same config with and without
+  `thinking: {type: disabled}`: 19 tokens in / 103 out in 3.0 s, against 19 in / 2 out in 0.9 s.
+
+`make verify`: all gates passed on the merged branch (go1.27.1); `go test ./...` green under `GOTOOLCHAIN=go1.23.5`.
+
