@@ -71,8 +71,8 @@ func TestResolveAPIKey_EnvThenFile(t *testing.T) {
 	}
 
 	cfg.LLM.APIKeyFile = filepath.Join(dir, "absent.key")
-	if _, err := cfg.ResolveAPIKey(); err == nil || !strings.Contains(err.Error(), "aguard llm setup") {
-		t.Errorf("missing key file: err = %v, want a pointer to `aguard llm setup`", err)
+	if _, err := cfg.ResolveAPIKey(); err == nil || !strings.Contains(err.Error(), "bas-guard llm setup") {
+		t.Errorf("missing key file: err = %v, want a pointer to `bas-guard llm setup`", err)
 	}
 	if err := WriteKey(filepath.Join(dir, "empty.key"), "  \n"); err == nil {
 		t.Error("WriteKey accepted an empty key")
@@ -120,7 +120,7 @@ func TestLoad_PresetFillsEndpoint(t *testing.T) {
 }
 
 // TestLoadUser_DefaultLocation: with no --config, the user-level file is read when present and
-// its absence is defaults — so `aguard scan --llm` needs no path once `aguard llm setup` ran.
+// its absence is defaults — so `bas-guard scan --llm` needs no path once `bas-guard llm setup` ran.
 func TestLoadUser_DefaultLocation(t *testing.T) {
 	x := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", x)
@@ -130,7 +130,7 @@ func TestLoadUser_DefaultLocation(t *testing.T) {
 	}
 	def, _ := DefaultPath()
 	// A first setup gets the post-rename directory (P-082); TestConfigDirFallback covers an
-	// existing aguard one.
+	// existing bas-guard one.
 	if def != filepath.Join(x, "bas-guard", "config.yaml") {
 		t.Fatalf("DefaultPath = %q", def)
 	}
@@ -251,5 +251,72 @@ func TestLLMConfig_GateReady(t *testing.T) {
 	}
 	if MinSamplesToEscalate != 3 {
 		t.Errorf("MinSamplesToEscalate = %d; the measurements behind it were taken at 3 (P-041), change them before this", MinSamplesToEscalate)
+	}
+}
+
+// TestLoad_RequestOptions (P-107): llm.request_options is read as written — nested maps included — and a
+// member the judge sets itself, or a value that has no JSON form, is refused at load time rather than
+// sent. No key, no options.
+func TestLoad_RequestOptions(t *testing.T) {
+	load := func(t *testing.T, body string) (Config, error) {
+		t.Helper()
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return Load(p)
+	}
+	// refused is why the section was set aside: since P-084 a bad llm section does not fail the file,
+	// it is kept as the section's Problem, which every judge path returns as the load-time message.
+	refused := func(t *testing.T, body string) error {
+		t.Helper()
+		cfg, err := load(t, body)
+		if err != nil {
+			t.Fatalf("%q: Load = %v; an invalid llm section must be set aside, not fail the file (P-084)", body, err)
+		}
+		return cfg.LLM.Problem()
+	}
+	cfg, err := load(t, "llm:\n  enabled: true\n")
+	if err != nil || cfg.LLM.RequestOptions != nil {
+		t.Fatalf("no key: options %v, err %v", cfg.LLM.RequestOptions, err)
+	}
+	cfg, err = load(t, "llm:\n  request_options:\n    thinking:\n      type: disabled\n    max_tokens: 800\n")
+	if err != nil || cfg.LLM.Problem() != nil {
+		t.Fatal(err, cfg.LLM.Problem())
+	}
+	if got, err := cfg.LLM.RequestOptionsJSON(); err != nil || got != `{"max_tokens":800,"thinking":{"type":"disabled"}}` {
+		t.Errorf("options read as %q (%v)", got, err)
+	}
+	for _, key := range ReservedRequestOptions {
+		if err := refused(t, "llm:\n  request_options:\n    "+key+": x\n"); err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("request_options.%s: err %v, want a refusal naming it", key, err)
+		}
+	}
+	if err := refused(t, "llm:\n  request_options:\n    weird:\n      1: x\n"); err == nil {
+		t.Error("a value with no JSON form (a map keyed by a number) was accepted")
+	}
+	// The same answer on every toolchain: the encoder refuses a number for a member name when built with
+	// go1.23.5 and writes it as text when built with go1.27.1, so Load says it, naming where.
+	for body, at := range map[string]string{
+		"llm:\n  request_options:\n    weird:\n      1: x\n":                          "llm.request_options.weird",
+		"llm:\n  request_options:\n    a:\n      b:\n        true: x\n":               "llm.request_options.a.b",
+		"llm:\n  request_options:\n    list:\n      - ok\n      - 2: x\n":             "llm.request_options.list[1]",
+		"llm:\n  request_options:\n    first:\n      1: x\n    second:\n      2: x\n": "llm.request_options.first",
+	} {
+		if err := refused(t, body); err == nil || !strings.Contains(err.Error(), "config "+at+": a member name must be a string") {
+			t.Errorf("%q: err %v, want a refusal naming %s", body, err, at)
+		}
+	}
+	// A value that has no JSON form on any toolchain is still refused by the encoder.
+	if err := refused(t, "llm:\n  request_options:\n    bad: .nan\n"); err == nil || !strings.Contains(err.Error(), "JSON form") {
+		t.Errorf("a NaN was accepted: %v", err)
+	}
+	// Reverse: text that looks like a number is a string member name, and nested lists and maps load.
+	cfg, err = load(t, "llm:\n  request_options:\n    extra_body:\n      \"1\": x\n      stop: [a, b]\n      nested: {k: {deep: 1}}\n")
+	if err != nil || cfg.LLM.Problem() != nil {
+		t.Fatalf("string member names refused: %v / %v", err, cfg.LLM.Problem())
+	}
+	if got, _ := cfg.LLM.RequestOptionsJSON(); got != `{"extra_body":{"1":"x","nested":{"k":{"deep":1}},"stop":["a","b"]}}` {
+		t.Errorf("options read as %q", got)
 	}
 }

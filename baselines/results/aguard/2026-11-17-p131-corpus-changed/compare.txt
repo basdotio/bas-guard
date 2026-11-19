@@ -1,0 +1,36 @@
+corpus: 5272 samples
+   malicious      n   719  flagged main  231  branch  235   SUP-010 on 8
+   benign         n  4534  flagged main  342  branch  342   SUP-010 on 0
+   hard-negative  n    19  flagged main    4  branch    4   SUP-010 on 0
+   target mal-skill-dd-openclaw-hightower6eu-autoupdate: main -        branch flagged  ['archive', 'paste']
+   target mal-skill-dd-openclaw-stveenli-browserautomation-skill: main -        branch flagged  ['platform']
+   target mal-skill-dd-openclaw-stveenli-shieldphenix: main -        branch flagged  ['platform']
+   target mal-skill-dd-openclaw-thiagoruss0-n8nsk: main -        branch flagged  ['platform']
+== target: 4 of 4 carry a high SUP-010 (line: 4) PASS
+== malicious: lost 0 [] (line: 0); gained 4: ['mal-skill-dd-openclaw-hightower6eu-autoupdate', 'mal-skill-dd-openclaw-stveenli-browserautomation-skill', 'mal-skill-dd-openclaw-stveenli-shieldphenix', 'mal-skill-dd-openclaw-thiagoruss0-n8nsk'] PASS
+== benign: SUP-010 on 0 [] (line: 0); verdict changed on 0 [] (line: 0) PASS
+== hard negatives: verdict changed on 0 [] (line: 0) PASS
+
+   every corpus sample carrying SUP-010 on the branch:
+     mal skill-dd-boomsystel-code-openclaw-workspace-skills-nanopdf main flagged  branch flagged  {'archive': 1}
+     mal skill-dd-boomsystel-code-openclaw-workspace-skills-yahoo-f main flagged  branch flagged  {'archive': 1}
+     mal skill-dd-openclaw-hightower6eu-autoupdate                  main -        branch flagged  {'archive': 1, 'paste': 1}
+     mal skill-dd-openclaw-hightower6eu-clawhubcli                  main flagged  branch flagged  {'archive': 1, 'paste': 1}
+     mal skill-dd-openclaw-stveenli-browserautomation-skill         main -        branch flagged  {'platform': 1}
+     mal skill-dd-openclaw-stveenli-shieldphenix                    main -        branch flagged  {'platform': 1}
+     mal skill-dd-openclaw-thiagoruss0-jirayb4nt                    main flagged  branch flagged  {'platform': 1}
+     mal skill-dd-openclaw-thiagoruss0-n8nsk                        main -        branch flagged  {'platform': 1}
+
+held-out (totals only): 459 samples
+   malicious  agent-skill-malware  n  123  flagged main   68  branch  121   SUP-010 on  112  by reason {'archive': 79, 'paste': 35, 'platform': 27}
+   malicious  skillharm            n  120  flagged main   12  branch   12   SUP-010 on    0  by reason {}
+   benign     agent-skill-malware  n  216  flagged main    6  branch    6   SUP-010 on    0  by reason {}
+== held-out malicious: 80 -> 133 (line: at least 40 more) PASS
+== held-out benign: 6 -> 6 (line: at most one more) PASS
+
+fresh skills fresh216: 212 trees  flagged main 9  branch 9  SUP-010 on 0 []
+
+fresh skills fresh200: 200 trees  flagged main 25  branch 25  SUP-010 on 0 []
+== fresh benign skills: SUP-010 on 0 of 412 (line: 0) PASS
+
+GATE: PASS

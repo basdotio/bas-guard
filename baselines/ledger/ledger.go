@@ -111,6 +111,12 @@ type Row struct {
 	// acts on: "EXFIL-001 fired on 144 benign samples" is a work item, while "false positives
 	// are 5.5%" is only a status. Check does not inspect it.
 	Rules []string `json:"rules,omitempty"` // Scored only
+	// Files is where the flagging findings pointed, as paths relative to the sample tree. It
+	// feeds the corpus's optional `files` verdict field, which unlocks its location score:
+	// on a caught sample with a quoted deciding line, did the scanner name the file it is in.
+	// The adapter owns the mapping from the tool's own paths (aguard: Locator). Check does not
+	// inspect it; it is attribution, like Dimensions.
+	Files []string `json:"files,omitempty"` // Scored only
 	// JudgeUsage is what the tool's model-backed pass cost on this sample (aguard's --llm judge),
 	// folded from the tool's own output. Nil when that output carried no judge summary — every
 	// static run, and any sample routed where the judge does not run — so a static ledger is
@@ -140,7 +146,10 @@ type JudgeUsage struct {
 	Basis string `json:"basis"`
 	// Model is the model the binary printed in its judge summary (P-031), so a row copied or folded
 	// out of its run still says which model answered (P-072). Absent when the binary printed none.
-	Model            string `json:"model,omitempty"`
+	Model string `json:"model,omitempty"`
+	// RequestOptions is the summary's request_options as the binary printed it (P-107): what every request
+	// also carried, such as thinking turned off. Absent when there were none, or the binary predates it.
+	RequestOptions   string `json:"request_options,omitempty"`
 	Calls            int    `json:"calls"`
 	Failed           int    `json:"failed"`
 	Skipped          int    `json:"skipped"`

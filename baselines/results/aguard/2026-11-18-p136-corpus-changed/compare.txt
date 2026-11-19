@@ -1,0 +1,35 @@
+corpus: 5272 samples
+   malicious      n   719  flagged main  235  branch  238   OBF-008 on 1  OBF-009 on 2
+   benign         n  4534  flagged main  337  branch  337   OBF-008 on 0  OBF-009 on 0
+   hard-negative  n    19  flagged main    4  branch    4   OBF-008 on 0  OBF-009 on 0
+   target dd-npm-iflow-watercrawl-hidden-eval: main -        branch flagged  high for ['OBF-008']  (all high on branch: ['OBF-008'])
+   target dd-npm-todo-wallet-exfil: main -        branch flagged  high for ['EXFIL-003']  (all high on branch: ['EXFIL-003'])
+   target dd-npm-excluder-env-exfil: main -        branch flagged  high for ['OBF-009']  (all high on branch: ['OBF-009'])
+== target: 3 of 3 flagged at high for the reason set (line: 3) PASS
+== malicious: lost 0 [] (line: 0); gained 3: ['mcp-dd-npm-excluder-env-exfil', 'mcp-dd-npm-iflow-watercrawl-hidden-eval', 'mcp-dd-npm-todo-wallet-exfil'] PASS
+== benign: OBF-008/OBF-009 on 0 [] (line: 0); verdict changed on 0 [] (line: 0) PASS
+== hard negatives: verdict changed on 0 [] (line: 0) PASS
+
+   every corpus sample whose high rule IDs differ between main and the branch:
+     mal mcp-dd-npm-antv-mcp-chart-preinstall                       main flagged  branch flagged  +['OBF-009'] -[]
+     mal mcp-dd-npm-excluder-env-exfil                              main -        branch flagged  +['OBF-009'] -[]
+     mal mcp-dd-npm-iflow-watercrawl-hidden-eval                    main -        branch flagged  +['OBF-008'] -[]
+     mal mcp-dd-npm-todo-wallet-exfil                               main -        branch flagged  +['EXFIL-003'] -[]
+
+held-out (totals only): 459 samples
+   malicious  agent-skill-malware  n  123  flagged main  121  branch  121   OBF-008 on 0  OBF-009 on 0
+   malicious  skillharm            n  120  flagged main   12  branch   12   OBF-008 on 0  OBF-009 on 0
+   benign     agent-skill-malware  n  216  flagged main    6  branch    6   OBF-008 on 0  OBF-009 on 0
+== held-out malicious: 133 -> 133 (line: not fewer) PASS
+== held-out benign: 6 -> 6 (line: not more) PASS
+
+fresh skills fresh216: 212 trees  flagged main 9  branch 9  OBF-008/OBF-009 on 0 []  verdict changed []
+
+fresh skills fresh200: 200 trees  flagged main 24  branch 24  OBF-008/OBF-009 on 0 []  verdict changed []
+== fresh benign skills: OBF-008/OBF-009 on 0 of 412 (line: 0); verdict changed on 0 (line: 0) PASS
+
+npm packages: 1890 checked on both builds, 0 not readable as a result []
+   exit 1 (a high finding) main 37  branch 37; (rule, severity) pairs that differ: {}
+== npm packages: OBF-008/OBF-009 on 0 [] (line: 0); newly flagged at high 0 [] (line: 0); no longer flagged 0 PASS
+
+GATE: PASS

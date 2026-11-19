@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package judge is AgentGuard's M5 LLM intent judge (spec §5.2/§16.4): it catches
+// Package judge is BAS Guard's M5 LLM intent judge (spec §5.2/§16.4): it catches
 // "the description says A but the code does B" mismatches that static rules miss.
 //
 // Hard constraints (must never be relaxed):
@@ -19,8 +19,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/detect"
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // Threat dimensions (spec §3) an LLM verdict can map to. The dimension is fixed PER MODE and
@@ -54,7 +54,7 @@ const (
 // construction. Both are UNTRUSTED artifact content and are fenced with a nonce so the model
 // can't be hijacked by instructions embedded in them (spec §5.2 barrier).
 type Request struct {
-	Artifact string // "kind:name", redacted, for labeling only
+	Artifact string // "kind:name" (artifactLabel), for labeling only; never sent
 	Mode     Mode
 	// Declared is the artifact's own account of what it is FOR — the side a behavior is
 	// judged against. For a skill that is its description; for a hook it is the structural
@@ -222,6 +222,12 @@ func finding(r Request, v Verdict) *model.Finding {
 	why := capBytes(detect.Redact(v.Summary), maxWhyBytes)
 	if strings.TrimSpace(why) == "" {
 		why = model.JudgeRuleText(ruleID)
+	}
+	if disclosureLowered(r.Mode, v) {
+		// P-115: the other two downgrades say so in the vote's reason ("category not shown by
+		// the text"); this one did not, so a medium Cisco server reading "remote-execution,
+		// remote-execution, remote-execution" could not be told apart from a medium category.
+		why += " [disclosed: one step lower]"
 	}
 	return &model.Finding{
 		RuleID:    ruleID,

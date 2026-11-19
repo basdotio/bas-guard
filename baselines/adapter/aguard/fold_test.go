@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/basdotio/AgentGuard/baselines/ledger"
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/baselines/ledger"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // Moved here with the fold logic from hack/corpus-runner. It pins the one thing that
@@ -77,7 +77,7 @@ func TestVerdictFollowsTheGatePredicate(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := model.ScanResult{Artifacts: []model.ArtifactReport{{Kind: model.KindSkill, Name: "a", Findings: tc.findings}}}
-			got := fill(ledger.Row{Sample: "s", Attempted: true}, res, tc.threshold)
+			got := fill(ledger.Row{Sample: "s", Attempted: true}, res, tc.threshold, Locator{ID: "s"})
 			// Rules is a diagnostic, not part of the verdict predicate this test pins, and
 			// comparing whole structs made the test brittle to every field added later.
 			// It gets its own assertion below.

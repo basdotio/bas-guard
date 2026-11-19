@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	aguardadapter "github.com/basdotio/AgentGuard/baselines/adapter/aguard"
-	"github.com/basdotio/AgentGuard/baselines/corpus"
-	"github.com/basdotio/AgentGuard/baselines/judgefold"
-	"github.com/basdotio/AgentGuard/baselines/ledger"
-	"github.com/basdotio/AgentGuard/internal/model"
+	aguardadapter "github.com/basdotio/bas-guard/baselines/adapter/aguard"
+	"github.com/basdotio/bas-guard/baselines/corpus"
+	"github.com/basdotio/bas-guard/baselines/judgefold"
+	"github.com/basdotio/bas-guard/baselines/ledger"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // folded is everything the outputs are written from.
@@ -53,6 +53,9 @@ func fold(o opts) (*folded, error) {
 	// execute the binary.
 	ad := &aguardadapter.Adapter{Threshold: model.Severity(o.threshold), Work: work}
 	opt := judgefold.Options{Threshold: model.Severity(o.threshold), Samples: o.judgeSamples, CheckJudged: o.checkLLM}
+	opt.Locate = func(s corpus.Sample) aguardadapter.Locator {
+		return aguardadapter.LocatorFor(filepath.Join(o.corpus, filepath.FromSlash(s.Path)), s.Sample)
+	}
 
 	f := &folded{list: list}
 	for _, d := range o.dirs {

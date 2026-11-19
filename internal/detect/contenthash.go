@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/collect"
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/safeio"
+	"github.com/basdotio/bas-guard/internal/collect"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/safeio"
 )
 
 // The content hash of the three config kinds — hooks, MCP servers, permission lists (with the
@@ -52,10 +52,11 @@ import (
 // replacement of secrets forgets re-keys only the entries holding such a secret, keeps the suffix and is
 // named in its proposal with what it re-keys (P-039: an argument a flag announces, forgotten whole).
 const (
-	domainHook        = "aguard:hook:v1"
-	domainMCP         = "aguard:mcp:v1"
-	domainPermission  = "aguard:permission:v1"
-	domainSettingsEnv = "aguard:settings-env:v1"
+	domainHook            = "aguard:hook:v1"
+	domainMCP             = "aguard:mcp:v1"
+	domainPermission      = "aguard:permission:v1"
+	domainSettingsEnv     = "aguard:settings-env:v1"
+	domainSettingsHelpers = "aguard:settings-helpers:v1"
 )
 
 // Markers that stand in for a followed script the hash could not read. Three, not one: a single
@@ -102,10 +103,10 @@ const redacted = "<REDACTED>"
 // never overwritten, other kinds keep what they have, and an artifact standing for a config file
 // that did not parse keeps "" — it was never read, and "" is the key nothing can match.
 //
-// cmd/aguard.analyze calls this immediately after Run, before anything reads Hash.
+// cmd/bas-guard.analyze calls this immediately after Run, before anything reads Hash.
 func ContentHashes(root string, arts []model.ArtifactReport) []model.ArtifactReport {
 	// The scripts' anchor must not depend on how the root was typed: `--root ~/.claude/` made
-	// home == root and `aguard hash .` made home ".", so `~/…` scripts resolved somewhere else and
+	// home == root and `bas-guard hash .` made home ".", so `~/…` scripts resolved somewhere else and
 	// one configuration got a second identity. The same anchor Run uses.
 	root = anchorRoot(root)
 	out := make([]model.ArtifactReport, len(arts))
@@ -115,7 +116,7 @@ func ContentHashes(root string, arts []model.ArtifactReport) []model.ArtifactRep
 		if a.Hash != "" || hasParseError(a) {
 			continue
 		}
-		if domain, canon, ok := contentHashInput(root, a, docs); ok {
+		if domain, canon, ok := contentHashInput(resolveRoot(root, a), a, docs); ok {
 			out[i].Hash = contentDigest(domain, canon)
 		}
 	}
@@ -144,6 +145,9 @@ func contentHashInput(root string, a model.ArtifactReport, docs map[string]confi
 		if strings.HasPrefix(a.Name, collect.SettingsEnvName) {
 			return sectionHashInput(a.Path, "env", domainSettingsEnv, docs)
 		}
+		if strings.HasPrefix(a.Name, collect.SettingsHelpersName) {
+			return helpersHashInput(root, a, docs)
+		}
 		return permissionHashInput(root, a, docs)
 	}
 	return "", nil, false
@@ -166,16 +170,16 @@ func hookHashInput(root string, h model.Hook) (string, []byte, bool) {
 	return domainHook, canon, ok
 }
 
-// mcpHashInput: the server's whole entry in its server map — under mcpServers, or at the top level
-// of a plugin file without the wrapper (P-029). The canonical form is the entry alone, so the same
-// server hashes the same whichever layout holds it.
+// mcpHashInput: the server's whole entry in its server map — under mcpServers, at the top level of a
+// plugin file without the wrapper (P-029), or under a project of a .claude.json (P-119). The canonical
+// form is the entry alone, so the same server hashes the same whichever layout or scope holds it.
 func mcpHashInput(a model.ArtifactReport, docs map[string]configDoc) (string, []byte, bool) {
 	key := MCPServerKey(a) // the entry the rules scanned, a plugin's server and the "" key included
 	top, ok := readConfigDoc(a.Path, docs)
 	if !ok {
 		return "", nil, false
 	}
-	raw, ok := mcpServerMap(top, a.MCPUnwrapped)[key]
+	raw, ok := mcpServerMap(top, a)[key]
 	if !ok {
 		return "", nil, false
 	}
@@ -230,6 +234,48 @@ func permissionHashInput(root string, a model.ArtifactReport, docs map[string]co
 }
 
 // sectionHashInput hashes one top-level section of a config file as it stands (the settings env block).
+// helpersHashInput: the members of the settings file that helperUnits reads as helper commands (P-133), as written
+// — a command string in the shell view, a status line object as a hook entry is — plus the scripts their commands
+// name, so neither can change under an approval. A helper string is viewed without its key: the key names a setting,
+// not an assignment. redact.Keyed does not read `apiKeyHelper` as a credential key today; viewing without it keeps a
+// wider credential-key list from ever forgetting the whole command, which could then change without re-keying.
+func helpersHashInput(root string, a model.ArtifactReport, docs map[string]configDoc) (string, []byte, bool) {
+	top, ok := readConfigDoc(a.Path, docs)
+	if !ok {
+		return "", nil, false
+	}
+	b, err := safeio.ReadFile(a.Path, safeio.MaxConfigBytes)
+	if err != nil {
+		return "", nil, false
+	}
+	helpers := collect.SettingsHelpers(b)
+	if len(helpers) == 0 {
+		return "", nil, false
+	}
+	members := make(map[string]any, len(helpers))
+	var refs []string
+	seen := map[string]bool{}
+	for _, h := range helpers {
+		v, ok := decodeJSON(top[h.Key])
+		if !ok {
+			return "", nil, false
+		}
+		if str, isString := v.(string); isString {
+			members[h.Key] = viewMember("", str, viewShell)
+		} else {
+			members[h.Key] = redactEntry(v)
+		}
+		for _, ref := range scriptRefs(h.Command) {
+			if !seen[ref] {
+				seen[ref] = true
+				refs = append(refs, ref)
+			}
+		}
+	}
+	canon, ok := canonicalJSON(map[string]any{"helpers": members, "scripts": scriptDigests(root, "", refs)})
+	return domainSettingsHelpers, canon, ok
+}
+
 func sectionHashInput(path, section, domain string, docs map[string]configDoc) (string, []byte, bool) {
 	top, ok := readConfigDoc(path, docs)
 	if !ok {

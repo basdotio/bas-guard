@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: MIT -->
-# AgentGuard(`aguard`)
+# BAS Guard(`bas-guard`)
 
 [English](README.md) | **中文**
 
@@ -12,7 +12,7 @@
 
 ## 是什么
 
-AI 编码 agent 会**自动加载**一堆外部东西——skills、MCP 服务器、hooks、subagents、指令文件(CLAUDE.md)——每一个都拿到你的真实工具和权限,任何一个都可能藏隐藏指令。AgentGuard 在你本地静态扫描这些 artifact,给出风险体检 + 垃圾清理建议。
+AI 编码 agent 会**自动加载**一堆外部东西——skills、MCP 服务器、hooks、subagents、指令文件(CLAUDE.md)——每一个都拿到你的真实工具和权限,任何一个都可能藏隐藏指令。BAS Guard 在你本地静态扫描这些 artifact,给出风险体检 + 垃圾清理建议。
 
 **定位:体检 + 预警 + 清理,不是"查杀保证"。** 风险分是相对风险提示,不是安全认证。详见下方"能力边界"。
 
@@ -24,7 +24,7 @@ AI 编码 agent 会**自动加载**一堆外部东西——skills、MCP 服务�
 - **永不删除的垃圾清理**:重复、上下文膨胀(量化可回收 token)、失效引用、僵尸 skill。`clean` 只会把东西**移进**你配置根目录下的回收目录,每一步都记录在案,`--undo` 能原路放回。删除永远是你自己动手。
 - **权限体检**:内联密钥、通配任意命令执行、过宽路径、缺 deny 兜底。
 - **加载时闸门**:注册成 Claude Code 的 hook,在 **agent 加载一个 skill 之前**审它,带发现的会先问你一句 —— 见 [`docs/install-gate.zh-CN.md`](docs/install-gate.zh-CN.md)。
-- **能在 Claude Code 里直接跑**:自带插件(三个 skill + `/aguard-setup`、`/aguard-scan`、`/aguard-vet`、`/aguard-gate`、`/aguard-help`、`/aguard-llm`),用大白话要一次体检,拿回来的是分好级的结论,不只是一屏输出。
+- **能在 Claude Code 里直接跑**:自带插件(三个 skill + `/bas-guard-setup`、`/bas-guard-scan`、`/bas-guard-vet`、`/bas-guard-gate`、`/bas-guard-help`、`/bas-guard-llm`),用大白话要一次体检,拿回来的是分好级的结论,不只是一屏输出。
 - **隐私**:密钥值在生成报告前即 `<REDACTED>`,原始凭证绝不落入报告。
 
 ## 安装
@@ -35,13 +35,13 @@ AI 编码 agent 会**自动加载**一堆外部东西——skills、MCP 服务�
 ```bash
 npx --yes @bas.io/guard@latest check ./some-skill   # 装之前先审一个东西
 npx --yes @bas.io/guard@latest scan --report        # 体检这台机器的整套配置
-npm i -g @bas.io/guard                              # 或者装下来:PATH 上多一个 `aguard`
+npm i -g @bas.io/guard                              # 或者装下来:PATH 上多一个 `bas-guard`
 ```
 
 **先用 `check`**:它判断的是你指给它的那个 artifact,这个论断跟在哪台机器上跑无关;
 而 `scan` 论断的是**它运行的那台机器**。
 
-> **不要从 `npx` 装加载时闸门。** `aguard hook install` 注册的是它运行时那个二进制的绝对路径,
+> **不要从 `npx` 装加载时闸门。** `bas-guard hook install` 注册的是它运行时那个二进制的绝对路径,
 > 而 npx 的路径是 npm 之后会回收的缓存 —— 回收之后每个 skill 都未经审计地加载,
 > 而外表看起来仍然受保护(`GATE-001`)。命令发现这种情况时会警告你。
 > 要装闸门就用 `npm i -g`,或者用 release 二进制。
@@ -50,23 +50,23 @@ npm i -g @bas.io/guard                              # 或者装下来:PATH 上�
 `darwin-arm64` · `darwin-amd64` · `linux-amd64` · `linux-arm64` 里挑:
 
 ```bash
-REPO=basdotio/AgentGuard
+REPO=basdotio/bas-guard
 PLAT=darwin-arm64                                   # <- 换成你的
-curl -fsSLO "https://github.com/$REPO/releases/latest/download/aguard-$PLAT"
+curl -fsSLO "https://github.com/$REPO/releases/latest/download/bas-guard-$PLAT"
 curl -fsSLO "https://github.com/$REPO/releases/latest/download/SHA256SUMS.txt"
 
 # 先校验再运行 —— 一个安全工具没资格要求你无条件信任它自己的下载。
 shasum -a 256 --ignore-missing -c SHA256SUMS.txt     # Linux: sha256sum
-chmod +x "aguard-$PLAT" && sudo mv "aguard-$PLAT" /usr/local/bin/aguard
+chmod +x "bas-guard-$PLAT" && sudo mv "bas-guard-$PLAT" /usr/local/bin/bas-guard
 ```
 
 **从源码构建**(Go 1.23+):
 
 ```bash
-git clone https://github.com/basdotio/AgentGuard && cd AgentGuard
+git clone https://github.com/basdotio/bas-guard && cd bas-guard
 make build          # 产出 bin/aguard
 # 或直接:
-CGO_ENABLED=0 go build -o bin/aguard ./cmd/aguard
+CGO_ENABLED=0 go build -o bin/aguard ./cmd/bas-guard
 ```
 
 每个 release 都带这四个静态二进制加一份 `SHA256SUMS.txt`,由
@@ -85,101 +85,109 @@ CGO_ENABLED=0 go build -o bin/aguard ./cmd/aguard
 **终端版** Claude Code,用斜杠命令:
 
 ```
-/plugin marketplace add basdotio/AgentGuard
-/plugin install aguard@AgentGuard
+/plugin marketplace add basdotio/bas-guard
+/plugin install basguard@bas-guard
 ```
 
 **VS Code / JetBrains 扩展**里没有 `/plugin` —— 到 shell 里用 `claude` 命令跑同样两步:
 
 ```bash
-claude plugin marketplace add basdotio/AgentGuard
-claude plugin install aguard@AgentGuard
+claude plugin marketplace add basdotio/bas-guard
+claude plugin install basguard@bas-guard
 ```
 终端里第三方 marketplace 默认**不**自动更新。打开一次,skill 和命令的更新就会自己到:`/plugin` →
-**Marketplaces** → `AgentGuard` → **Enable auto-update**(桌面版添加 marketplace 时的 "Sync automatically"
-就是同一个开关)。二进制是另一回事,它从不自动更新;`aguard version` 会说它是否落后于插件。
+**Marketplaces** → `bas-guard` → **Enable auto-update**(桌面版添加 marketplace 时的 "Sync automatically"
+就是同一个开关)。二进制是另一回事,它从不自动更新;`bas-guard version` 会说它是否落后于插件。
 
-**v0.17.0 之前装过插件?** 那时它叫 `agentguard`,这个名字不会再收到更新。改名是因为在不区分大小写的文件系统上
+**v0.30.0 之前装过插件?** 那时它是 `aguard@AgentGuard`(v0.17.0 到 v0.29.x)或 `agentguard@AgentGuard`(v0.17.0 之前),
+marketplace 里这两个名字都不再列出,所以 marketplace 一刷新,Claude Code 就不再加载它们("Plugin aguard not found in
+marketplace AgentGuard")。`aguard` 是随改名为 BAS Guard 换掉的;`agentguard` 是因为在不区分大小写的文件系统上
 (macOS 默认就是),它和 marketplace 名 `AgentGuard` 在 Claude Code 的安装缓存里撞成同一个目录,安装报 `EINVAL`
-([issues/022](issues/022-plugin-install-case-collision-macos.md))。换一次就好;`aguard version` 会按你的安装给出确切命令:
+([issues/022](issues/022-plugin-install-case-collision-macos.md))。换一次就好;`bas-guard version` 会按你的安装给出确切命令,
+从 `AgentGuard` marketplace 换过来是:
 
 ```bash
-claude plugin install aguard@AgentGuard
-claude plugin uninstall agentguard@AgentGuard
+claude plugin uninstall aguard@AgentGuard    # v0.17.0 之前是 agentguard@AgentGuard
+claude plugin marketplace remove AgentGuard
+claude plugin marketplace add basdotio/bas-guard
+claude plugin install basguard@bas-guard
 ```
 
 
 仓库是公开的,插件就在 `main` 上,所以直接用上面那条命令即可 —— 不需要 `#…` 后缀,
 不需要仓库访问权,也不需要配 git 凭证。
 
-然后重启 Claude Code(扩展里是 reload window),再跑 `/aguard-setup`。它会在二进制缺失时装好、
+然后重启 Claude Code(扩展里是 reload window),再跑 `/bas-guard-setup`。它会在二进制缺失时装好、
 跑第一次扫描、陪你把发现过一遍、最后问你要不要装加载时闸门。`curl` 下载不需要 token —— 它读的
 release 是公开的。从源码构建(`make build`,Go 1.23+)这条路仍然可用。
 
 | | |
 |---|---|
-| `/aguard-setup` | 从零到被守住:二进制、首次扫描、修复计划、闸门 |
-| `/aguard-scan [root]` | 体检一个配置根,并把发现分级成可执行的清单 |
-| `/aguard-vet <路径\|URL>` | 装之前/提交之前审一个 skill、插件或文件 |
-| `/aguard-gate [动作]` | 装/查/修加载时闸门,管理 approvals |
-| `/aguard-help` | 白话版使用说明:你可以怎么问它,不用记任何命令 |
-| `/aguard-llm [status\|test\|setup]` | 配置或检查可选的 AI 深度检查(用你自己的在线模型账号) |
+| `/bas-guard-setup` | 从零到被守住:二进制、首次扫描、修复计划、闸门 |
+| `/bas-guard-scan [root]` | 体检一个配置根,并把发现分级成可执行的清单 |
+| `/bas-guard-vet <路径\|URL>` | 装之前/提交之前审一个 skill、插件或文件 |
+| `/bas-guard-gate [动作]` | 装/查/修加载时闸门,管理 approvals |
+| `/bas-guard-help` | 白话版使用说明:你可以怎么问它,不用记任何命令 |
+| `/bas-guard-llm [status\|test\|setup]` | 配置或检查可选的 AI 深度检查(用你自己的在线模型账号) |
 
-三个 skill(`agentguard-audit`、`agentguard-vet`、`agentguard-gate`)在请求对得上时也会自己
+三个 skill(`bas-guard-audit`、`bas-guard-vet`、`bas-guard-gate`)在请求对得上时也会自己
 触发。它们带的是 `--help` 给不了的那部分:两个分数怎么读、哪些发现是"形状"而不是"判决"、
 维度 0 的 note 为什么不是风险、以及一份干净的报告仍然**没有**证明什么。
 
 插件就是 [`plugin/`](plugin/) 这棵子树 —— **只有 skill 和 command,故意不含本仓库自己的文档**。
-那些文档把引擎能检出的攻击模式全都原文引了一遍,一起发出去的话,每个用户跑 `aguard scan` 都会
+那些文档把引擎能检出的攻击模式全都原文引了一遍,一起发出去的话,每个用户跑 `bas-guard scan` 都会
 看到本插件自己被报成高危。这棵子树在 `--fail-on low` 下扫出 `100/100`,改动把这条打破了,那是
 改动的 bug。
 
-需要 `aguard` 二进制在 `PATH` 上(skill 会帮你装)。插件不带 MCP server,也不注册任何自己的
-hook —— `aguard hook install` 仍然是一个显式的、先 `--dry-run` 给你看的步骤。
+需要 `bas-guard` 二进制在 `PATH` 上(skill 会帮你装)。插件不带 MCP server,也不注册任何自己的
+hook —— `bas-guard hook install` 仍然是一个显式的、先 `--dry-run` 给你看的步骤。
 
 ## 用法
 
 ```bash
-aguard scan                      # 全盘体检当前用户的 ~/.claude
-aguard scan --root ~/.claude     # 指定根目录
-aguard scan --verbose            # 额外打印每条覆盖度说明的完整正文、扫描看了哪些地方、清单
-aguard scan --html report.html   # 额外写出自包含 HTML 报告
-aguard scan --md report.md       # 额外写出 markdown 版报告,贴进 PR 评论或 issue("-" = stdout)
-aguard scan --json               # 机器可读输出
-aguard scan --fail-on high       # CI/闸门:发现 ≥high 时退出码 1
+bas-guard scan                      # 全盘体检当前用户的 ~/.claude
+bas-guard scan --root ~/.claude     # 指定根目录
+bas-guard scan --verbose            # 额外打印每条覆盖度说明的完整正文、扫描看了哪些地方、清单
+bas-guard scan --html report.html   # 额外写出自包含 HTML 报告
+bas-guard scan --md report.md       # 额外写出 markdown 版报告,贴进 PR 评论或 issue("-" = stdout)
+bas-guard scan --json               # 机器可读输出
+bas-guard scan --fail-on high       # CI/闸门:发现 ≥high 时退出码 1
 
-aguard clean                     # 垃圾清理:列出可清项 + 量化可回收 token(纯读)
-aguard clean --zombie            # 额外找"装了但没用过"的 skill(弱信号,需显式开)
-aguard clean --zombie --apply    # 移进 <root>/.aguard-trash(永不删除)
-aguard clean --undo last         # 原路放回,每一步重新推导安全判断
-aguard clean --ask               # 逐对回答重复的 skill(↑/↓ 或敲 1/2)
+bas-guard clean                     # 垃圾清理:列出可清项 + 量化可回收 token(纯读)
+bas-guard clean --zombie            # 额外找"装了但没用过"的 skill(弱信号,需显式开)
+bas-guard clean --zombie --apply    # 移进 <root>/.aguard-trash(永不删除)
+bas-guard clean --undo last         # 原路放回,每一步重新推导安全判断
+bas-guard clean --ask               # 逐对回答重复的 skill(↑/↓ 或敲 1/2)
 
-aguard check ./some-skill        # 装前闸门:静态扫描单个 skill/目录/文件(默认 --fail-on high)
+bas-guard check ./some-skill        # 装前闸门:静态扫描单个 skill/目录/文件(默认 --fail-on high)
 
-aguard hook install              # 加载时闸门:agent 加载每个 skill 之前先审一遍
-aguard approve ./some-skill      # 信任这份确切的字节,闸门不再问
-aguard approvals                 # 列出已信任的内容
+bas-guard hook install              # 加载时闸门:agent 加载每个 skill 之前先审一遍
+bas-guard approve ./some-skill      # 信任这份确切的字节,闸门不再问
+bas-guard approvals                 # 列出已信任的内容
 
-aguard version
+bas-guard version
 ```
 
 终端报告默认列出**全部**发现,并把覆盖度说明折成一行 —— 这行仍然带着条数、其中的最高严重度和
 规则 ID。`--verbose` 把这些说明的正文完整打出来,想知道"这次扫描哪些地方**没读**"时用它。
 默认视图按不写代码的读者排序:每条发现带一个下一步(从哪个文件哪一行读起;闸门拦得住的 skill 还给出确切的
-`aguard approve` 命令)、判官对它的看法(白话),再用一行说明分数为什么是这个数;没有要看的东西时只印标题和分数。
+`bas-guard approve` 命令)、判官对它的看法(白话),再用一行说明分数为什么是这个数;没有要看的东西时只印标题和分数。
 `--verbose` 另外给出扫描看了哪些地方、清单、判官的版本号和卫生项列表。
 挂在单个条目上的说明也在其中,比如一个解析不了的 `settings.json`:摘要会点名它"没检查全",读不了的文件同样点名。
 当 Claude Code 加载的东西没读全 —— 有文件读不了或解析不了、某个条目带着自己的覆盖度说明、skill 里有打不开的目录、
-文件超过大小上限、hook 调的脚本跟不进去 —— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
+文件超过大小上限、hook 调的脚本跟不进去、根目录下有个项目的 `.claude`(根目录高了一层:把 `--root` 指向那个 `.claude`)
+—— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
 东西(配置目录顶层你自己的会话记录、插件的 `node_modules/`)照样列出,但不改这句话。清单里没有可数的东西时 ——
-`aguard check` 一个单独的文件或普通文件夹 —— 摘要说它检查了什么("Checked 1 file."),而不是说什么都没找到。
-覆盖度说明从不改变分数;退出码只有一种情况会变:开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答时,退出码 `4`(见下)。
+`bas-guard check` 一个单独的文件或普通文件夹 —— 摘要说它检查了什么("Checked 1 file."),而不是说什么都没找到。
+覆盖度说明从不改变分数;退出码只有两种情况会变,都是 `4`(见下):开了 `--fail-on` 而根目录下什么都没收集到,或有个项目的
+`.claude` 没读到;开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答。
 两种模式下发现都不会被折叠;`--json` / `--html` / `--md` 始终包含全部内容,所以 CI 看到的东西不会因为
 某个人加没加这个参数而变。
 
 **退出码**:`0` 未达阈值 · `1` 发现 ≥ `--fail-on` 级别 · `2` 运行错误
-(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;**仅 `--fail-on-llm` 有的** `4` = 闸门无法评估 ——
-判官没跑,或有调用失败、没发出去,或(`check` 时)判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件 —— 原因印在 stderr;`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
+(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;`4` = 闸门无法评估,原因印在 stderr:开了 `--fail-on` 时,
+根目录下什么都没收集到,或有个项目的 `.claude` 没读到;开了 `--fail-on-llm` 时,判官没跑,或有调用失败、没发出去,或(`check` 时)
+判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件。`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
 被信号中断的运行以 `128 + 信号号` 结束 —— Ctrl-C 是 `130`,输出管道被关闭是 `141` ——
 经 npm launcher 和直接跑二进制完全一致。
 `scan` 默认不因发现而非零退出(信息模式);`check` 默认 `--fail-on high`(闸门模式)。
@@ -187,7 +195,7 @@ aguard version
 **报告里出现一条发现,想知道它是什么意思?**[`docs/rules.md`](docs/rules.md) 列了工具能打印的
 每一个规则 ID —— 维度、严重度、以及它为什么会响。它由引擎自己的规则集生成、CI 会校验不漂移,所以
 你在那里读到的严重度就是会拦你构建的那个严重度。(该文件是英文的:正文即代码里的字符串。)
-它的页眉写着**规则版本**,和报告 `--json` 里的 `rules_version`、`aguard version` 打印的是同一个值:
+它的页眉写着**规则版本**,和报告 `--json` 里的 `rules_version`、`bas-guard version` 打印的是同一个值:
 两份报告不一样、规则版本也不一样,就是两次之间规则变了。
 
 ## 清理(`clean`)
@@ -212,12 +220,12 @@ aguard version
 完整说明(含安全边界与它刻意不做的事)见 [`docs/clean-guide.zh-CN.md`](docs/clean-guide.zh-CN.md);
 实现与"不变量 ↔ 钉住它的测试"对照表见 [`docs/internals/clean-internals.md`](docs/internals/clean-internals.md)。
 
-## 加载时闸门(`aguard hook`)
+## 加载时闸门(`bas-guard hook`)
 
 `check` 只在你想起来问的时候回答;闸门是在一个 skill 即将被加载的那一刻回答 —— 不管有没有人想起来:
 
 ```bash
-aguard hook install    # 合并进 ~/.claude/settings.json(先备份),然后重启 Claude Code
+bas-guard hook install    # 合并进 ~/.claude/settings.json(先备份),然后重启 Claude Code
 ```
 
 Claude Code **没有**"安装"这个 hook 事件,而且就算有也覆盖不全 —— 一个 skill 还可以是 `git clone`、
@@ -228,7 +236,7 @@ Claude Code **没有**"安装"这个 hook 事件,而且就算有也覆盖不全 
 
 ## 检测对象
 
-skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`aguard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
+skills(SKILL.md + 脚本 + 资源)· MCP 配置(用户作用域、本地作用域——`claude mcp add` 的默认作用域,按项目存在 `~/.claude.json` 里——以及项目的 `.mcp.json`;静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`bas-guard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
 
 其中两个面单独加强 —— 它们都是"看着很窄、实际交出执行权":
 
@@ -238,8 +246,15 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NOD
   越界的不读(`COV-000`)并另报 `HOOK-002`(计分):覆盖缺口和"静默执行点上有一段审不了的第二阶段"
   是两回事。`PermissionRequest` 升为 high,因为它拿走的是授权决定权。`type: http` 的 hook 是正式
   审计对象:转到本机是 `HOOK-003` low,`PermissionRequest` 转到本机或任何非回环目标都是 high。
+  command hook 把它拿到的东西发出去 —— stdin(`curl --data-binary @-`、`cat | nc`)、承载对话的字段
+  (prompt、工具的输入或输出)、或 transcript 文件 —— 同样是 `HOOK-003`,无论写在命令行里还是它跑的脚本里;
+  往 ntfy 或 Slack 发一条固定消息或通知字段(`message`、`cwd`)的 hook 不报。
   hook command 里出现 shell 串联(`;` `&&` `||` `|` 反引号 `$(`)
   报 `HOOK-001` —— 脚本里有管道再正常不过,hook 里才说明问题,所以这条规则只在 hook command 上跑。
+- settings 里的 **helper 命令**也是命令:`apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、
+  `gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,以及 `statusLine`、`fileSuggestion` 的 `command`,
+  每条都跑全部脚本规则,它们点名的本地脚本在 home 目录内会被读进来(越界的出 `COV-000` 说明)。
+  status line 的 stdin 是会话元数据和 `transcript_path`:把 transcript 发出去是 `HOOK-003`,发其余的不报。
 - **权限白名单**会比对"可逃逸二进制"清单(`PERM-006`):`Bash(git *)` 就是套着窄外衣的任意执行
   (`git -c core.pager=…`),`find` `awk` `tar` `docker` `ssh` `npm` `make` `xargs` `rsync`
   这类开放参数的授权同理。参数写全的授权(`Bash(git status)`)不会被报。授权指向**你自己的脚本**时
@@ -270,15 +285,15 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NOD
 或任何端点配 `--base-url`/`--model`):
 
 ```bash
-aguard llm setup --provider deepseek    # 提示输入密钥,隐藏输入;脚本里用 --key-stdin 管道
-aguard llm test          # 发一次调用:这个端点、这个模型能不能答
-aguard scan --llm        # 配置从此在 ~/.config/bas-guard/config.yaml 自动找到
+bas-guard llm setup --provider deepseek    # 提示输入密钥,隐藏输入;脚本里用 --key-stdin 管道
+bas-guard llm test          # 发一次调用:这个端点、这个模型能不能答
+bas-guard scan --llm        # 配置从此在 ~/.config/bas-guard/config.yaml 自动找到
 ```
 
 密钥存到 `~/.config/bas-guard/llm.key`(0600,别人能读就拒用);`api_key_env` 环境变量仍然可用且优先,给 CI。改名为 BAS Guard 之前的配置在 `~/.config/aguard/`,只有它在时照旧从那里读,不会被挪动。
-在 Claude Code 里,`/aguard-llm` 用对话走同样三步。
+在 Claude Code 里,`/bas-guard-llm` 用对话走同样三步。
 
-想在决定之前看清会发出去什么:`aguard llm preview ./some-skill` 列出 `check --llm` 对它会发的每一次调用,
+想在决定之前看清会发出去什么:`bas-guard llm preview ./some-skill` 列出 `check --llm` 对它会发的每一次调用,
 以及每次调用原样携带的文本(不带路径:`scan --llm` 会发的每一次调用)。它什么都不发,也不需要密钥;见
 [判官的隐私说明](docs/llm-judge.zh-CN.md#隐私)。
 
@@ -298,7 +313,7 @@ llm:
   api_key_env: AGUARD_LLM_KEY           # 密钥只从该环境变量读,绝不落盘(设了 BAS_GUARD_LLM_KEY 时以它为准)
   model: llama3.1
 
-aguard scan --llm --config config.yaml
+bas-guard scan --llm --config config.yaml
 ```
 
 判定不可用绝不静默:端点不通/未配置会给一条 `LLM-000` 覆盖 note,"判定没开"不能伪装成"没有意图问题"。
@@ -315,6 +330,11 @@ aguard scan --llm --config config.yaml
 - **插件**由规则按整棵树扫,它的组成部分还会各自再采一遍:skills、commands、子 agent(Claude Code 会加载的那些——所以
   `--llm` 会判它们;分数把插件和它的这些子项算作一项,两边都带的发现只印一次),hook 按 (event, command),MCP 按 server。
   它的 output style 和 manifest 里内联的命令只在树里当文本读;`check <插件>` 不像 `scan` 那样拆出它的 hook 和 MCP server。
+- **`check <目录>`** 把目录当一整棵树读,并**另外**用扫描用的那些读取器读它在顶层声明的 Claude Code 配置:
+  `.claude/settings.json` 和 `settings.local.json`(hook、权限授权、env)、它自己的 `settings*.json`,以及 `.mcp.json`;
+  `check ./.mcp.json` 和 `check <路径>/settings.json` 也把那个文件当配置读。项目的 `CLAUDE.md`、`CLAUDE.local.md`
+  (以及 `.claude` 下的这两个)也照 `scan` 的方式读,跟进其中的 `@` 导入,所以导入 `.env` 或私钥会报 `EXFIL-005`。项目 `.claude` 的设置预先批准了 `.mcp.json` 里的 server(`enableAllProjectMcpServers`、`enabledMcpjsonServers`)时,每个被批准的 server 报 `PERM-009`,与 `scan --root <仓库>/.claude` 一致。分数把目录和这些配置算作一项。项目 `.claude`
+  下的 skill、子 agent、rule 作为树的一部分读,不逐个列;要逐个列用 `scan --root <仓库>/.claude`。
 - **hook 引用的脚本**只跟进一层,且只在 home 目录内读取。越界不读,并计分为 `HOOK-002`。
 - 配置 root 下**没有采集器认领的顶层目录不读** —— 真机上那些是你自己的会话记录、配置备份和 shell
   快照(`sessions/`、`history.jsonl`、`file-history/`),把它们读进报告等于用一个盲点换一次泄露。
@@ -356,7 +376,7 @@ artifact 的人写的,不是你写的——否则一个 skill 只要随包捎一
 
 ## 信誉库(内嵌 allowlist / blocklist)
 
-AgentGuard 内嵌一份小巧、**随版本更新、离线**的信誉名单,按 artifact 的 canonical
+BAS Guard 内嵌一份小巧、**随版本更新、离线**的信誉名单,按 artifact 的 canonical
 hash 索引——无网络,默认开:
 
 - **已知良性**(如经人工审阅、记录了理由的官方市场插件 superpowers)→ 其发现被静默,可信工具自带的
@@ -365,14 +385,14 @@ hash 索引——无网络,默认开:
 
 **目前名单里真正有东西的是 allowlist 那一半。** blocklist 的**机制**是接好的(哈希精确匹配、
 `REP-BAD` 定级 critical、会 gate),但**内容是空的** —— 策展已知恶意哈希是持续工作,而这个文件
-里不放任何充数的示例条目:它会进评分,一条演示记录就是一条假记录。`aguard version` 打印的是
+里不放任何充数的示例条目:它会进评分,一条演示记录就是一条假记录。`bas-guard version` 打印的是
 真实条目数。所以现阶段请把信誉库的价值理解为"给可信工具包降噪",而不是"病毒库覆盖" ——
 检出靠的是静态规则。
 
 因为名单内嵌且版本化,它是确定的、**会进评分**。用 `--no-reputation` 关闭。维护者按哈希加条目:
 
 ```bash
-aguard hash ./some-skill     # 打印 canonical hash,加进信誉名单
+bas-guard hash ./some-skill     # 打印 canonical hash,加进信誉名单
 ```
 
 云端信誉服务(最新 allowlist + 社区 blocklist,只发哈希、可选开)在规划中——见设计文档;
@@ -391,25 +411,30 @@ aguard hash ./some-skill     # 打印 canonical hash,加进信誉名单
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
 # CI(GitHub Actions)
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
-两者见 [`hack/`](hack/)。单个 skill:`aguard check ./some-skill`(默认 `--fail-on high`)。
+两者见 [`hack/`](hack/)。单个 skill:`bas-guard check ./some-skill`(默认 `--fail-on high`)。
+
+这个 workflow 的第一行负责选 `--root`:仓库顶层有 `skills/` 或者没有 `.claude` 时扫仓库本身(`.`),否则扫项目的 `.claude` ——
+放 skill、`settings.json` 和 agent 的那个根目录(项目顶层挨着它的 `.mcp.json` 和 `CLAUDE.md` 也从这里读)。想固定根目录就把这行换掉。
+如果指高了一层 —— 指到项目顶层 —— 开了 `--fail-on` 的闸门会以 `4` 退出,并提示去扫那个没读到的 `.claude`,而不是在没人读过的
+skill 上照样通过;根目录下什么都没有时也一样。
 
 ## 报告
 
-`aguard scan --html report.html` 写出自包含(离线、无脚本)HTML 报告:风险分仪表盘、
+`bas-guard scan --html report.html` 写出自包含(离线、无脚本)HTML 报告:风险分仪表盘、
 环境瓦片、按 artifact+规则聚合的行级取证发现、垃圾/卫生区。对你自己的 `~/.claude` 跑一次即可查看。
-`aguard scan --report` 写同一份报告但不用你想文件名:落到 `~/.config/bas-guard/reports/scan-<时间戳>.html`
-(或 `$XDG_CONFIG_HOME` 下),在扫描 root 之外,并打印路径。插件每次扫描都带它,`/aguard-setup` 结束时会
+`bas-guard scan --report` 写同一份报告但不用你想文件名:落到 `~/.config/bas-guard/reports/scan-<时间戳>.html`
+(或 `$XDG_CONFIG_HOME` 下),在扫描 root 之外,并打印路径。插件每次扫描都带它,`/bas-guard-setup` 结束时会
 打开报告。报告只留在本机,里面有你自己的路径和脱敏后的片段。
 
 `--md <路径>` 把同一份报告写成 GitHub 风味的 markdown,给扫描结果下一步通常要去的地方:PR 评论或 issue。
 `-` 表示写到 stdout、不再印终端报告,审一个新 skill 的人不用手抄就能把结果贴上去:
 
 ```bash
-aguard check ./new-skill --md - | gh pr comment 42 --body-file -
-aguard check ./new-skill --md review.md      # 或者写成文件再粘
+bas-guard check ./new-skill --md - | gh pr comment 42 --body-file -
+bas-guard check ./new-skill --md review.md      # 或者写成文件再粘
 ```
 
 被扫目录里的每个名字、路径、片段都放在代码跨度里,所以一个叫 `@某人` 或 `<img src=…>` 的文件名
@@ -436,4 +461,4 @@ make dist           # 交叉编译发布二进制 + SHA256SUMS.txt 到 dist/
 ## 参与开发
 
 见 [CONTRIBUTING.md](CONTRIBUTING.md)(英文):一个改动一个分支,对 `main` 开 pull request,请人 review 前 `make verify` 要绿。
-`make hooks` 装的 pre-commit 会用 aguard 自己扫你暂存的 skill。
+`make hooks` 装的 pre-commit 会用 bas-guard 自己扫你暂存的 skill。

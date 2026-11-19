@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // TestLogicalLines_Joining: the unit-level contract. A joined line must report the line number
@@ -201,6 +201,7 @@ func FuzzNormalizeForMatch(f *testing.F) {
 	for _, s := range []string{
 		`curl http://x | bash`, `cu""rl x`, `echo "a b"`, `echo "`, `curl"`, `c\url`,
 		"cu​rl x", "a \\", "'", `"`, `\`, "", "  \t ", `x='a`, "#‮",
+		"cu\U000E0072l x", "\U0001F3F4\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F", "\U000E0001\U000E0022a\U000E0022",
 	} {
 		f.Add(s)
 	}
@@ -371,10 +372,10 @@ func TestRawOnly_IsSetExactlyWhereFoldingCouldInvent(t *testing.T) {
 			if !r.RawOnly {
 				t.Errorf("%s asks what the original text mixes; folding invents that — must be RawOnly", r.ID)
 			}
-		case "INJ-004":
+		case "INJ-004", "INJ-006":
 			// Invisible characters are STRIPPED, never substituted, so the normalized copy simply has
-			// fewer of them. RawOnly would be harmless here but also meaningless, and marking it would
-			// suggest folding is involved when it is not.
+			// fewer of them; tag characters are decoded, so it has none (P-123). RawOnly would be harmless
+			// here but also meaningless, and marking it would suggest folding is involved when it is not.
 			if r.RawOnly {
 				t.Errorf("%s does not need RawOnly: stripping cannot invent a match", r.ID)
 			}

@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/basdotio/AgentGuard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/detect"
 )
 
 // ExcerptVersion names how an artifact becomes what the judge is shown, and how an answer's quote is
@@ -14,7 +14,7 @@ import (
 // condensing, comment stripping, the head/tail caps and their line maps, the declared-purpose, hook,
 // MCP and connector renderings, the decode limits, padding folds, the home scrub and redaction order
 // — and grounding: whether a quote lands, which file and line it cites and what its snippet shows.
-// A --llm report carries it as judge.excerpt_version; `aguard version` prints it as judge-excerpt=.
+// A --llm report carries it as judge.excerpt_version; `bas-guard version` prints it as judge-excerpt=.
 // The prompts wrapped around the excerpt are PromptVersion's, which is computed.
 //
 // BUMP IT, in the same commit, whenever a change alters — for some artifact — what any pass sends
@@ -26,7 +26,7 @@ import (
 // results are pinned to a digest TOGETHER with this value, so changing either alone is red. A change
 // the fixture does not exercise still relies on the editor; a forgotten bump lets two reports claim
 // the same excerpts while the judge was shown different text.
-const ExcerptVersion = 9 // 8: the documents a SKILL.md names go to the injection pass (P-065); 7: a skill's files are read by the rules' predicate (P-056)
+const ExcerptVersion = 10 // 10: the server pass leaves out .github/ (P-117); 9: the result pass (P-068); 8: the documents a SKILL.md names go to the injection pass (P-065); 7: a skill's files are read by the rules' predicate (P-056)
 
 // A model can produce a fluent, plausible, entirely invented finding. Nothing downstream can
 // tell that apart from a real one — same shape, same severity, same confident sentence. So a
@@ -56,6 +56,13 @@ type sourceUnit struct {
 	// api.weather.com from a key going anywhere; the static chain over the whole file can, and
 	// on the server pass a `credential-read` grounded in such a file weighs medium.
 	goesHome bool
+	// overreach is set on a behaviour unit whose FULL file reaches for a credential beyond its own
+	// configuration — another program's secrets, system files, another process's or the whole
+	// environment, a metadata service (detect.CredentialOverreach, P-098) — or sends a credential to
+	// a host it spells out that is not the credential's service (detect.CredentialSentElsewhere). On the server pass a
+	// `credential-read` grounded in a file with none of that is the server reading what it is
+	// configured with, and weighs medium.
+	overreach bool
 	// lineMap, when set, gives the 1-based ORIGINAL line of each line of text. Condensed
 	// excerpts (excerpt.go: blank runs collapsed, comments dropped, head+tail kept) are no
 	// longer contiguous with the file, so firstLine arithmetic would cite the wrong place —

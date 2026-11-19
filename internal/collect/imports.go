@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/redact"
-	"github.com/basdotio/AgentGuard/internal/safeio"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/redact"
+	"github.com/basdotio/bas-guard/internal/safeio"
 )
 
 // An instruction file can pull in other files with `@path` syntax, and those imports are expanded
@@ -229,9 +229,15 @@ func expandImports(home string, seeds, known []model.ArtifactReport) ([]model.Ar
 	all := make([]model.ArtifactReport, len(seeds))
 	copy(all, seeds)
 	seen := map[string]bool{}
+	// Absolute as well as resolved: a scan's seeds are under its anchored root, but `check .` builds a
+	// project's instruction files from the target as typed (P-125), and withinDir cannot relate a
+	// relative import to an absolute home — every import read as escaping the project.
 	realpath := func(p string) string {
 		if r, err := filepath.EvalSymlinks(p); err == nil {
-			return r
+			p = r
+		}
+		if a, err := filepath.Abs(p); err == nil {
+			return a
 		}
 		return p
 	}

@@ -3,19 +3,19 @@
 
 [English](llm-judge.md) | **中文**
 
-AgentGuard 的内核是**静态**扫描器。LLM 判官是一个**可选的、对抗式的分析层**,补上静态规则抓不到的
+BAS Guard 的内核是**静态**扫描器。LLM 判官是一个**可选的、对抗式的分析层**,补上静态规则抓不到的
 东西——但它的设计保证它**永远不能削弱确定性结果**。本页是启用、配置、理解它的完整参考。
 
 ## 一句话
 
 ```bash
 cp config.example.yaml config.yaml     # 改 base_url / model
-aguard scan --llm --config config.yaml
+bas-guard scan --llm --config config.yaml
 ```
 
 默认关。需要 config 里 `llm.enabled: true` **且** 命令行加 `--llm`,两者缺一不可。`scan` 能用,
-审单个目标的 `check` 也能用(`aguard check ./some-skill --llm`)。`clean` 永不用它,加载时闸门也不用:
-`aguard hook` 和 `aguard approve` 只跑 `check` 的静态路径。
+审单个目标的 `check` 也能用(`bas-guard check ./some-skill --llm`)。`clean` 永不用它,加载时闸门也不用:
+`bas-guard hook` 和 `bas-guard approve` 只跑 `check` 的静态路径。
 
 ## 铁律(你为什么可以信任它)
 
@@ -63,7 +63,7 @@ aguard scan --llm --config config.yaml
 skill 目录以外的脚本、文档、output style、manifest 里内联的命令只有静态规则读。子项从插件树里重复带来的发现只分诊一次,在插件上。
 
 **它对什么一个问题都不问。** 有三种 artifact 没有任何一趟:里面没有任何可加载 skill、命令、子 agent 的**插件**,布局什么都不像的
-**目录**(`aguard check <dir>`,或 `skills/` 下没有 `SKILL.md` 的文件夹),`.aguard-trash` 里已经不再加载的**已隔离**内容。从不就
+**目录**(`bas-guard check <dir>`,或 `skills/` 下没有 `SKILL.md` 的文件夹),`.aguard-trash` 里已经不再加载的**已隔离**内容。从不就
 它们的内容问模型 —— 至多给静态发现做分诊 —— 每次 `--llm` 都用一条 `LLM-000` 说明,按种类计数。权限块只做分诊,这是设计:allow
 列表是交给静态规则判定的配置,这条 note 不列它。
 
@@ -75,23 +75,23 @@ skill 目录以外的脚本、文档、output style、manifest 里内联的命�
 **短路径** —— 一条命令,不用改文件:
 
 ```bash
-aguard llm setup --list                 # deepseek · openai · qwen · openai_compatible
-aguard llm setup --provider deepseek    # 提示输入密钥,隐藏输入(不进历史、不上屏)
-aguard llm test                         # 发一次调用;密钥/模型/地址错了在这里就报
-aguard llm status                       # 会用什么(永不显示密钥)
-aguard llm preview ./some-skill         # --llm 对它会发什么;什么都不发,不要密钥
+bas-guard llm setup --list                 # deepseek · openai · qwen · openai_compatible
+bas-guard llm setup --provider deepseek    # 提示输入密钥,隐藏输入(不进历史、不上屏)
+bas-guard llm test                         # 发一次调用;密钥/模型/地址错了在这里就报
+bas-guard llm status                       # 会用什么(永不显示密钥)
+bas-guard llm preview ./some-skill         # --llm 对它会发什么;什么都不发,不要密钥
 ```
 
-脚本里改用管道:`printf '%s\n' "$KEY" | aguard llm setup --provider deepseek --key-stdin`。
+脚本里改用管道:`printf '%s\n' "$KEY" | bas-guard llm setup --provider deepseek --key-stdin`。
 远程端点必须是 https;明文 http 只对本机上的模型放行。
 判官只跟同一个源(scheme、主机、端口都和配置的一样)里的重定向。指向别处的重定向不跟,那边什么都收不到:这次调用失败,
-`aguard llm test` 会说端点想把请求转到哪里,扫描时则是一条 `LLM-000` note。
-aguard 展示端点的每一处——报告里的 `judge.endpoint`、`LLM-002` note、报错、`llm status`、`llm setup`、`llm test`、
+`bas-guard llm test` 会说端点想把请求转到哪里,扫描时则是一条 `LLM-000` note。
+bas-guard 展示端点的每一处——报告里的 `judge.endpoint`、`LLM-002` note、报错、`llm status`、`llm setup`、`llm test`、
 `llm preview`——端点里的用户名和密码(`https://user:pass@host`)、每个 query 值和 fragment 都显示成 `<REDACTED>`;
 scheme、主机、端口、路径和 query 的键名保留。请求用的仍是写在配置里的原样 URL。
 
 `setup` 写 `~/.config/bas-guard/config.yaml`(或 `$XDG_CONFIG_HOME/bas-guard/…`;改名为 BAS Guard 之前的配置只在 `~/.config/aguard/` 时照旧从那里读),不传 `--config` 时所有命令都读它;
-密钥存在旁边的 `llm.key`,权限 0600。在 Claude Code 里,`/aguard-llm` 用对话走同样几步。
+密钥存在旁边的 `llm.key`,权限 0600。在 Claude Code 里,`/bas-guard-llm` 用对话走同样几步。
 
 **长路径**是手写同一个文件(见 [`config.example.yaml`](../config.example.yaml)):
 
@@ -110,13 +110,14 @@ llm:
 | `base_url` | 端点根。工具 POST 到 `<base_url>/chat/completions`,后缀加在路径上:`base_url` 里的 query(`https://gw.example/v1?api-version=2024-01-01`)原样跟在后面发出,结尾有没有 `/` 都一样,fragment 丢掉。预设会自动填;写了就覆盖。 |
 | `model` | **用哪个模型。** 预设给默认值;写端点实际提供的名字可覆盖。 |
 | `api_key_env` | 存密钥的**环境变量名**。先查它;给 CI 和喜欢这种方式的人。 |
-| `api_key_file` | 存密钥的文件路径(可用 `~`)。必须只有本人可读 —— 组或其他人可读就拒用,并给出要跑的 `chmod 600`。`aguard llm setup` 会写它。 |
+| `api_key_file` | 存密钥的文件路径(可用 `~`)。必须只有本人可读 —— 组或其他人可读就拒用,并给出要跑的 `chmod 600`。`bas-guard llm setup` 会写它。 |
 | `concurrency` | 同时在飞的调用数(默认 `4`)。结果按固定顺序合并,所以它只改变扫描快慢,不改变输出。 |
 | `timeout` | **单次调用**的超时(默认 `60s`)。没有它,几个慢响应就能把剩下的检查全饿死。 |
 | `total_timeout` | 整个判定阶段的兜底(默认 `10m`)—— 防端点既不回答也不报错。被它截断的调用会报 `LLM-000`,不静默。 |
 | `max_calls` | 单次扫描的调用上限;`0`(默认)= 不限。超预算的调用会被跳过**并报出**,且点名哪些 artifact 没查。这是给你自己的时间和账单用的**礼貌性自限** —— 它是客户端配置,所以不是花费管控手段。 |
 | `max_retries` | `429`/`5xx` 的重试次数,遵守 `Retry-After`(默认 `2`)。重试是同一个问题重发,**不计入** `max_calls`;`4xx`(密钥错、模型名错)是真实答复,永不重试。 |
 | `samples` | 每个问题问几遍(默认 `1`)。`>1` 时一条发现必须过**多数**才能影响 effective 分 —— 见[共识采样](#共识采样-samples)。调用量按这个数翻倍。 |
+| `request_options` | 原样加进每个请求体的额外字段(P-107)—— 厂商在 chat-completions 字段之外接受的东西,比如 `thinking: {type: disabled}`。`model`、`messages`、`temperature`、`stream`、`n` 在加载配置时就拒绝。判官块里会记下来。见[会思考的模型](#会思考的模型)。 |
 | `authority` | `advisory`(默认)或 `escalate`。这个端点的意见能不能卡构建 —— 见[用判官卡闸门](#用判官卡闸门-fail-on-llm)。卡闸门还要 `samples: 3` 或更多。 |
 
 **本构建用不了的 `llm` 段只拦判官,不拦别的。** 不认识的 `provider` 或 `authority`、解析不了的 `timeout` / `total_timeout`,
@@ -149,14 +150,34 @@ llm: { enabled: true, provider: openai_compatible, base_url: https://api.openai.
 ```
 ```bash
 export OPENAI_API_KEY=sk-...
-aguard scan --llm --config config.yaml
+bas-guard scan --llm --config config.yaml
 ```
 
 大模型(gpt-4o、Qwen2.5-72B)语义判得更准;本地把一切留在本机。这个权衡由你定。
 
+### 会思考的模型
+
+有些模型默认先思考再回答,除非请求里说不要;思考按输出 token 计费,而判官的每次调用要的只是一小段 JSON 判决。
+`request_options` 把厂商自己的字段原样带上(P-107)。以智谱的 GLM 模型为例:
+
+```yaml
+llm:
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-5.3-flash
+  request_options:
+    thinking: { type: disabled }
+```
+
+别的厂商叫法不同(`reasoning_effort`、`enable_thinking`……);工具照你写的发,不认识任何厂商的字段。先跑
+`bas-guard llm test`:端点不接受某个字段时会在那里报错,不用等到扫描。用 `glm-5.3-flash` 在语料的 40 个良性 + 40 个恶意 skill 上、
+`samples: 3` 实测(P-107):关掉思考后输出 token 少了约九成(良性 −89%、恶意 −92%),一次 `check` 从 110 秒降到 15 秒;按判官
+口径,良性仍是 40 个里 4 个,恶意从 40 个里 33 个变成 32 个。这只是一个模型、一小批样本——会思考的模型也许正需要思考来判你扫的
+东西,拿它卡闸门之前先在自己的样本上量一量。这些选项是"哪个判官出的这份报告"的一部分 ——
+判官块、身份行、用量日志都会记下 —— 所以关了思考的读数不会在看不出来的情况下和思考过的读数放在一起比。
+
 ## 隐私
 
-- **发之前先看:`aguard llm preview`。** 带路径时列出 `check <path> --llm` 会发的调用;不带路径时列出
+- **发之前先看:`bas-guard llm preview`。** 带路径时列出 `check <path> --llm` 会发的调用;不带路径时列出
   `scan --llm` 对 `--root` 以及 `--inbox` 下的下载项会发的调用。每个 artifact 给出种类、名字和内容哈希;
   每次调用给出是哪一趟、发几次(`samples`,以及 `max_calls` 拒掉几次)、放进这次调用 nonce 栅栏里的原文、
   它来自文件的哪几行、哪里被截短。它用的就是真跑时的那份调用计划和那段生成载荷的代码,测试里逐字节对比过
@@ -222,6 +243,7 @@ aguard scan --llm --config config.yaml
   128 字节的空白或不可见字符(Unicode 空白,以及 `INJ-004` 报告的零宽字符)发出去是一个空格(只有不可见字符时什么都不留)——
   落地本来就这样读它。以前一行垫上几千字节空白,发出去的就是省略标记或一段纯空白前缀,判官根本看不到那一行上的指令。
   每 128 字节被一个可见字符隔开的垫料仍算内容。
+  Unicode tag 字符(U+E0000–E007F)不算垫料:用它写的一句话就是载荷,照原样发出(P-123);静态规则读它的解码,`INJ-006` 报告它。
 - **`SKILL.md` 点名的文档也会被读**(P-065)。"开始前先完整读一遍 `PREFLIGHT.md`"这一句让那份文件也成了指令文件,
   agent 会照做。伴随文档趟把正文点名的 `.md`、`.txt`、`.pdf`——按路径或按裸文件名在树内找到、按点名顺序、最多 8 份、
   同一个 6000 字节预算——连同声明用途一起送去问注入问题;PDF 送的是它的文字层(只解 ASCII85/Flate 流和文本算子,
@@ -263,14 +285,20 @@ aguard scan --llm --config config.yaml
   |------|------|--------|
   | 注入(`LLM-003`) | exfiltration · credential-read · remote-execution · safety-disable · concealed-directive · privilege | other-directive |
   | 意图(`LLM-001`) | 上述五类 · software-source · persistence · file-deletion · privilege | other |
+  | 服务器(`LLM-010`) | 意图那一行的九类 · resource-exhaustion · result-tampering | other |
   | hook 越权(`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | 解码(`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | 共谋(`LLM-006`) | credential-to-network | other |
   | 结果(`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
 
-  意图趟里,声明用途里写明了的行为(`disclosed: true`)降一档——改软件源除外,那条无论披露与否都报。提示词要求类别只按文本本身
+  服务器那一行多出的两类(P-115)是模型本来就描述对了、却归进 medium 的 `other` 的行为:fork 炸弹、解压炸弹、往搜索结果里塞商品。
+  `other` 的说明现在点名了这两类。在 802 棵服务器树上实测:多数票为 `other` 的 14 个恶意服务器里 10 个升级,Cisco 的 127 个从 102 个
+  被报到 118 个,没有良性服务器经这两行升级。同一个提案还在结果趟试过一行 `covert-transmission`(用户数据发给任务没点名的接收方),
+  测完撤回:暗中 BCC、`full_access` 授权模型仍归成 `unrequested-artifact`,它要救的 9 个漏报只抓到 2 个,门槛是 4 个。
+
+  意图趟和服务器趟里,声明用途里写明了的行为(`disclosed: true`)降一档,理由里写 `[disclosed: one step lower]`——改软件源除外,那条无论披露与否都报。提示词要求类别只按文本本身
   显示的内容来定,不许从脚本名猜:只跑一个本地文件的 hook 就是 `process-control`(medium),文件叫什么都一样。`samples: 3` 时类别也
-  参与投票:多数同意票选了同一个类别,就按那张票的严重度;没有任何类别过半时,取各票里最低的严重度(大家同意该报,但没说清是什么,就不许任何一张票单独定权重)。这张表的代价在 `samples: 1`:一张 high 类别的票就是 high,没有第二意见,P-041 的测量看得见(224 个样本 `samples: 3` 下良性升级 1→0,500 个样本 `samples: 1` 下 6→11;全部 3,220 个良性样本 `samples: 1` 下 1.65%,大头是往通知器发消息的 hook 和参数要自家 key 的 MCP 工具);要让闸门读判官,跑 `samples: 3`。**文本里没有依据的类别只算 medium**(P-049):hook 的 `network`、`install`、`permission-override`、`credential` 要在发给模型的命令里有该行为的词——localhost 以外的 URL 或主机、`curl`/`ssh`/`git pull`、`npm`/`pip`/`brew`、`permissionDecision`/`allow`/`approve`、密钥文件或 secret 这个词——因为被问到 `bash ensure-gh-cli.sh` 的模型会按文件名作答;连接器的 `credential-read` 引的那行不能只是目录里的参数行(`tool ▸ param secretKey: …` 是用户把自家的 key 交给工具)。票里保留模型的类别,理由里写 `[category not shown by the text: …]`。`LLM-007` 一直是工具定死的 high;
+  参与投票:多数同意票选了同一个类别,就按那张票的严重度;没有任何类别过半时,取各票里最低的严重度(大家同意该报,但没说清是什么,就不许任何一张票单独定权重)。这张表的代价在 `samples: 1`:一张 high 类别的票就是 high,没有第二意见,P-041 的测量看得见(224 个样本 `samples: 3` 下良性升级 1→0,500 个样本 `samples: 1` 下 6→11;全部 3,220 个良性样本 `samples: 1` 下 1.65%,大头是往通知器发消息的 hook 和参数要自家 key 的 MCP 工具);要让闸门读判官,跑 `samples: 3`。**文本里没有依据的类别只算 medium**(P-049):hook 的 `network`、`install`、`permission-override`、`credential` 要在发给模型的命令里有该行为的词——localhost 以外的 URL 或主机、`curl`/`ssh`/`git pull`、`npm`/`pip`/`brew`、`permissionDecision`/`allow`/`approve`、密钥文件或 secret 这个词——因为被问到 `bash ensure-gh-cli.sh` 的模型会按文件名作答——另有三种写法本身不算 `install` 或 `network` 的依据(P-090,维护者读过判官在良性 hook 上报的那些之后定的规矩):用包运行器拉会变的发布标签(`npx claude-flow@alpha`)、用包运行器跑常见的格式化或检查工具(`npx prettier --write`、`npx oxfmt`)、`git pull`/`git fetch`;来历不明的包经 npx 运行,不论锁没锁版本,仍算 `install`;连接器的 `credential-read` 引的那行不能只是目录里的参数行(`tool ▸ param secretKey: …` 是用户把自家的 key 交给工具);注入趟和结果趟上,类别如果只靠**一个词**的引用撑着——整条命令就是 `claude-ignore` 的 hook,被读成"忽略之前的指令"——同样算没有依据,一个词的引用也不出 `LLM-007`(P-087):指令是一句话,名字不是。票里保留模型的类别,理由里写 `[category not shown by the text: …]`。`LLM-007` 一直是工具定死的 high;
   `LLM-009` 没有表(只提示),仍按模型的词、封顶到 high。任何一趟都吐不出 `critical`。
 
 ## 规则 ID 速查
@@ -280,13 +308,13 @@ aguard scan --llm --config config.yaml
 | `LLM-000` | 覆盖 note:判官没完整跑(不通 / 没启用 / 部分失败),或对某些 artifact 没有任何一趟(没有可加载 skill、命令、子 agent 的插件,目录,已隔离内容)。 |
 | `LLM-001` | 意图不符(维度 10)。 |
 | `LLM-002` | 隐私告警:配置的端点非本地。 |
-| `LLM-003` | 指令文本里的隐藏注入(维度 1)。 |
+| `LLM-003` | 指令文本里的隐藏注入(维度 1)。 P-089 起,`credential-read` 那一票的引用前后十二行内,如果代码只把这个有名字的 key 发给它自己的服务(在这一段上跑 `detect.CredentialGoesHome`——比如文档里把 `OPENAI_API_KEY` 放进发往 `api.openai.com` 的请求头),这票算 medium 并写明理由;看这一段而不是整份文档,因为长的 `SKILL.md` 会介绍好几个服务。 |
 | `LLM-004` | 解码出的混淆载荷执行敏感操作(维度 6)。 |
 | `LLM-005` | 覆盖 note:有 N 条 flagged 结论因为**引用的原文不在发出去的内容里**而被丢弃(见下)。 |
 | `LLM-006` | 同一 skill 内跨文件的能力链(维度 3)。 |
 | `LLM-008` | hook 的能力超出其拦截点所需(维度 2)。 |
 | `LLM-007` | artifact 直接对分析器说话 —— 告诉它该得出什么结论,或让它无视自己的指令(维度 1)。 |
-| `LLM-010` | MCP 服务器源码做了工具描述没说的事(维度 10)。`check <目录>` 指向 Python 写的 MCP 服务器(导入了 SDK、声明了工具)时问意图趟的问题:声明侧是每个工具的名字和 docstring 第一行——客户端看到的只有这些,模块注释永远不算——行为侧是代码,走 skill 脚本的摘录器和预算;意图表和 `disclosed` 照用。普通目录仍然一个问题都不问(P-053)。 **在良性服务器源码上的实测(三票,P-059)**:官方和示例服务器 69 个里报 5 个,但代码搜索找到的第三方 Python 服务器 261 个里报 65 个、语料建成之后新建仓库里的 189 个里报 26 个——合计 506 个里 95 个,五个里一个——176 张升级票里 142 张给的类别是 `credential-read`,针对的是服务器读自己的 key 去调自己的 API。P-062 起,引文落在的文件若按整条静态链(`detect.CredentialGoesHome`,全文)读的是有名字的凭证且只发往它自家的服务或回环,`credential-read` 这票降到 medium 并在理由里注明;在那 547 棵树上离线模拟是 96 个里降 12 个——其余大多是链不认的读法或调用在别的文件里。`LLM-010` 在第三方服务器上仍只当提示看;数字和分母在 `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`。 |
+| `LLM-010` | MCP 服务器源码做了工具描述没说的事(维度 10)。`check <目录>` 指向 Python 写的 MCP 服务器(导入了 SDK、声明了工具)时问意图趟的问题:声明侧是每个工具的名字和 docstring 第一行——客户端看到的只有这些,模块注释永远不算——行为侧是代码,走 skill 脚本的摘录器和预算;意图表加 `resource-exhaustion`、`result-tampering`(P-115),`disclosed` 照用。普通目录仍然一个问题都不问(P-053)。 **在良性服务器源码上的实测(三票,P-059)**:官方和示例服务器 69 个里报 5 个,但代码搜索找到的第三方 Python 服务器 261 个里报 65 个、语料建成之后新建仓库里的 189 个里报 26 个——合计 506 个里 95 个,五个里一个——176 张升级票里 142 张给的类别是 `credential-read`,针对的是服务器读自己的 key 去调自己的 API。P-062 起,引文落在的文件若按整条静态链(`detect.CredentialGoesHome`,全文)读的是有名字的凭证且只发往它自家的服务或回环,`credential-read` 这票降到 medium 并在理由里注明;在那 547 棵树上离线模拟是 96 个里降 12 个——其余大多是链不认的读法或调用在别的文件里。P-098 起,引文落在的文件若除了服务器自己的配置之外什么都没去够——没有别的程序的密钥、系统文件或 `/proc`/`/sys`、整环境读取、元数据服务、用户库、钥匙串、cookie 库或临时目录里的隐藏文件(`detect.CredentialOverreach`)——也没把凭证发往一个写明了、但不是它自家服务的主机(`detect.CredentialSentElsewhere`),`credential-read` 这票同样降到 medium;在 543 个良性服务器上因此从 high 降下 43 个,Cisco 的 127 个恶意服务器上 2 个(两个都是注入或遍历被归成了 `credential-read`),其余 12 个恶意 MCP 样本 0 个。P-117 起,"凭证发往不是它自家服务的主机"只看真正发请求的行(客户端调用,加上它用到的基址在同一文件里的一层解析):XML 命名空间、许可证链接、OAuth 权限范围、消息字符串里的网址都不算目的地。在 802 棵 Python 服务器树上,良性服务器被报从 143 降到 133,良性 `LLM-010` 升级从 61 降到 40,恶意被报 134 → 138;被它降下来的 4 个恶意样本,判官的票说的都是服务器读自己的 key,不是它们的攻击。服务器趟也不再读服务器的 `.github/` 工作流(它们在 GitHub 上跑,不在装服务器的机器上);静态规则照读。读数在 `baselines/results/aguard/2026-11-05-llm-gpt-4.1-mini-p117-py-branch-s3/`。`LLM-010` 在第三方服务器上仍只当提示看;数字和分母在 `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`。 |
 | `LLM-009` | MCP 服务器配置风险 —— 来源、是否 pin、传输方式、凭证(维度 5)。**只提示**:按模型给的严重度显示,但无论几票都不升级。"`npx -y` 没钉版本还拿着 token"是真实配置的常态,500 个良性配置上它是唯一一条升级过的判官规则(P-019)。 |
 
 triage 标签(`likely-real` / `likely-benign`)显示在对应发现下方:终端和 markdown 报告用白话
@@ -367,12 +395,12 @@ em 空格(U+2003)、不换行空格和 tab 一样折叠,所以用它们垫开的
 `--fail-on-llm` 下退出 0 的意思是"判官计划问的每个问题都问了、都答了",不是"每个字节都读过"。
 
 **判官对目标一个问题都没有,也不等于通过。** 对普通文件夹,或里面没有任何 skill、命令、子 agent 的插件(包括它们的 `.zip`)跑
-`aguard check <目标> --llm --fail-on-llm high`,退出码是 **4**:判官对它一个问题都不计划(分诊标签不算 —— 它永远到不了这个闸门),
+`bas-guard check <目标> --llm --fail-on-llm high`,退出码是 **4**:判官对它一个问题都不计划(分诊标签不算 —— 它永远到不了这个闸门),
 退出 0 就等于报了一个这次运行根本没有的答案。插件里有这些子项时,判官通过子项回答它,那些调用照常按规则算。`scan`,以及对按
 配置根布局的目录跑的 `check`,退出码不变:环境不是目标。那里由 `LLM-000` 负责披露。 引文只落在声明用途上——skill 的 description、服务器的工具 docstring——不算行为证据:意图趟和服务器源码趟上这种判决按引不到处理,丢弃,`LLM-005` 注明它引的是声明用途(P-054)。MCP 服务器的源码不算普通目录:目录里有导入 `mcp`/`fastmcp` 且声明了工具的 Python 文件,就是种类 `server`,走服务器源码趟(`LLM-010`),闸门对它有答案(P-053)。
 
 除了上面那条针对目标的规则,两个开关在 `scan` 和 `check` 上含义相同。想让判官在 PR 上说话的 CI 任务跑
-`aguard check ./skill --llm --fail-on-llm high`:确定性的 high 照样经 `--fail-on` 让它失败(`check` 默认 `high`),
+`bas-guard check ./skill --llm --fail-on-llm high`:确定性的 high 照样经 `--fail-on` 让它失败(`check` 默认 `high`),
 合格的 LLM high 经 `--fail-on-llm` 让它失败。加载时闸门两个都不接 —— 它永不问模型。
 
 档位由你声明,是因为自备端点对我们是不透明的:`model` 是自由文本、想写什么写什么,从中推断能力
@@ -417,7 +445,7 @@ triage 只问一次,判官的题问 `samples` 次)、`retries`、`prompt_tokens`
 后两个键不出现,而不是写一个看起来像测量值的 0——以及 `cached_prompt_tokens`:端点报告从它的提示词缓存里取的那部分
 `prompt_tokens`(是子集,永远不要加到 `prompt_tokens` 上;厂商按它自己的费率计)。端点一个都没报时这个键不出现,
 不报这个字段的端点也长这样:两者分不开。`usage_by_pass` 把这些计数按发出调用的那道题拆开(P-072):每一趟被调用过的
-各一项,键是 `aguard llm preview` 给这一趟的名字 —— `intent`、`injection`、`result`、`deobfuscation`、`collusion`、
+各一项,键是 `bas-guard llm preview` 给这一趟的名字 —— `intent`、`injection`、`result`、`deobfuscation`、`collusion`、
 `capability`、`mcp-config`、`server`、`triage` —— 每项有 `calls`、`reasked` 和三个 token 数(端点没报时同上不出现)。
 重试的调用和重问的调用都记在问这道题的那一趟里,端点报了用量的每一个回复都算进去,所以各项相加**恰好**等于块上的
 `calls`、`reasked` 和三个 token 总数;一次调用都没发的块没有这个键。它们是端点报的 token 数,不是费用:一趟的 token
@@ -428,7 +456,7 @@ triage 只问一次,判官的题问 `samples` 次)、`retries`、`prompt_tokens`
 ——每趟的 system 提示词、摘录外面的版式、要求的回复格式、温度、请求字段——被扫内容、模型和 nonce
 都换成固定占位。`excerpt_version` 是维护者手动加一的数字:artifact 送出什么、引文怎么落地,只要变了就加;
 摘录代码改了而数字没动,有一个 golden 测试会红。判官配置好时块里还有 `model`(每个请求写的模型名,配置没写时是
-`llama3.1`)和 `samples`(每道题问了几次,配置写 0 时是 1)。`aguard version` 在 `rules=` 后面印这两个版本
+`llama3.1`)和 `samples`(每道题问了几次,配置写 0 时是 1)。`bas-guard version` 在 `rules=` 后面印这两个版本
 (`judge-prompt=`、`judge-excerpt=`);判官跑了时,人读的报告多一行
 `LLM judge: model … · samples … · prompt_version … · excerpt_version …` —— 终端里只在 `--verbose` 下印,
 默认视图改印一行简短的(`Judge: checked 1 skill, nothing to add`)。两份报告的版本不同,就是判官代码不同;
@@ -443,7 +471,7 @@ triage 只问一次,判官的题问 `samples` 次)、`retries`、`prompt_tokens`
 
 ```bash
 export BAS_GUARD_USAGE_LOG=~/.local/state/bas-guard/usage.jsonl   # AGUARD_USAGE_LOG 仍可用;两个都设时以此为准
-aguard check ./some-skill --llm
+bas-guard check ./some-skill --llm
 ```
 
 之后每次至少发出了一次调用的判官运行,按判官块各追加一行 JSON:`scan` 环境一行(`"section":"environment"`)、

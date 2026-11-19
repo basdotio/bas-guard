@@ -8,9 +8,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/detect"
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/score"
+	"github.com/basdotio/bas-guard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/score"
 )
 
 // Sanitize strips control characters (C0, DEL, C1) from any string before it is written to a
@@ -31,6 +31,11 @@ func sanitize(s string) string { return Sanitize(s) }
 //     whoever shipped the artifact. A withdrawn version printed them raw, which let a crafted
 //     name forge the selection cursor.
 func Sanitize(s string) string {
+	// Unicode tag characters draw nothing either (P-123): `setup<tags "-evil">.sh` printed as `setup.sh`.
+	// They are cleaned only in a string detect.HidesTagText says hides text — INJ-006's predicate, so a
+	// name is judged by the answer file contents are — because an emoji flag is written in them too, and
+	// a flag in a skill's name is a flag. Where text is hidden, every tag character goes, flags included.
+	hidesTags := detect.HidesTagText(s)
 	return strings.Map(func(r rune) rune {
 		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 			return -1 // drop; format strings supply their own newlines/spacing
@@ -41,7 +46,7 @@ func Sanitize(s string) string {
 		// classifier is detect's, the same one INJ-004 uses on file contents; nothing read the
 		// file NAMES. Replaced with U+FFFD rather than dropped so "cleaned" and "never there"
 		// stay distinguishable in the output.
-		if detect.Invisible(r) {
+		if detect.Invisible(r) || hidesTags && detect.IsTag(r) {
 			return '\uFFFD'
 		}
 		return r
@@ -211,7 +216,7 @@ func writeText(w io.Writer, r model.ScanResult, verbose bool) {
 				fmt.Fprintf(w, "  · %s: %s\n", Sanitize(h.Kind), Sanitize(h.Detail))
 			}
 		} else {
-			fmt.Fprintf(w, "\nJunk / hygiene: %d item(s) — `aguard clean` lists them; --verbose prints them here.\n", len(r.Hygiene))
+			fmt.Fprintf(w, "\nJunk / hygiene: %d item(s) — `bas-guard clean` lists them; --verbose prints them here.\n", len(r.Hygiene))
 		}
 	}
 

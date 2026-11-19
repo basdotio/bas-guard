@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/basdotio/AgentGuard/internal/collect"
-	"github.com/basdotio/AgentGuard/internal/detect"
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/parse"
-	"github.com/basdotio/AgentGuard/internal/score"
+	"github.com/basdotio/bas-guard/internal/collect"
+	"github.com/basdotio/bas-guard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/parse"
+	"github.com/basdotio/bas-guard/internal/score"
 )
 
 // Options tunes how a judge run talks to the endpoint. The zero value is usable — defaults()
@@ -87,7 +87,7 @@ type Stats struct {
 	// times and triage once, so without this split what one question costs can only be guessed.
 	TriageCalls int
 	// UsageByPass is the run's calls, re-asks and reported tokens by the pass that made them, keyed by
-	// the name `aguard llm preview` gives the pass (P-072). Its entries sum exactly to Calls, Reasked
+	// the name `bas-guard llm preview` gives the pass (P-072). Its entries sum exactly to Calls, Reasked
 	// and the client's token totals; nil when no call was made.
 	UsageByPass map[string]model.PassUsage
 	Latencies   []time.Duration // one per issued call, retries included
@@ -144,7 +144,7 @@ const (
 type task struct {
 	kind     taskKind
 	artifact int    // index into arts
-	label    string // redacted "kind:name", for triage + error messages
+	label    string // "kind:name" (artifactLabel), for triage + error messages
 	req      Request
 	items    []TriageItem
 	// units is the text this call was built from — the basis a verdict's quote is checked
@@ -221,6 +221,23 @@ func groundedFinding(t task, v Verdict) (verdict, barrier *model.Finding, droppe
 				// on one pass; the connector pass's own-service control is categoryShown's.
 				f.Severity = model.SevMedium
 				f.Why += " [category not shown by the text: credential-read (the credential's own service)]"
+			} else if cat == "credential-read" && t.req.Mode == ModeServer && !unitOverreaches(units, s.file) {
+				// P-098: an MCP server is configured with credentials — os.getenv("STRIPE_API_KEY"), a
+				// settings object, load_dotenv() — and reading them is how it logs in. Three votes called
+				// that a credential read on 46 of the 63 benign servers the judge alone flagged; the
+				// malicious ones read the environment whole, /etc/passwd, another process's environ or the
+				// metadata service. The file the quote landed in names none of those, and sends no
+				// credential to a host it spells out that is not the credential's own, so medium.
+				f.Severity = model.SevMedium
+				f.Why += " [category not shown by the text: credential-read (only the server's own configuration)]"
+			} else if cat == "credential-read" && t.req.Mode == ModeInjection && quoteGoesHome(units, s.file, s.text) {
+				// P-089: the same question on the text an agent reads. A SKILL.md's example that puts
+				// OPENAI_API_KEY in the Authorization header of a call to api.openai.com is how the
+				// API is used, and three votes called it a credential read. Asked of the lines around
+				// the quote rather than the whole document: a long SKILL.md documents several services,
+				// and one foreign destination anywhere in it would hide every example that goes home.
+				f.Severity = model.SevMedium
+				f.Why += " [category not shown by the text: credential-read (the credential's own service, nearby)]"
 			}
 			verdict = f
 		} else {
@@ -234,7 +251,20 @@ func groundedFinding(t task, v Verdict) (verdict, barrier *model.Finding, droppe
 		}
 	}
 	if quote := strings.TrimSpace(v.BarrierEvidence); quote != "" {
-		if s, ok := groundSpan(quote, t.units); ok {
+		if s, ok := groundSpan(quote, t.units); ok && isBareName(s.text) {
+			// P-087: the content addressed the analyzer only if it SAID something. A grounded quote
+			// of one token (a hook named `claude-ignore`) is a name; read as an instruction to the
+			// model it is the same guess as above, and LLM-007's severity is the tool's — high —
+			// so the guess would weigh the most. Dropped and noted, like an unsupported claim.
+			if verdict != nil {
+				verdict.Why += " [the quote said to address the analyzer is one word, a name: not counted]"
+			} else {
+				dropped = true
+				if unquoted == "" {
+					unquoted = clipQuote(quote) + " (a name, not an instruction)"
+				}
+			}
+		} else if ok {
 			b := barrierFinding(t.req)
 			b.Evidence[0] = s.evidence()
 			barrier = b
@@ -490,6 +520,15 @@ func buildTasks(arts []model.ArtifactReport, samples int, eg egress) []task {
 	return tasks
 }
 
+// artifactLabel is how the judge names an artifact in its notes (LLM-000, LLM-005, what an excerpt
+// left out, the artifacts asked nothing): "kind:name", the name as the report lists it. It is not
+// sent to the model (Request.Artifact is never in a request body). It went through Redact once, and
+// the entropy catch-all removed long hyphenated names whole — `migrating-tailwindcss-v4` read
+// `skill:<REDACTED>` here while the report listed it by name, and two such skills could not be told
+// apart (P-085, issues/027). Every renderer prints the name as is (invariant #3 leaves names the
+// scanner lists outside Redact); this note draws no line of its own.
+func artifactLabel(a model.ArtifactReport) string { return string(a.Kind) + ":" + a.Name }
+
 // planFor decides which calls one artifact gets (spec §5.2 trigger table). Two rules shape
 // that table, and neither is about caution:
 //
@@ -503,7 +542,7 @@ func buildTasks(arts []model.ArtifactReport, samples int, eg egress) []task {
 // is turned into a request and its units, so the two hold the same bytes. The label is not sent:
 // it names the artifact in the report and in LLM-000/LLM-005 notes, never in a request body.
 func planFor(i int, a model.ArtifactReport, eg egress) []task {
-	label := detect.Redact(string(a.Kind) + ":" + a.Name)
+	label := artifactLabel(a)
 	var out []task
 	ask := func(req Request, units []sourceUnit) {
 		req.Artifact = label
@@ -598,7 +637,7 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 		// An MCP server's source (P-053): the tools' docstrings are the only description a client
 		// sees, the code is what runs. The intent question, with the skill passes' walker and caps.
 		declared, declaredUnits := serverDeclared(a.Path, eg)
-		behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
+		behavior, behaviorUnits := behaviorExcerptSkipping(a.Path, eg, serverSkipDirs)
 		if behavior != "" {
 			ask(Request{Mode: ModeServer, Declared: declared, Behavior: behavior}, append(declaredUnits, behaviorUnits...))
 		}
@@ -640,7 +679,7 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 // ballot collects the samples of ONE question and turns them into at most one finding.
 type ballot struct {
 	artifact int
-	label    string // redacted "kind:name", for the LLM-005 note
+	label    string // "kind:name" (artifactLabel), for the LLM-005 note
 	// flagged holds the samples that flagged AND grounded, in sample order. Only these are
 	// votes: a verdict whose quote isn't in the source can't support anything.
 	flagged []model.Finding
@@ -1089,6 +1128,50 @@ func lowestSeverity(votes []model.Finding) model.Severity {
 // unitGoesHome reports whether the behaviour unit a quote landed in was built from a file whose
 // named credential goes only to its own service (sourceUnit.goesHome). The file name is the
 // redacted relative path groundSpan cites, the same string the unit carries.
+// quoteWindow is how many lines either side of a quote quoteGoesHome reads: an example's request
+// is a few lines around its Authorization header, and a window much wider starts to take in the
+// next example's destination.
+const quoteWindow = 12
+
+// quoteGoesHome reports whether, in the unit the quote landed in, the lines within quoteWindow of
+// it read a named credential and send it only to that credential's own service — the static
+// chain's answer (detect.CredentialGoesHome), on a window instead of a whole file.
+func quoteGoesHome(units []sourceUnit, file, quoted string) bool {
+	q := strings.TrimSpace(quoted)
+	if q == "" {
+		return false
+	}
+	for _, u := range units {
+		if u.file != file {
+			continue
+		}
+		lines := strings.Split(u.text, "\n")
+		first := strings.SplitN(q, "\n", 2)[0]
+		for i, l := range lines {
+			if !strings.Contains(l, strings.TrimSpace(first)) {
+				continue
+			}
+			lo, hi := max(0, i-quoteWindow), min(len(lines), i+strings.Count(q, "\n")+1+quoteWindow)
+			if detect.CredentialGoesHome(u.file, strings.Join(lines[lo:hi], "\n")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// unitOverreaches reports whether the behaviour unit a quote landed in was built from a file that
+// reaches for a credential beyond its own configuration (sourceUnit.overreach). A quote in no
+// behaviour unit answers true: nothing shows it is only the server's own configuration.
+func unitOverreaches(units []sourceUnit, file string) bool {
+	for _, u := range units {
+		if u.file == file && !u.collapsed {
+			return u.overreach
+		}
+	}
+	return true
+}
+
 func unitGoesHome(units []sourceUnit, file string) bool {
 	for _, u := range units {
 		if u.file == file && !u.collapsed {

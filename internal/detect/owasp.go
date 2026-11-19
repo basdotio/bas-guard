@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package detect
 
-import "github.com/basdotio/AgentGuard/internal/model"
+import "github.com/basdotio/bas-guard/internal/model"
 
 // OWASP's Top 10 for Agentic Applications (2026) is the catalogue a security reviewer, a procurement
 // checklist and every comparable scanner speak in. This file attaches those identifiers to our
@@ -68,6 +68,8 @@ var asiByRule = map[string][]string{
 	"INJ-003": {"ASI-01"},
 	"INJ-004": {"ASI-01"}, // hidden characters: concealment in service of a hijack
 	"INJ-005": {"ASI-01"}, // a fetched instruction file the agent acts on
+	"INJ-006": {"ASI-01"}, // text in tag characters: concealment in service of a hijack, as INJ-004
+	"INJ-007": {"ASI-01"}, // a comment the reader is not shown, written for the model
 	"OBF-005": {"ASI-01"}, // homoglyph disguise: same, by a different mechanism
 	// Connector tool-description poisoning: injection delivered through the tool list.
 	"MCP-001":   {"ASI-01", "ASI-02"},
@@ -90,7 +92,12 @@ var asiByRule = map[string][]string{
 	"EXEC-009": {"ASI-05"},
 	"EXEC-010": {"ASI-05"}, // interpreter preload via env: code runs before the program the config names
 	"EXEC-011": {"ASI-05"},
+	"EXEC-013": {"ASI-05"}, // a script hooked into every new shell: execution that outlives the skill and needs no further invocation
 	"EXEC-012": {"ASI-05"}, // curl|bash spelled with $(…) or <(…) — the same unrestricted execution of whatever a URL serves // a base64 payload decoded straight into a shell — unrestricted execution of hidden code
+
+	// A skill's own shell runs code it downloads, on invocation and unread (P-132): execution, and the
+	// code comes from outside the tree.
+	"EXEC-014": {"ASI-05", "ASI-04"},
 
 	// Reverse shell: a shell handed to a remote party is unrestricted code execution. Unlike
 	// BD-001/002/003 (advisory heuristics, deliberately unmapped) this is a definite construct.
@@ -101,12 +108,15 @@ var asiByRule = map[string][]string{
 	"SUP-002": {"ASI-04"},
 	"SUP-003": {"ASI-04"},
 	"SUP-004": {"ASI-04"}, // instructions pointing the agent into a tree the scan does not read
+	"SUP-007": {"ASI-04"}, // code fetched over plaintext http: the network path chooses what runs
+	"SUP-011": {"ASI-04"}, // a skill's own shell runs a registry package at a version that can move
 
 	// Filesystem — reach beyond what the task needs, and destructive reach.
 	"FS-001": {"ASI-02"},
 	"FS-002": {"ASI-02"},
 	"FS-003": {"ASI-02"},
 	"FS-004": {"ASI-02"},
+	"FS-005": {"ASI-02"}, // erasing logs or history: the tool surface turned on the record of its own use (the list has no repudiation category)
 
 	// Exfiltration. ASI-02 because the tool surface is what carries the data out; the Agentic list has
 	// no standalone disclosure category (that lives in the LLM Top 10 as LLM06), which is exactly the

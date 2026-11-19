@@ -1,4 +1,4 @@
-# AgentGuard 架构(as built)
+# BAS Guard 架构(as built)
 
 [English](architecture.md) | **中文**
 
@@ -20,13 +20,13 @@
 
 AI 编码 agent 会**自动加载** skills、MCP server、hooks、subagents、slash commands、指令文件。
 这些东西是**"指令 + 被授予的工具权限"**,不是文档 —— 其中任何一个都能藏一条 agent 会照做的指令。
-AgentGuard 把这些 artifact 从磁盘上读进来跑规则,产出一个可复现的风险分和一份报告。它**从不执行
+BAS Guard 把这些 artifact 从磁盘上读进来跑规则,产出一个可复现的风险分和一份报告。它**从不执行
 被扫描的内容,也不外连**(除非你显式打开可选的 LLM judge)。它是**体检,不是保证清除**:分数是
 相对风险信号,不是安全证书。
 
 ## 流水线
 
-[`cmd/aguard/main.go`](../cmd/aguard/main.go) 里的 `analyze()` 是 `scan`/`check`/`clean` 的
+[`cmd/bas-guard/main.go`](../cmd/bas-guard/main.go) 里的 `analyze()` 是 `scan`/`check`/`clean` 的
 **唯一编排入口**。**各阶段的先后顺序是有意为之**,该函数的注释解释了原因:
 
 ```
@@ -43,6 +43,9 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   是硬要求。
 - **`check` 的入口是布局路由,不是 `scan`** —— `collect.CollectTarget` 按"从具体到宽泛"依次判定:
   单文件 → `SKILL.md` → plugin manifest(整树,外加它的 skill、命令、子 agent)→ 像 root → 其他目录(整棵树当一个 artifact 读掉)。
+  目录,以及名为 `settings.json`、`settings.local.json`、`.mcp.json` 的文件,还会读它们声明的 Claude Code 配置——**在整树之外另读,
+  绝不代替整树**(`collect.withDeclared`,P-120);读出来的 artifact 在 `Within` 里指回目标,和目标算一个单元(`score.Families`)。
+  目录的 `CLAUDE.md` 也这样另读,用的是扫描它的 `.claude` 时那份清单和那套 `@` 导入展开(`collect.declaredInstructions`,P-125)。
 
 每个包都是围绕 [`internal/model`](../internal/model/model.go) 中不可变类型的一个(近似)纯函数阶段。
 
@@ -67,9 +70,9 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
 | [`inbox`](../internal/inbox/) | 下载目录扫描:候选发现、带上限且拒绝路径穿越的 zip 解包 | 376 |
 | [`safeio`](../internal/safeio/) | 打开一个不是自己写的文件的唯一途径:非常规文件在 Open 前拒绝,大小由读强制 | 101 |
 | [`redact`](../internal/redact/) | 唯一的脱敏器:已知 token 前缀、键名/旗标自证的凭据、URL userinfo、高熵串。是叶子包,`collect` 也用它;`detect.Redact` 委托它 | 209 |
-| [`cmdline`](../internal/cmdline/) | 把路径印进一条要复制粘贴的命令的唯一途径:完整路径、按 POSIX shell 加引号、绝不截短。`gate.CommandArg` 委托它;报告里 `aguard approve` 那一步也用它 | 97 |
-| [`testhome`](../internal/testhome/) | 只给测试用:模块里每个测试二进制(`baselines/` 除外,理由写在守卫里)都在临时的 `HOME`、指向它里面的四个 XDG 基础目录、没有 `CLAUDE_CONFIG_DIR` 和 `AGUARD_USAGE_LOG` 的环境里跑,没有哪个测试读得到开发者自己的配置、往开发者的用量日志里追加;`TestEveryTestPackageIsolatesTheHome` 要求每个有测试的包都有调用它的 `TestMain`,`TestDefaultLocations_AreInsideTheTestHome`(`cmd/aguard`)要求二进制解析出的每个默认位置都在临时 home 里 | 125 |
-| [`cmd/aguard`](../cmd/aguard/) | CLI 接线、`analyze()`、下载目录那一趟、hook runner、`llm setup/test/status/preview` | — |
+| [`cmdline`](../internal/cmdline/) | 把路径印进一条要复制粘贴的命令的唯一途径:完整路径、按 POSIX shell 加引号、绝不截短。`gate.CommandArg` 委托它;报告里 `bas-guard approve` 那一步也用它 | 97 |
+| [`testhome`](../internal/testhome/) | 只给测试用:模块里每个测试二进制(`baselines/` 除外,理由写在守卫里)都在临时的 `HOME`、指向它里面的四个 XDG 基础目录、没有 `CLAUDE_CONFIG_DIR` 和 `AGUARD_USAGE_LOG` 的环境里跑,没有哪个测试读得到开发者自己的配置、往开发者的用量日志里追加;`TestEveryTestPackageIsolatesTheHome` 要求每个有测试的包都有调用它的 `TestMain`,`TestDefaultLocations_AreInsideTheTestHome`(`cmd/bas-guard`)要求二进制解析出的每个默认位置都在临时 home 里 | 125 |
+| [`cmd/bas-guard`](../cmd/bas-guard/) | CLI 接线、`analyze()`、下载目录那一趟、hook runner、`llm setup/test/status/preview` | — |
 
 有一处职责是被刻意切成两半的,值得先知道,因为两半都叫"permission":
 
@@ -130,7 +133,7 @@ Checked 那句数清单,清单什么都没数到时改数扫过的 artifact(`che
 一句白话;然后每条发现一个编号块 —— 每个维度一句固定短语说它是哪类问题、"谁 · 什么"且规则 ID 收尾、规则自己的 Why、
 判官的 triage 标签换成白话("likely a false alarm"、"one reading",并写明发现和分数都不变)、固定措辞的下一步
 (从哪个文件哪一行读起、这个维度该问的问题,以及只对闸门拦得住、有哈希、没有 critical 的 skill 给出确切的
-`aguard approve` 命令,用闸门自己的 `internal/cmdline` 加引号)。接着是一行 "Why N",由 `score.Explain` 推出 ——
+`bas-guard approve` 命令,用闸门自己的 `internal/cmdline` 加引号)。接着是一行 "Why N",由 `score.Explain` 推出 ——
 它就是 `score.Apply` 的计算过程,所以不会和分数打架;然后是一行简短的 Judge(版本号归 `--verbose`;
 `report.JudgeLineSuffix` 是唯一的扩展点)、白名单信任、没检查到的,最后一行说 `--verbose` 多给什么:扫描看了哪些地方
 (单个目标只写"只看了目标")、清单、OWASP 声明、卫生项列表。没有要看的东西时只印标题、带 ✅ 的分数行和 Judge 行。
@@ -178,12 +181,25 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
   [`logical.go, shape.go`](../internal/detect/logical.go) 会把行连接、零宽字符、切词用的引号(`cu""rl`)
   还原成一个归一化字符串用于匹配,而证据保留原始字节 —— 文件里写的是 `cu""rl`、报告里印
   `curl …`,等于把用户自己机器上的事实告诉错了。规则**先跑 raw,没命中才看 norm**,所以归一化
-  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。
+  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。Unicode tag 字符(U+E0000–E007F)
+  在 norm 里解码成它镜像的 ASCII,因为模型就是这么读的([`tags.go`](../internal/detect/tags.go),P-123):
+  用它写的一句话照样碰到每条规则;`INJ-006` 报 emoji 旗帜之外的任何 tag 字符,说明里印出解码后的隐藏文字。
+  归一化字符串是读者看到的那一行([`ignorable.go`](../internal/detect/ignorable.go),P-138):Unicode 规定显示为空的每个字符
+  (变体选择符在内)都去掉,ASCII 之外的每个空格读成 ASCII 空格 —— 被看不见的字符切开的词、
+  空格换成不换行空格的句子,照样碰到规则。这些字符不进 `detect.Invisible`(报告层会把那张表里的字符从名字里换掉):每个 emoji 都带一个选择符。
+  控制字符留在行里:去掉它们会让一个普通包里的转义表被读成 base64,所以被控制字符切开的词仍然查不到。
 - **有些检查是结构化的,不是正则。** `EXFIL-001/002/003` 与 `OBF-004` 在**两个粒度**上累计三条腿:
   读凭证、编码、出网。**凑齐链只要两条腿**(凭证 + 出网),编码腿是**放大器**。跨文件只到
   low + advisory,因为不相关的文件本来就会各干一半。同一文件的链若所有网络目标都是回环地址,降到
   同一档,避免本机 sidecar 把环境封顶在 69。`HOOK-002`(脚本在 HOME 外)和 `HOOK-003`(HTTP hook)
-  同样是结构化检查:它们给行级规则看不见的面打分。
+  同样是结构化检查:它们给行级规则看不见的面打分。`HOOK-003` 有一个 command 半边
+  (`internal/detect/hookegress*.go`,P-128):读 hook 命令和它跑的 shell、Python、Node 脚本,把事件(stdin)、
+  它的内容字段和 transcript 在一个文件里往前追到发送方 —— 是读,不是解释执行。settings 里的 status line
+  也这样读,它的 stdin 是会话元数据,所以那里只有 transcript 算数(P-133)。
+- **settings 里的 helper 命令就是命令**(`collect.SettingsHelpers`、`detect.helperUnits`,P-133):
+  `apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、`gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,
+  以及 `statusLine`、`fileSuggestion` 的 `command`,每个 settings 文件一个 `settings helpers` artifact,和
+  `settings env` 并列。每条命令跑脚本规则,证据落在值所在的那一行;它点名的本地脚本在边界内就跟进去读,否则出说明。
 - **advisory 的意思是"我们无法确认"。** 维度 7、8 在构造上就是 advisory,报告必须写明
   *not confirmed*。**会区分"我确定"和"我怀疑"的工具,才敢接进 CI。**
 
@@ -195,9 +211,9 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
 **规则表有版本号。** [`rules_version.go`](../internal/detect/rules_version.go) 按引擎顺序哈希"决定一条引擎规则发现的东西"——
 `builtinRules()` 里每条的 ID、维度、严重度、标志和正则源码,不含标题和解释——再加一个整数 `rulesEpoch`。结构化检查、权限检查和
 不是 `LLM-` ID 的 note 写在代码里,覆盖它们的只有 epoch。扫描报告里叫 `rules_version`,
-`aguard version` 会打印它,`rules.md` 页眉也写着它,所以改了正则不跑 `make docs` 就过不了 CI。它**只覆盖确定性检测**——
+`bas-guard version` 会打印它,`rules.md` 页眉也写着它,所以改了正则不跑 `make docs` 就过不了 CI。它**只覆盖确定性检测**——
 `overall` 的来源。**改 `builtinRules()` 之外的确定性检测代码时**——结构化/形状检查、角色门、词法层、读哪些文件、
-`collect` 的凭据 import 检查(`EXFIL-005`)、`permcheck`——只要改变了某个输入产出哪些发现,或发现的 ID/维度/严重度/advisory,
+`collect` 的凭据 import 检查(`EXFIL-005`)与项目 MCP 预批准检查(`PERM-009`)、`permcheck`——只要改变了某个输入产出哪些发现,或发现的 ID/维度/严重度/advisory,
 **同一个提交里把 `rulesEpoch` 加一。** 没有东西强制它;忘了加,两份报告就会自称同一版规则,而产出它们的代码其实不同。
 LLM 判官完全不在里面——提示词、证据落地、共识、严重度钳制都算:判官只动 `overall_effective`,所以改判官从不加 epoch;
 `--llm` 报告在自己的 `judge` 块里标识判官:`prompt_version` 和 `excerpt_version` 标它的代码,`model` 和 `samples` 标它怎么跑(P-031)。
@@ -207,10 +223,10 @@ LLM 判官完全不在里面——提示词、证据落地、共识、严重度�
 skill 与 plugin 用树哈希(按相对路径排序 + 每个文件的 sha256);单文件用 sha256。它是信誉库的 key,
 所以必须跨机器、跨 checkout 稳定。**改动哈希逻辑会让
 [`reputation.json`](../internal/reputation/data/reputation.json) 里的每一条记录全部失效**,须用
-`aguard hash` 重新生成。`test/` 故意**不**排除 —— payload 会藏在那里。
+`bas-guard hash` 重新生成。`test/` 故意**不**排除 —— payload 会藏在那里。
 
 hook、MCP server、permission 列表用的是**内容哈希**([`detect/contenthash.go`](../internal/detect/contenthash.go)),
-由 `analyze()` 在规则引擎跑完后紧接着填,先于信誉、闸门 `SessionStart`、`aguard approve` 和 Downloads 那一路读它。
+由 `analyze()` 在规则引擎跑完后紧接着填,先于信誉、闸门 `SessionStart`、`bas-guard approve` 和 Downloads 那一路读它。
 定义是 `sha256(<种类域> 0x00 <规范 JSON>)`,只覆盖配置本身 —— 整个 hook 或 server 条目,不含路径、不含 artifact 名 ——
 所以同一份配置在两台机器上是同一个身份。hook 的输入包含它运行的脚本内容(读不到时是一个说明原因的标记);secret 在哈希前
 由 `Redact` 的凭据那一半换掉,但带结构的片段(shell 语法、授权通配、URL 分隔符)绝不换:被拒的只是那一次替换,同一个值里
@@ -259,14 +275,15 @@ nonce 每个问题取一次、由它的几次采样共用,端点的提示词缓�
 
 **已完成且承重的**:10 个维度的静态检测(规则条数以 [`rules.md`](rules.md) 头部由代码生成的计数块为准,
 这里再写一个数就是会过期的副本),含 `detect/shape.go` 的形状检查(空行填充、伪装压缩包、随包字节码、改包源)、
-带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、plugin 采集(`installed_plugins.json`、
+带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、`.claude.json` 两个作用域里的 MCP server
+(顶层,以及每个项目的本地作用域——`claude mcp add` 的默认,`collect.localScopeServersFrom`)、plugin 采集(`installed_plugins.json`、
 Claude 桌面版自己的插件/skill 仓库 `collect/desktop.go`、以及沙箱的 `synced/<uuid>/` 布局;插件的 skill、命令、子 agent
 按 Claude Code 的加载规则各自成为 artifact,`collect/plugincontents.go`)、从桌面版缓存读取的远程 MCP
 connector 工具清单(`collect/connectors.go`,从不联网)与 `MCP-001..004` 投毒规则、沙箱识别(在 Claude Cloud / Cowork 里跑出的
 报告顶部盖「这不是你的电脑」横幅,`collect/environment.go`)、下载目录扫描(`internal/inbox`:~/Downloads 下像 agent 的东西和 zip,
 逐个单独查,永不计分)、hygiene/clean(默认只报告;`--apply` 可逆隔离僵尸 skill,`--undo` 恢复)、确定性评分、
 `.aguardignore` 基线、内嵌信誉 allowlist、带证据落地 + 共识、摘录压缩取头尾的 LLM judge、终端/JSON/SARIF/HTML 报告、
-两个闸门,以及三种分发:release 二进制、Claude Code 插件、`@bas.io/guard` npm 包(五个包,无 install 脚本)。
+两个闸门,以及三种分发:release 二进制、Claude Code 插件、`@bas.io/guard` npm 包(五个包,无 install 脚本;v0.30.0 起另有不带 scope 的别名包 `bas-guard`)。
 v0.9.0 起:读用户文件一律经 `safeio`;存在但读不了的条目被披露并改变树哈希;`@import` 凭据被拒并计分(`EXFIL-005`);
 `check` 只按结构路由;报告在均值旁并列最差 artifact。
 
@@ -282,7 +299,7 @@ v0.9.0 起:读用户文件一律经 `safeio`;存在但读不了的条目被披�
   分支、不变量 2 背后的符号链接约束依赖的原语在那边行为不同。源码构建可用;发布产物只有
   darwin/linux,直到有 CI matrix 在 Windows 上跑完整套测试。
 
-**已确认的规避手法**在 [`cmd/aguard/adversarial_test.go`](../cmd/aguard/adversarial_test.go) 里
+**已确认的规避手法**在 [`cmd/bas-guard/adversarial_test.go`](../cmd/bas-guard/adversarial_test.go) 里
 **反向断言** —— 补上任何一条都会让测试失败,于是缺口不会像 checklist 条目那样被忘掉。目前只剩一条:
 `ExcludeFromScan` 目录(vendored 或生成的树)的内容不扫 —— 那里的发现是别人依赖的问题 —— 而把 agent
 指进去的 artifact 会被报(`SUP-004`)。未知扩展名、无主顶层文件、同形字命令名曾在这张表上,现在都能抓到;
@@ -295,7 +312,7 @@ make build            # -> bin/aguard(CGO_ENABLED=0,version/commit/date 由 -ldf
 make test             # go test -race -cover ./...
 make lint             # golangci-lint
 make dist             # 发布二进制 + SHA256SUMS.txt(darwin/linux)
-go test -run TestFailGate ./cmd/aguard/     # 跑单个测试
+go test -run TestFailGate ./cmd/bas-guard/     # 跑单个测试
 ./bin/aguard scan --root ~/.claude          # 真机冒烟测试
 ```
 
@@ -313,5 +330,5 @@ go test -run TestFailGate ./cmd/aguard/     # 跑单个测试
   用 `make dist` 构建、校验烧进二进制的版本号与 tag 一致,然后连校验和一起发布。
 
 改完 [`logical.go`](../internal/detect/logical.go) 或读取路径上的任何东西,**开 PR 前先用
-`aguard scan` 扫一遍真实的 `~/.claude`**。那是一个手写 lexer,吃的是攻击者可控的字节;它的第一版
+`bas-guard scan` 扫一遍真实的 `~/.claude`**。那是一个手写 lexer,吃的是攻击者可控的字节;它的第一版
 在真机上 panic 过(行尾是一个引号),而 table test 全绿。现在有两个 fuzz 目标守着它。

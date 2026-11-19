@@ -3,7 +3,7 @@
 
 本文件为 Claude Code (claude.ai/code) 在本仓库中工作时提供指引。
 
-本仓库是 `aguard` 的 Go 实现(module `github.com/basdotio/AgentGuard`),**所有代码都在这里**。
+本仓库是 `bas-guard` 的 Go 实现(module `github.com/basdotio/bas-guard`),**所有代码都在这里**。
 
 > **module path 有三处必须始终一致**:`go.mod` 的 module 指令、每个 `.go` 文件的 import、
 > 以及 `hack/github-action.yml` 里那条 `go install`(它会被拷到分发仓库,所以那边也要跟着动)。
@@ -42,7 +42,7 @@ make hooks                       # 装 pre-commit 到 .git/hooks/(clone 后跑�
 make dist                        # 交叉编译到 dist/(darwin/linux;windows 见下)
 go vet ./...                     # CI 也会跑
 
-go test -run TestFailGate ./cmd/aguard/                # 跑单个测试
+go test -run TestFailGate ./cmd/bas-guard/                # 跑单个测试
 go test -race ./internal/detect/                       # 跑单个包
 
 ./bin/aguard scan --root ~/.claude          # 全量扫描
@@ -58,7 +58,7 @@ echo '{"hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":
 ```
 
 退出码:`0` 低于阈值 · `1` 有 ≥ `--fail-on` 的发现 · `2` 运行错误 · `3` 仅 `clean`:部分执行 ·
-`4` 仅 `--fail-on-llm`:判官没跑或跑短了(有调用失败/没发出),或 `check` 的目标是判官一个问题都不问的(目录、隔离区,以及没有任何可加载 skill/命令/子 agent 的插件,P-038/P-044),闸门无法评估(P-026)。`scan` 默认不设
+`4` 闸门无法评估,原因印在 stderr:`--fail-on-llm` 时判官没跑或跑短了(有调用失败/没发出),或 `check` 的目标是判官一个问题都不问的(目录、隔离区,以及没有任何可加载 skill/命令/子 agent 的插件,P-026/P-038/P-044);`--fail-on` 时根目录下什么都没收集到,或有个项目的 `.claude` 没读到(根目录指高了一层,P-105)。`scan` 默认不设
 `--fail-on`(仅告知);`check` 默认 `high`(闸门)。
 
 
@@ -69,9 +69,9 @@ echo '{"hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":
 
 | 文件 | 原段 | 何时加载 |
 |---|---|---|
-| [pipeline.md](.claude/rules/pipeline.md) | 流水线 | `cmd/aguard/**`、`internal/**` |
+| [pipeline.md](.claude/rules/pipeline.md) | 流水线 | `cmd/bas-guard/**`、`internal/**` |
 | [invariants.md](.claude/rules/invariants.md) | 不变量 —— 不要削弱 | 始终 |
-| [gate.md](.claude/rules/gate.md) | 加载时闸门(`internal/gate`) | `internal/gate/**`、`cmd/aguard/gate*.go`、`hack/pre-commit` |
+| [gate.md](.claude/rules/gate.md) | 加载时闸门(`internal/gate`) | `internal/gate/**`、`cmd/bas-guard/gate*.go`、`hack/pre-commit` |
 | [score.md](.claude/rules/score.md) | 评分(`internal/score`) | `internal/score/**` |
 | [detect.md](.claude/rules/detect.md) | 检测引擎(`internal/detect`) | `internal/detect/**`、`hack/gen-rules/**` |
 | [reputation.md](.claude/rules/reputation.md) | 声誉白名单(`internal/reputation`) | `internal/reputation/**`、`hack/reputation-refresh/**` |

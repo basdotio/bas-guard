@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/detect"
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/score"
+	"github.com/basdotio/bas-guard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/score"
 )
 
 // SARIF is the format that puts a finding where the person who can fix it will see it: annotated on
@@ -253,6 +253,8 @@ func SARIF(w io.Writer, res model.ScanResult, version, infoURI string) error {
 				rp["judge"] = true
 				rp["escalates"] = f.Escalates
 			}
+			// The fingerprint key stays aguard/v1 across the rename (P-082): code scanning matches
+			// an alert by it, and a new key reopens every alert already triaged.
 			results = append(results, sarifResult{
 				RuleID:              f.RuleID,
 				Level:               lvl,
@@ -324,7 +326,8 @@ func SARIF(w io.Writer, res model.ScanResult, version, infoURI string) error {
 				// The score travels with the log, because a reviewer looking at annotations still needs
 				// to know whether the environment as a whole passed. `overall` only: the effective
 				// score folds in judge findings and gates nothing, so publishing it here would invite
-				// exactly the confusion the two numbers exist to prevent.
+				// exactly the confusion the two numbers exist to prevent. The keys keep the aguard/
+				// prefix across the rename (P-082), like the driver name: scripts read them by name.
 				"aguard/overall": res.Overall,
 				"aguard/root":    sarifURI(res.Root),
 			},

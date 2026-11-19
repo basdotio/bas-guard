@@ -13,12 +13,14 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/basdotio/AgentGuard/internal/redact"
+	"github.com/basdotio/bas-guard/internal/config"
+	"github.com/basdotio/bas-guard/internal/redact"
 )
 
 // newNonce returns an unpredictable barrier token (spec §5.2). crypto/rand failure is
@@ -86,6 +88,52 @@ type HTTPClient struct {
 	// call omits it (P-052). A consensus run then samples at the model's default, which is what
 	// such a model offers; the run's summary says so (temperature_omitted).
 	noTemperature atomic.Bool
+	// extra are the members llm.request_options adds to every request (P-107), in key order, each value
+	// already JSON. Set before the first call (SetRequestOptions) and only read after.
+	extra []requestMember
+}
+
+// requestMember is one llm.request_options member as it is sent.
+type requestMember struct {
+	key   string
+	value json.RawMessage
+}
+
+// SetRequestOptions adds opts to every request this client sends (P-107): after the members the judge sets,
+// in key order. A member the judge sets itself (config.ReservedRequestOptions) is refused, as config.Load
+// refuses it, so no option can sit beside one the judge decided. Call it before the first request.
+func (c *HTTPClient) SetRequestOptions(opts map[string]any) error {
+	for _, k := range config.ReservedRequestOptions {
+		if _, ok := opts[k]; ok {
+			return fmt.Errorf("request option %q is set by the judge itself", k)
+		}
+	}
+	keys := make([]string, 0, len(opts))
+	for k := range opts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	extra := make([]requestMember, 0, len(keys))
+	for _, k := range keys {
+		v, err := compactJSON(opts[k])
+		if err != nil {
+			return fmt.Errorf("request option %q: %w", k, err)
+		}
+		extra = append(extra, requestMember{key: k, value: v})
+	}
+	c.extra = extra
+	return nil
+}
+
+// compactJSON is v as JSON with HTML left unescaped, as the rest of a request body is written.
+func compactJSON(v any) ([]byte, error) {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(b.Bytes(), "\n"), nil
 }
 
 // TemperatureOmitted reports whether the endpoint refused the temperature member and the client
@@ -97,7 +145,7 @@ func (c *HTTPClient) TemperatureOmitted() bool { return c.noTemperature.Load() }
 // http.DefaultTransport, exactly what the bare &http.Client{} this replaced used.
 //
 // It exists for invariant #1 (no network except the explicitly enabled judge): the commands pass
-// a nil client, so this is the one point every judge request crosses, and a test in cmd/aguard
+// a nil client, so this is the one point every judge request crosses, and a test in cmd/bas-guard
 // swaps it for a counter to prove which entry points send anything and which send nothing. A
 // caller that supplies its own *http.Client is not affected by it.
 var Transport http.RoundTripper
@@ -180,6 +228,28 @@ type chatRequest struct {
 	Model       string        `json:"model"`
 	Messages    []chatMessage `json:"messages"`
 	Temperature *float64      `json:"temperature,omitempty"` // nil once the endpoint refused it (P-052)
+	// Extra is llm.request_options (P-107), written after the members above by MarshalJSON. With none the
+	// body is byte for byte what it was before the option existed.
+	Extra []requestMember `json:"-"`
+}
+
+// MarshalJSON writes the declared members exactly as encoding/json would (HTML unescaped, as the client's
+// encoder does), then Extra's members in their order.
+func (r chatRequest) MarshalJSON() ([]byte, error) {
+	type plain chatRequest // the same members, without this method
+	out, err := compactJSON(plain(r))
+	if err != nil || len(r.Extra) == 0 {
+		return out, err
+	}
+	out = out[:len(out)-1] // the closing brace
+	for _, m := range r.Extra {
+		key, err := compactJSON(m.key)
+		if err != nil {
+			return nil, err
+		}
+		out = append(append(append(append(out, ','), key...), ':'), m.value...)
+	}
+	return append(out, '}'), nil
 }
 
 type chatResponse struct {
@@ -198,7 +268,7 @@ type chatResponse struct {
 
 // Judge sends one redacted comparison and parses the model's JSON verdict.
 // Ping makes one minimal chat call and reports how long it took. It is the health check behind
-// `aguard llm test`: the same endpoint, model, key and request shape a real judge run uses, so a
+// `bas-guard llm test`: the same endpoint, model, key and request shape a real judge run uses, so a
 // wrong URL, a bad key, a renamed model or a blocked network fails HERE, with the server's own
 // error in hand, rather than as N failed calls at the end of a scan. Nothing scanned is sent.
 func (c *HTTPClient) Ping(ctx context.Context) (time.Duration, error) {
@@ -262,6 +332,7 @@ func (c *HTTPClient) chatOnce(ctx context.Context, system, user string, temperat
 	if err := enc.Encode(chatRequest{
 		Model:       c.model,
 		Temperature: temp,
+		Extra:       c.extra,
 		Messages: []chatMessage{
 			{Role: "system", Content: system},
 			{Role: "user", Content: user},

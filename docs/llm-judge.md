@@ -3,7 +3,7 @@
 
 [English](llm-judge.md) | [中文](llm-judge.zh-CN.md)
 
-AgentGuard's core is a **static** scanner. The LLM judge is an **optional, adversarial
+BAS Guard's core is a **static** scanner. The LLM judge is an **optional, adversarial
 advisory layer** that catches things static rules can't — but it is designed so it can never
 weaken the deterministic result. This page is the complete reference for enabling, configuring,
 and understanding it.
@@ -12,12 +12,12 @@ and understanding it.
 
 ```bash
 cp config.example.yaml config.yaml     # edit base_url / model to taste
-aguard scan --llm --config config.yaml
+bas-guard scan --llm --config config.yaml
 ```
 
 Off by default. Needs **both** `llm.enabled: true` in config **and** `--llm` on the CLI, on
-`scan` or on `check` for a single target (`aguard check ./some-skill --llm`). `clean` never uses
-it, and neither does the load-time gate: `aguard hook` and `aguard approve` run `check`'s static
+`scan` or on `check` for a single target (`bas-guard check ./some-skill --llm`). `clean` never uses
+it, and neither does the load-time gate: `bas-guard hook` and `bas-guard approve` run `check`'s static
 path only.
 
 ## The iron law (why you can trust it)
@@ -75,7 +75,7 @@ its scripts outside the skill directories, its docs, its output styles and inlin
 rules only. A finding a child repeats from the plugin tree is triaged once, on the plugin.
 
 **What it asks nothing about.** Three kinds have no pass: a **plugin** holding no loadable skill, command or agent, a
-**directory** whose layout matched nothing known (`aguard check <dir>`, or a folder under `skills/` without a `SKILL.md`), and
+**directory** whose layout matched nothing known (`bas-guard check <dir>`, or a folder under `skills/` without a `SKILL.md`), and
 **quarantined** content under `.aguard-trash`, which no longer loads. No question about their content is put to the model —
 at most their static findings are triaged — and every `--llm` run says so in one `LLM-000` note, counting them per kind.
 Permission blocks get triage only, by design: an allow list is configuration the static rules decide, and the note does not
@@ -90,19 +90,19 @@ the prompt says so — a verdict here is never a statement about the server's be
 **The short way** — one command, no file to edit:
 
 ```bash
-aguard llm setup --list                 # deepseek · openai · qwen · openai_compatible
-aguard llm setup --provider deepseek    # prompts for the key with hidden input (no history, no screen)
-aguard llm test                         # one call; fails HERE if the key/model/URL is wrong
-aguard llm status                       # what would be used (never the key)
-aguard llm preview ./some-skill         # what --llm would send for it; nothing is sent, no key needed
+bas-guard llm setup --list                 # deepseek · openai · qwen · openai_compatible
+bas-guard llm setup --provider deepseek    # prompts for the key with hidden input (no history, no screen)
+bas-guard llm test                         # one call; fails HERE if the key/model/URL is wrong
+bas-guard llm status                       # what would be used (never the key)
+bas-guard llm preview ./some-skill         # what --llm would send for it; nothing is sent, no key needed
 ```
 
-For scripts, pipe the key instead: `printf '%s\n' "$KEY" | aguard llm setup --provider deepseek --key-stdin`.
+For scripts, pipe the key instead: `printf '%s\n' "$KEY" | bas-guard llm setup --provider deepseek --key-stdin`.
 A remote endpoint must be https; plain http is accepted only for a model on this machine.
 The judge follows a redirect only within the configured origin (same scheme, host and port). A
-redirect anywhere else is not followed and nothing is sent there: the call fails, `aguard llm test`
+redirect anywhere else is not followed and nothing is sent there: the call fails, `bas-guard llm test`
 says where the endpoint tried to send it, and a scan reports it as an `LLM-000` note.
-Wherever aguard shows the endpoint — the report's `judge.endpoint`, the `LLM-002` note, an error, `llm status`,
+Wherever bas-guard shows the endpoint — the report's `judge.endpoint`, the `LLM-002` note, an error, `llm status`,
 `llm setup`, `llm test`, `llm preview` — a user name and password in it (`https://user:pass@host`), every query value
 and a fragment are shown as `<REDACTED>`; scheme, host, port, path and the query keys are kept. The requests use the
 URL as written.
@@ -110,7 +110,7 @@ URL as written.
 `setup` writes `~/.config/bas-guard/config.yaml` (or `$XDG_CONFIG_HOME/bas-guard/…`; a setup made before the
 rename to BAS Guard is still read from `~/.config/aguard/` when that is the only one), which every
 command reads when `--config` is not given, and stores the key in `llm.key` next to it with
-mode 0600. Inside Claude Code the `/aguard-llm` command walks through the same steps.
+mode 0600. Inside Claude Code the `/bas-guard-llm` command walks through the same steps.
 
 **The long way** is the same file by hand (see [`config.example.yaml`](../config.example.yaml)):
 
@@ -129,13 +129,14 @@ llm:
 | `base_url` | Endpoint root. The tool POSTs to `<base_url>/chat/completions`, the suffix going on the path: a query in `base_url` (`https://gw.example/v1?api-version=2024-01-01`) is sent as written after it, a trailing `/` makes no difference, and a fragment is dropped. A preset fills it in; set it to override. |
 | `model` | **Which model to use.** A preset supplies a default; write the exact name your endpoint serves to override. |
 | `api_key_env` | The **name** of an env var holding the key. Checked first; for CI and for people who prefer it. |
-| `api_key_file` | Path of a file holding the key (`~` allowed). Must be readable by its owner only — a group- or world-readable file is refused with the `chmod 600` to run. `aguard llm setup` writes it. |
+| `api_key_file` | Path of a file holding the key (`~` allowed). Must be readable by its owner only — a group- or world-readable file is refused with the `chmod 600` to run. `bas-guard llm setup` writes it. |
 | `concurrency` | Calls in flight at once (default `4`). Results merge in a fixed order, so this changes only how fast a scan runs. |
 | `timeout` | Timeout for **one call** (default `60s`). Without it, a few slow answers starve every remaining check. |
 | `total_timeout` | Backstop for the whole judge phase (default `10m`) — for an endpoint that neither answers nor fails. |
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
+| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads. Recorded in the judge block. See [Thinking models](#thinking-models). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 **An `llm` section this build cannot use stops the judge, nothing else.** An unknown `provider` or
@@ -173,15 +174,38 @@ llm: { enabled: true, provider: openai_compatible, base_url: https://api.openai.
 ```
 ```bash
 export OPENAI_API_KEY=sk-...
-aguard scan --llm --config config.yaml
+bas-guard scan --llm --config config.yaml
 ```
 
 Bigger models (gpt-4o, Qwen2.5-72B) judge semantic tasks more accurately; local keeps
 everything on your machine. That trade-off is yours.
 
+### Thinking models
+
+Some models think before they answer unless the request says otherwise, and the thinking is billed as completion
+tokens on every call — calls whose answer is a short JSON verdict. `request_options` passes the vendor's own member
+(P-107). Zhipu's GLM models, for example:
+
+```yaml
+llm:
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-5.3-flash
+  request_options:
+    thinking: { type: disabled }
+```
+
+Other vendors name it differently (`reasoning_effort`, `enable_thinking`, …); the tool passes what you write and knows no
+vendor's members. Run `bas-guard llm test` first: an endpoint that does not take a member answers with an error there,
+before a scan. Measured with `glm-5.3-flash` on 40 benign + 40 malicious corpus skills at `samples: 3` (P-107): thinking
+off cut the completion tokens by about nine tenths (benign −89%, malicious −92%) and one `check` from 110 s to 15 s; at
+the judge verdict benign stayed at 4 of 40 and malicious went from 33 to 32 of 40. That is one model on a small set — a
+thinking model may need its thinking for what you scan, so measure on your own before you gate on it. The options are
+part of which judge produced a report — the judge block, the identity line and the usage
+log record them — so a reading with thinking off is never compared with one that thought without it showing.
+
 ## Privacy
 
-- **See it before it is sent: `aguard llm preview`.** With a path it prints the calls
+- **See it before it is sent: `bas-guard llm preview`.** With a path it prints the calls
   `check <path> --llm` would make; without one, the calls `scan --llm` would make for `--root` and
   the Downloads items under `--inbox`. For each artifact its kind, name and content hash; for each
   call the pass, how often it is sent (`samples`, and how many `max_calls` refuses), the text that
@@ -290,6 +314,8 @@ everything on your machine. That trade-off is yours.
   characters — which is how grounding already reads it. Without that, one line padded with a few
   thousand blanks was sent as the omission marker or a prefix of blanks, and the judge never saw the
   directive on it. Padding broken up by a visible character every 128 bytes still counts as content.
+  Unicode tag characters (U+E0000–E007F) are not filler: a sentence written in them is the payload,
+  and it is sent as written (P-123). The static rules read it decoded and `INJ-006` reports it.
 - **The documents a `SKILL.md` names are read too** (P-065). "Read `PREFLIGHT.md` in full before starting"
   makes that file an instruction file, and an agent follows the line. The companion pass sends the `.md`,
   `.txt` and `.pdf` files the body names — by path or by bare name, inside the tree, in the order named,
@@ -350,19 +376,29 @@ everything on your machine. That trade-off is yours.
   |------|------|--------|
   | injection (`LLM-003`) | exfiltration · credential-read · remote-execution · safety-disable · concealed-directive · privilege | other-directive |
   | intent (`LLM-001`) | the five above · software-source · persistence · file-deletion · privilege | other |
+  | server (`LLM-010`) | the intent row's nine · resource-exhaustion · result-tampering | other |
   | hook capability (`LLM-008`) | network · credential · install · permission-override | file-write · process-control · other |
   | deobfuscation (`LLM-004`) | network · remote-execution · credential-read · file-deletion | other |
   | collusion (`LLM-006`) | credential-to-network | other |
   | result (`LLM-011`) | forced-value · data-tampering | unrequested-artifact · presentation-change · other-steering |
 
-  On the intent pass a behaviour the declared purpose states (`disclosed: true`) is one step
-  lower — except a changed software source, which the prompt flags disclosed or not. The prompt
+  The server row's two extra categories (P-115) are behaviour the model was already describing
+  correctly and filing under the medium `other`: a fork bomb, a decompression bomb, search results
+  with products slipped in. `other`'s line now names both. Measured on the 802 server trees, 10 of
+  the 14 malicious servers whose majority was `other` now escalate, Cisco's 127 go from 102 to 118
+  flagged, and no benign server escalates through either row. The same proposal tried a
+  `covert-transmission` row on the result pass (the user's data sent to a recipient the task never
+  named) and withdrew it: the model still filed a hidden BCC and a `full_access` grant under
+  `unrequested-artifact`, and it caught 2 of the 9 misses it was for, against a line of 4.
+
+  On the intent and server passes a behaviour the declared purpose states (`disclosed: true`) is one step
+  lower, and the reason says `[disclosed: one step lower]` — except a changed software source, which the prompt flags disclosed or not. The prompt
   tells the model to name the category for what the text itself shows, never for what a script
   it names might do: a hook that only runs a local file is `process-control` (medium), whatever
   the file is called. Under `samples: 3` the category is a vote too: when a majority of the
   agreeing samples named the same category, that vote's severity is the finding's; when no
   category reaches a majority, the lowest severity among the votes (the samples agree the text is
-  worth flagging but not on what it is, so no single label may pick the weight). The table's cost sits at `samples: 1`: one draw in a high category is high with no second opinion, and P-041's measurements show it (benign escalations 1 → 0 on 224 samples at `samples: 3`, 6 → 11 on 500 at `samples: 1`, and 1.65% of all 3,220 benign samples at `samples: 1`, most of them hooks that post to a notifier and MCP tools whose parameter takes the service's own key); a gate that reads the judge should run `samples: 3`. **A category the text does not show weighs medium** (P-049): for a hook, `network`, `install`, `permission-override` and `credential` need a token of the behaviour in the sent command — a URL or host other than localhost, `curl`/`ssh`/`git pull`, `npm`/`pip`/`brew`, `permissionDecision`/`allow`/`approve`, a key file or the word secret — because a model asked about `bash ensure-gh-cli.sh` otherwise answers from the file's name; for a connector, `credential-read` must rest on a quoted line that is not a catalogue parameter (`tool ▸ param secretKey: …` is the user handing the tool its own key). The vote keeps the model's category and the reason says `[category not shown by the text: …]`. `LLM-007`
+  worth flagging but not on what it is, so no single label may pick the weight). The table's cost sits at `samples: 1`: one draw in a high category is high with no second opinion, and P-041's measurements show it (benign escalations 1 → 0 on 224 samples at `samples: 3`, 6 → 11 on 500 at `samples: 1`, and 1.65% of all 3,220 benign samples at `samples: 1`, most of them hooks that post to a notifier and MCP tools whose parameter takes the service's own key); a gate that reads the judge should run `samples: 3`. **A category the text does not show weighs medium** (P-049): for a hook, `network`, `install`, `permission-override` and `credential` need a token of the behaviour in the sent command — a URL or host other than localhost, `curl`/`ssh`/`git pull`, `npm`/`pip`/`brew`, `permissionDecision`/`allow`/`approve`, a key file or the word secret — because a model asked about `bash ensure-gh-cli.sh` otherwise answers from the file's name — and three shapes never show `install` or `network` by themselves (P-090, the maintainer's ruling after reading the benign hooks the judge flagged): a package runner on a moving dist-tag (`npx claude-flow@alpha`), a package runner running a well-known formatter or linter (`npx prettier --write`, `npx oxfmt`), and `git pull`/`git fetch`; an unknown package run through npx, pinned or not, still shows `install`; for a connector, `credential-read` must rest on a quoted line that is not a catalogue parameter (`tool ▸ param secretKey: …` is the user handing the tool its own key); on the injection and result passes, a category resting on a quote of ONE token — a hook whose whole command is `claude-ignore`, read as "ignore previous instructions" — is not shown either, and a one-token quote raises no `LLM-007` (P-087): a directive is speech, a name is not. The vote keeps the model's category and the reason says `[category not shown by the text: …]`. `LLM-007`
   was always high by the tool's decision; `LLM-009` has no table (advisory-only) and keeps the
   model's word, clamped to at most high. No pass can emit `critical`.
 
@@ -373,13 +409,13 @@ everything on your machine. That trade-off is yours.
 | `LLM-000` | Coverage note: the judge didn't fully run (unreachable / not enabled / partial), or has no pass for some artifacts (a plugin with no loadable skill, command or agent, a directory, quarantined content). |
 | `LLM-001` | Intent mismatch (dim 10). |
 | `LLM-002` | Privacy warning: the configured endpoint is not local. |
-| `LLM-003` | Hidden prompt injection in instruction text (dim 1). |
+| `LLM-003` | Hidden prompt injection in instruction text (dim 1). Since P-089 a `credential-read` vote whose quote sits within twelve lines of code that sends the named key only to its own service (`detect.CredentialGoesHome` on that window — a documented call putting `OPENAI_API_KEY` in the header of a request to `api.openai.com`) weighs medium with the reason; the window, not the whole document, because a long `SKILL.md` documents several services. |
 | `LLM-004` | Decoded obfuscated payload performs sensitive actions (dim 6). |
 | `LLM-005` | Coverage note: N flagged verdicts were **discarded** because the text they quoted isn't in what was sent (see below). |
 | `LLM-006` | Capability chain across files of one skill (dim 3). |
 | `LLM-008` | Hook capability exceeds its interception point (dim 2). |
 | `LLM-007` | The artifact addressed the analyzer — told it what to conclude, or to ignore its instructions (dim 1). |
-| `LLM-010` | MCP server source does more than its tools say (dim 10). `check <dir>` on a Python MCP server (the SDK imported, a tool declared) asks the intent question of it: DECLARED is each tool's name and first docstring line — all a client is shown, the module docstring never — BEHAVIOR the code, through the skill passes' walker and caps; the intent table and `disclosed` apply. A plain directory is still asked nothing (P-053). **Measured on benign server source at `samples: 3` (P-059)**: 5 of 69 official and example servers, but 65 of 261 third-party Python servers found by code search and 26 of 189 from repositories created after the corpus was built — 95 of 506 in all, one in five — flagged, 142 of 176 escalating votes naming `credential-read` on a server that reads its own key for its own API. Since P-062 a `credential-read` vote grounded in a file whose named credential goes only to its own service or to loopback (the static chain over the whole file, `detect.CredentialGoesHome`) weighs medium with the reason in the note; offline over those 547 trees that is 12 of the 96 flagged — most of the rest rest on reads the chain does not count or on calls in another file. Treat `LLM-010` as advisory on third-party servers; the numbers and their denominators are in `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`. |
+| `LLM-010` | MCP server source does more than its tools say (dim 10). `check <dir>` on a Python MCP server (the SDK imported, a tool declared) asks the intent question of it: DECLARED is each tool's name and first docstring line — all a client is shown, the module docstring never — BEHAVIOR the code, through the skill passes' walker and caps; the intent table plus `resource-exhaustion` and `result-tampering` (P-115), and `disclosed`, apply. A plain directory is still asked nothing (P-053). **Measured on benign server source at `samples: 3` (P-059)**: 5 of 69 official and example servers, but 65 of 261 third-party Python servers found by code search and 26 of 189 from repositories created after the corpus was built — 95 of 506 in all, one in five — flagged, 142 of 176 escalating votes naming `credential-read` on a server that reads its own key for its own API. Since P-062 a `credential-read` vote grounded in a file whose named credential goes only to its own service or to loopback (the static chain over the whole file, `detect.CredentialGoesHome`) weighs medium with the reason in the note; offline over those 547 trees that is 12 of the 96 flagged — most of the rest rest on reads the chain does not count or on calls in another file. Since P-098 a `credential-read` vote also weighs medium when the file it landed in reaches for nothing beyond the server's own configuration — no other program's secrets, system or `/proc`/`/sys` files, whole-environment read, metadata service, user database, keychain, cookie store or hidden temp file (`detect.CredentialOverreach`) — and sends no credential to a host it spells out that is not the credential's own (`detect.CredentialSentElsewhere`); on 543 benign server trees that took 43 out of high, on Cisco's 127 malicious servers 2 (both categorised `credential-read` for what is an injection or a traversal), and none of the 12 other malicious MCP samples. Since P-117 "sends to a host that is not the credential's own" counts only lines that make a request (a client call, plus the same-file resolution of the base URL it uses): an XML namespace, a licence link, an OAuth scope or a URL in a message string is not a destination. On the 802 Python server trees that took benign servers flagged from 143 to 133 and benign escalating `LLM-010` from 61 to 40, with malicious flagged 134 → 138; the four malicious samples it lowered had votes describing the server's own key, not their attack. The server pass also leaves a server's `.github/` workflows out of what it reads (they run on GitHub, not where the server is installed); the rules still read them. Readings in `baselines/results/aguard/2026-11-05-llm-gpt-4.1-mini-p117-py-branch-s3/`. Treat `LLM-010` as advisory on third-party servers; the numbers and their denominators are in `baselines/results/aguard/2026-10-15-llm-gpt-4.1-mini-p059-benign-servers-s3/`. |
 | `LLM-009` | MCP server configuration risk — source, pinning, transport, credentials (dim 5). **Advisory only**: shown with the model's severity, never escalates, whatever the vote. Unpinned `npx -y` packages holding a token are what real configs look like — measured on 500 benign configs it was the only judge rule to flag benign input (P-019). |
 
 Triage labels (`likely-real` / `likely-benign`) render inline under the matching finding, in plain
@@ -498,14 +534,14 @@ A shortened excerpt or a discarded (ungrounded) verdict is still an answer and d
 0 under `--fail-on-llm` means the judge was asked every question it planned and answered each one,
 not that it read every byte.
 
-**A target the judge has no question for is not a pass either.** `aguard check <target> --llm --fail-on-llm high` on a plain
+**A target the judge has no question for is not a pass either.** `bas-guard check <target> --llm --fail-on-llm high` on a plain
 folder, or on a plugin holding no skill, command or agent (also as a `.zip`), exits **4**: the judge plans no question about it
 (a triage label is not one — it never reaches this gate), so exit 0 would read as an answer the run never had. A plugin that
 holds one is answered through its children, and the usual rules apply to those calls. A `scan`, or a `check` of a directory
 laid out as a config root, keeps its exit code: an environment is not a target. There the `LLM-000` note is the disclosure. A quote that lands only in the declared purpose — a skill's description, a server's tool docstrings — is not evidence of a behaviour: on the intent and server-source passes such a verdict is dropped like an unquotable one and the `LLM-005` note says it quoted the declared purpose (P-054). An MCP server's source is not a plain folder: a directory holding a Python file that imports `mcp` or `fastmcp` and declares a tool is kind `server`, gets the server-source pass (`LLM-010`), and the gate answers for it (P-053).
 
 Both flags mean the same thing on `scan` and on `check`, apart from that target rule. A pull-request job that wants the
-judge's say runs `aguard check ./skill --llm --fail-on-llm high`: a deterministic high still
+judge's say runs `bas-guard check ./skill --llm --fail-on-llm high`: a deterministic high still
 fails it through `--fail-on` (`high` by default on `check`), and a qualified LLM high fails it
 through `--fail-on-llm`. The load-time gate takes neither — it never consults a model.
 
@@ -574,7 +610,7 @@ the endpoint reported serving from its prompt cache (a subset, never to be added
 it at its own rate). It is absent when the endpoint reported none, which is also how an endpoint that does
 not report the field looks: the two cannot be told apart. `usage_by_pass` breaks those counts down by
 the question that made the calls (P-072): one entry per pass that was called, keyed by the name
-`aguard llm preview` gives the pass — `intent`, `injection`, `result`, `deobfuscation`, `collusion`,
+`bas-guard llm preview` gives the pass — `intent`, `injection`, `result`, `deobfuscation`, `collusion`,
 `capability`, `mcp-config`, `server`, `triage` — each with `calls`, `reasked` and the three token counts
 (absent when the endpoint reported none, as above). A retried call and a re-asked one count under the
 pass that asked the question, every reply the endpoint reported usage for included, so the entries add
@@ -592,7 +628,7 @@ the model and the nonce stood in. `excerpt_version` is a number the maintainers 
 whenever what an artifact sends, or how a quote is grounded, changes; a golden test fails when the
 excerpt code changes and the number does not. With a configured judge the block also has `model`,
 the model every request named (`llama3.1` when the config names none), and `samples`, how many times
-each question was asked (1 when the config says 0). `aguard version` prints the two versions after
+each question was asked (1 when the config says 0). `bas-guard version` prints the two versions after
 `rules=` as `judge-prompt=` and `judge-excerpt=`, and when the judge ran the human reports add one
 line, `LLM judge: model … · samples … · prompt_version … · excerpt_version …` — in the terminal with
 `--verbose` only, where the default view prints one short line instead (`Judge: checked 1 skill,
@@ -611,7 +647,7 @@ by hand or from scripts over days, set an append-only log:
 
 ```bash
 export BAS_GUARD_USAGE_LOG=~/.local/state/bas-guard/usage.jsonl   # AGUARD_USAGE_LOG still works; this name wins
-aguard check ./some-skill --llm
+bas-guard check ./some-skill --llm
 ```
 
 Every judge run that issued at least one call then appends one JSON line per judge block: `scan` one for the

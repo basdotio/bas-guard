@@ -35,12 +35,14 @@
 | [024](024-symlinked-loaded-files-outside-root-unscored.md) | 软链到 root 外的 command、agent、rule、workflow、output style 只通报不计分 | 覆盖缺口 | 中 | 未修复 |
 | [025](025-credentials-json-not-a-credential.md) | `.credentials.json` 不被认作凭据：import Claude Code 自己的凭据文件会被读取 | 安全缺陷 | 中 | 未修复 |
 | [026](026-clean-undo-relative-skill-md-link.md) | `SKILL.md` 是相对软链的 skill 能被 clean 隔离，却撤销不了 | 功能缺陷 | 中 | 未修复 |
-| [027](027-judge-label-redacts-hyphenated-names.md) | 长连字符 skill 名字被高熵兜底规则当成密钥：判官说明里两个不同的 skill 都叫 `skill:<REDACTED>` | 报告缺陷 | 低 | 未修复 |
+| [027](027-judge-label-redacts-hyphenated-names.md) | 长连字符 skill 名字被高熵兜底规则当成密钥：判官说明里两个不同的 skill 都叫 `skill:<REDACTED>` | 报告缺陷 | 低 | **已修复**（P-085：标签不再过 `Redact`） |
+| [028](028-server-declared-remote-execution-rejected.md) | 服务器趟的 remote-execution 在"工具自己声明了执行"时降档:实测否决(恶意 -10、良性 -2) | 检测精度 | — | **不规划**(前提实测不成立)|
+| [029](029-project-import-of-home-env-unseen.md) | A project's `CLAUDE.md` importing `@~/.env` is not reported: `~` is read as the project | 覆盖缺口 | 中 | 未修复 |
 
 ## 判定口径
 
 - **检测绕过**：攻击者读过本扫描器源码后可以主动利用的手法，多数已由对抗语料
-  ([cmd/aguard/adversarial_test.go](../cmd/aguard/adversarial_test.go)) 用**反向断言**固化——
+  ([cmd/aguard/adversarial_test.go](../cmd/bas-guard/adversarial_test.go)) 用**反向断言**固化——
   修复后对应测试会失败，提醒同步更新断言与本目录状态。
 - **覆盖缺口**：有内容没被读到。"部分缓解"指未读行为已通过 `COV-000` / `SUP-004`
   通报或部分拦截，但内容本身仍未被扫描。

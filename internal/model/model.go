@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package model holds AgentGuard's immutable result types (spec §8). Every scan
+// Package model holds BAS Guard's immutable result types (spec §8). Every scan
 // stage produces these; they are JSON-serializable and carry line-level, redacted
 // evidence. ScannedAt is injected by the caller so results are reproducible/testable.
 package model
@@ -196,6 +196,12 @@ type ArtifactReport struct {
 	// layout, so every artifact built without saying otherwise reads as before. Scan input,
 	// never serialized.
 	MCPUnwrapped bool `json:"-"`
+	// MCPProject is set for a server declared in local scope, the default of `claude mcp add`: the key
+	// under `projects` in Path (a .claude.json) whose `mcpServers` holds it, and the directory Claude
+	// Code starts it in. The entry is then projects[MCPProject].mcpServers[MCPServer] (P-119). The zero
+	// value is the top-level map, so every artifact built without saying otherwise reads as before; a
+	// project keyed "" is never collected, since no session runs in it. Scan input, never serialized.
+	MCPProject string `json:"-"`
 	// Advisory carries DISPLAY-ONLY annotations (e.g. LLM triage labels, spec §5.2.1). They
 	// reference findings by RuleID but NEVER alter them — findings and Score are computed
 	// only from Findings. Advisory annotations can't move the score or the --fail-on gate.
@@ -204,7 +210,7 @@ type ArtifactReport struct {
 	// list. It is how a 100-score artifact says "trusted" rather than "clean": with a GOOD
 	// match its findings are suppressed and it is otherwise indistinguishable, in JSON and
 	// HTML, from an artifact that never had any. Audit metadata only — the verdict's effect on
-	// Findings and Score is applied once, in cmd/aguard.applyReputation, and the REP-GOOD /
+	// Findings and Score is applied once, in cmd/bas-guard.applyReputation, and the REP-GOOD /
 	// REP-BAD note is still the record a reader is meant to see first.
 	Reputation *ReputationMark `json:"reputation,omitempty"`
 	// Plugin is set on a plugin's skill, command or agent collected as an artifact of its own
@@ -214,6 +220,20 @@ type ArtifactReport struct {
 	// score.Families), and the gate's session start, `approve` and hygiene skip children — all by this
 	// field, never by parsing the " (plugin …)" name suffix, which a plugin author controls.
 	Plugin string `json:"plugin,omitempty"`
+	// Within is set on an artifact read out of the Claude Code configuration a `check` target declares
+	// (P-120): the hooks, permission lists, env block and MCP servers in the target's .claude/settings
+	// files, its own settings files and its .mcp.json, or in the one such file the target is. It holds
+	// the Name of the target's artifact, whose tree or bytes hold this one. Set by the collector, never
+	// by content. Like Plugin it makes the target and these one unit of the score and prints a finding
+	// both carry once (score.Families); unlike a plugin's children these carry findings the target's own
+	// row cannot (a grant's shape, an http hook, a preload in env), so nothing that skips plugin
+	// children skips them.
+	Within string `json:"within,omitempty"`
+	// ConfigRoot is set with Within on a hook or permission list: the directory its settings file sits
+	// in, anchored. A script the hook or grant names resolves against it as it does under
+	// `scan --root <that directory>` ($CLAUDE_PROJECT_DIR and ~ name its parent), so the content hash is
+	// the same either way; evidence is still named from the check target. Scan input, never serialized.
+	ConfigRoot string `json:"-"`
 }
 
 // ReputationMark names the reputation entry an artifact matched and what the match did.
@@ -616,7 +636,7 @@ type JudgeSummary struct {
 	// or does not report the field — the two look the same.
 	CachedPromptTokens int `json:"cached_prompt_tokens,omitempty"`
 	// UsageByPass breaks Calls, Reasked and the three token totals down by the pass that made the
-	// calls, keyed by the name `aguard llm preview` gives it (intent, injection, result,
+	// calls, keyed by the name `bas-guard llm preview` gives it (intent, injection, result,
 	// deobfuscation, collusion, capability, mcp-config, server, triage). Its entries sum exactly to
 	// the totals beside it; absent when no call was made (P-072).
 	UsageByPass map[string]PassUsage `json:"usage_by_pass,omitempty"`
@@ -631,6 +651,10 @@ type JudgeSummary struct {
 	ExcerptVersion int    `json:"excerpt_version,omitempty"`
 	Model          string `json:"model,omitempty"`
 	Samples        int    `json:"samples,omitempty"`
+	// RequestOptions is llm.request_options as every request carried it (P-107), one compact JSON object
+	// passed through the secret patterns — `{"thinking":{"type":"disabled"}}`. They change what the model
+	// does, so a reading names them like the model. Absent when there were none.
+	RequestOptions string `json:"request_options,omitempty"`
 }
 
 // PassUsage is what one pass of the judge used in a run (P-072): the calls it issued — a retry is the

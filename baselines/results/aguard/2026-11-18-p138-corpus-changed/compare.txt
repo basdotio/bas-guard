@@ -1,0 +1,43 @@
+corpus: 5272 samples
+   malicious      n   719  flagged main  243  branch  243   samples whose findings differ 0
+   benign         n  4534  flagged main  337  branch  337   samples whose findings differ 0
+   hard-negative  n    19  flagged main    4  branch    4   samples whose findings differ 0
+== malicious: lost 0 [] (line: 0); gained 0: [] PASS
+== benign: verdict changed on 0 [] (line: 0); findings differ on 0 (line: 0) PASS
+== hard negatives: verdict changed on 0 [] (line: 0); findings differ on 0 (line: 0) PASS
+
+   every corpus sample whose scored (rule, severity) pairs differ between main and the branch:
+
+held-out (totals only): 459 samples
+   malicious  n  243  flagged main  133  branch  133   samples whose findings differ 0
+   benign     n  216  flagged main    6  branch    6   samples whose findings differ 0
+== held-out malicious: 133 -> 133 (line: not fewer) PASS
+== held-out benign: 6 -> 6 (line: not more) PASS
+
+fresh skills fresh216: 212 trees  flagged main 9  branch 9  verdict changed []  findings differ on 0
+
+fresh skills fresh200: 200 trees  flagged main 24  branch 24  verdict changed []  findings differ on 0
+== fresh benign skills: verdict changed on 0 of 412 (line: 0); findings differ on 0 (line: 0) PASS
+
+npm packages: 1890 checked on both builds, 0 not readable as a result []
+   exit 1 (a high finding) main 37  branch 37; (rule, severity) pairs that differ: {}
+== npm packages: newly flagged at high 0 [] (line: 0); packages whose findings differ 0 (line: 0); no longer flagged 0; unreadable 0 (line: 0) PASS
+
+GATE: PASS
+
+every finding, notes included, by (rule, severity, file, line); a count per set, no sample named:
+   corpus     5272 samples  findings main  5555  branch  5555  samples that differ 0
+   heldout     459 samples  findings main   530  branch   530  samples that differ 0
+   fresh216    212 samples  findings main    41  branch    41  samples that differ 0
+   fresh200    200 samples  findings main   704  branch   704  samples that differ 0
+
+probes (agent-guard-work/ignorable-probe.py, space-probe.py), rows where INJ-001 is found:
+   ignorable-main: found 10 of 46
+   ignorable-first: found 38 of 46
+   ignorable-changed: found 36 of 46
+   space-main: found 3 of 18
+   space-first: found 18 of 18
+   space-changed: found 18 of 18
+   not found on the branch, a character inside the word: U+115F U+1160 U+3164 U+FFA0 U+0301 U+2028 U+00A0 U+FFF9 U+0008 U+007F 
+      U+115F U+1160 U+3164 U+FFA0 U+2028 U+00A0 are read as a blank (two words, by design); U+0301 is visible; U+FFF9 is not default-ignorable;
+      U+0008 U+007F are control characters: taken out after the first build (not met as the probe line was written)

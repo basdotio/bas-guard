@@ -5,7 +5,7 @@
 // verdict file `corpus score` reads; it holds no opinion about any scanner, because the moment
 // it did it would stop being the neutral half.
 //
-// The formats are not ours to change. `corpus score` parses exactly four fields and refuses
+// The formats are not ours to change. `corpus score` parses exactly five fields and refuses
 // anything else WITH A LINE NUMBER — the corpus's guide is explicit that a scorer which
 // silently drops a record reports a rate over an unknown denominator, which is worse than not
 // running. So reading is strict here too: a malformed work-list line is an error naming the
@@ -45,13 +45,16 @@ type Sample struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// Verdict is one line of what `corpus score` parses: exactly these four fields, two optional.
+// Verdict is one line of what `corpus score` parses: exactly these five fields, three optional.
 // Anything else is refused by the scorer, so nothing else may be emitted.
 type Verdict struct {
 	Sample     string   `json:"sample"`
 	Verdict    string   `json:"verdict"`
 	Severity   string   `json:"severity,omitempty"`
 	Dimensions []string `json:"dimensions,omitempty"`
+	// Files is which files the scanner flagged, relative to the sample tree (corpus commit of
+	// 2026-10-28, docs/using-the-corpus.md). Optional; it unlocks the scorer's location line.
+	Files []string `json:"files,omitempty"`
 }
 
 // ReadSamples parses the work list. It fails on the first malformed line rather than skipping

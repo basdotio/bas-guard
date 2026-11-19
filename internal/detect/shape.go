@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // shape.go — checks on the SHAPE of a file rather than the text of one line.
@@ -89,6 +89,18 @@ func shapeFindings(rel string, u unit, commentLines map[int]bool) []model.Findin
 	}
 	if f, ok := blankPadding(rel, u.text); ok {
 		out = append(out, f)
+	}
+	// The two shapes of unreviewable.go (P-136). A named document is two units of one file; the document
+	// unit holds the whole text, so the code-only copy beside it is not asked the same question again.
+	if u.role != roleNamedDoc {
+		if f, ok := selectorRun(rel, u.text); ok {
+			out = append(out, f)
+		}
+	}
+	if u.role == roleScript {
+		if f, ok := obfuscatorNames(rel, u.text); ok {
+			out = append(out, f)
+		}
 	}
 	if u.role != roleDoc {
 		out = append(out, registryRedirects(rel, u.text, commentLines)...)

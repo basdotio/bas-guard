@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // A judge finding's severity is the TOOL'S, read off the category the model names, never off
@@ -40,6 +40,16 @@ var (
 	catFileDeletion   = category{"file-deletion", model.SevHigh, "deletes or overwrites files beyond its own output"}
 )
 
+// intentBehaviours are the intent pass's rows before its valve; the server pass shares them and
+// adds its own before its valve (P-115), so the two tables cannot drift apart by accident.
+var intentBehaviours = []category{
+	catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
+	{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
+	{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
+	catFileDeletion,
+	{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
+}
+
 // categoryTables is the whole decision, per pass. The MCP config pass (LLM-009) has no table on
 // purpose: it is advisory-only (advisoryOnly) and keeps the clamped word, unchanged.
 var categoryTables = map[Mode][]category{
@@ -48,22 +58,19 @@ var categoryTables = map[Mode][]category{
 		{"privilege", model.SevHigh, "escalates privilege or escapes a sandbox: runs as root or with sudo, writes under /root, mounts the host filesystem or the container socket, probes a cloud metadata service"},
 		{"other-directive", model.SevMedium, "a directive beyond or against the declared purpose that is none of the above, including one that only runs a local script or command"},
 	},
-	ModeIntent: {
-		catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
-		{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
-		{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
-		catFileDeletion,
-		{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
-		{"other", model.SevMedium, "undisclosed behaviour that is none of the above"},
-	},
-	ModeServer: {
-		catExfiltration, catCredentialRead, catRemoteExec, catSafetyDisable, catConcealed,
-		{"software-source", model.SevHigh, "points a package registry, index or proxy at a host that is not the vendor's"},
-		{"persistence", model.SevHigh, "installs a git hook, writes shell or editor startup files, scheduled jobs or launch agents"},
-		catFileDeletion,
-		{"privilege", model.SevHigh, "changes permissions, users, sudoers or ownership"},
-		{"other", model.SevMedium, "undisclosed behaviour that is none of the above"},
-	},
+	ModeIntent: append(append([]category{}, intentBehaviours...),
+		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above"}),
+	// The server pass is the intent table plus two behaviours only a tool that answers calls has
+	// (P-115): measured on the full corpus of 2026-11-04, 14 Cisco servers had three votes that
+	// described a fork bomb, a zip bomb or search results with injected products correctly and
+	// filed them under `other` — medium, so none escalated — while no benign server's majority
+	// was `other`. The valve names its two neighbours: a new row the catch-all does not point
+	// away from is a row the model does not pick (P-066 added one to the injection table and it
+	// was chosen zero times in 840 trees).
+	ModeServer: append(append([]category{}, intentBehaviours...),
+		category{"resource-exhaustion", model.SevHigh, "a tool call starts unbounded processes, threads, memory, disk, file descriptors or recursion (a fork bomb, a decompression bomb, a loop that allocates without end); NOT a long-running server loop, a fixed-size pool or a bounded retry"},
+		category{"result-tampering", model.SevHigh, "a tool returns entries, links, products or redirects the caller did not ask for and cannot tell apart from a real result; NOT ranking, filtering, pagination or an error message"},
+		category{"other", model.SevMedium, "undisclosed behaviour that is none of the above (unbounded resource use is resource-exhaustion; content slipped into a tool's results is result-tampering)"}),
 	ModeCapability: {
 		{"network", model.SevHigh, "the command itself contacts the network: a URL, curl, wget, ssh, nc, a mail or webhook call"},
 		{"credential", model.SevHigh, "the command itself reads a key, token or credential file by path"},
@@ -118,6 +125,17 @@ func severityFor(m Mode, v Verdict) model.Severity {
 		sev = oneStepLower(sev)
 	}
 	return sev
+}
+
+// disclosureLowered reports whether severityFor took the disclosure step for this verdict: the
+// same answer without `disclosed` would be higher. The finding's reason says so (P-115).
+func disclosureLowered(m Mode, v Verdict) bool {
+	if !v.Disclosed {
+		return false
+	}
+	undisclosed := v
+	undisclosed.Disclosed = false
+	return severityFor(m, v).Rank() < severityFor(m, undisclosed).Rank()
 }
 
 // oneStepLower: high → medium → low; low stays low.
@@ -186,6 +204,17 @@ var hookCategoryTokens = map[string]*regexp.Regexp{
 	"credential":          regexp.MustCompile(`(?i)\.(ssh|aws|netrc|npmrc|pypirc|gnupg|kube|docker)\b|keychain|credential|secret|token|api[_-]?key|password|passwd|\.env\b|/etc/(passwd|shadow)`),
 }
 
+// hookMediumShapes are the hook commands that weigh medium on the capability pass whatever the
+// model calls them (P-090). A package runner is npx, bunx, `pnpm dlx`/`exec` or `yarn dlx`/`exec`.
+var hookMediumShapes = []*regexp.Regexp{
+	// a moving dist-tag: every run fetches whatever was published under it last
+	regexp.MustCompile(`(?i)\b(npx|bunx|pnpm\s+(dlx|exec)|yarn\s+(dlx|exec))(\s+(-y|--yes))?\s+[@\w./-]+@(alpha|beta|next|latest|canary|rc)\b`),
+	// a well-known formatter or linter
+	regexp.MustCompile(`(?i)\b(npx|bunx|pnpm\s+(dlx|exec)|yarn\s+(dlx|exec))(\s+(-y|--yes))?\s+(prettier|oxfmt|oxlint|eslint|@biomejs/biome|biome|dprint|stylelint|markdownlint(-cli2)?)\b`),
+	// pulling a repository
+	regexp.MustCompile(`(?i)\bgit\s+(pull|fetch)\b`),
+}
+
 // localURL is a URL on this machine: for `network` it is stripped before the tokens are looked
 // for, so "http://localhost:3000/hook" alone shows nothing.
 var localURL = regexp.MustCompile(`(?i)(https?|wss?)://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?`)
@@ -201,6 +230,12 @@ var catalogueParamLine = regexp.MustCompile(`(?m)^[^\n]*▸ param [^\n]*$`)
 // (mode, category) is taken as shown — the check exists for the places a guess was measured.
 func categoryShown(m Mode, artifact, cat, sent, quoted string) bool {
 	switch {
+	case (m == ModeInjection || m == ModeSteering) && isBareName(quoted):
+		// P-087: a directive is speech. A quote of one token — a hook whose whole command is
+		// `claude-ignore`, grounded because quoting a whole short document is allowed — is a NAME,
+		// and a name read as "ignore previous instructions" is the guess from a script name the
+		// prompt already forbids. Measured: three votes, concealed-directive, on exactly that hook.
+		return false
 	case m == ModeCapability:
 		re, ok := hookCategoryTokens[cat]
 		if !ok {
@@ -209,6 +244,17 @@ func categoryShown(m Mode, artifact, cat, sent, quoted string) bool {
 		text := sent
 		if cat == "network" {
 			text = localURL.ReplaceAllString(text, "")
+		}
+		if cat == "network" || cat == "install" {
+			// P-090: three shapes the maintainer ruled medium, not high, after reading the
+			// hooks the judge flagged on the benign pool: a package runner fetching a moving
+			// dist-tag (`npx claude-flow@alpha`), a package runner running a well-known formatter
+			// or linter (`npx prettier --write`), and a `git pull`/`git fetch`. Each is stripped
+			// before the tokens are looked for; anything else in the command — curl, an install,
+			// a URL, an unknown package run through npx — still shows the category.
+			for _, re := range hookMediumShapes {
+				text = re.ReplaceAllString(text, "")
+			}
 		}
 		return re.MatchString(text)
 	case m == ModeInjection && cat == "credential-read" && strings.HasPrefix(artifact, string(model.KindConnector)+":"):
@@ -225,4 +271,10 @@ func categoryShown(m Mode, artifact, cat, sent, quoted string) bool {
 		return lines == 0
 	}
 	return true
+}
+
+// isBareName reports whether a quote is a single token: no whitespace inside it once trimmed. A
+// program name, an identifier or a path is not a sentence anyone can be told to obey.
+func isBareName(quoted string) bool {
+	return len(strings.Fields(quoted)) == 1
 }

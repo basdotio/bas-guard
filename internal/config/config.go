@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package config loads AgentGuard's optional config (spec §11). The LLM intent judge
+// Package config loads BAS Guard's optional config (spec §11). The LLM intent judge
 // is OFF by default. The API key comes from an env var or from a
 // key file the user owns (mode 0600, see ResolveAPIKey) — the file exists because the
 // judge's only realistic endpoints are hosted ones that all need a key, and "set an
@@ -10,6 +10,8 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -21,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/basdotio/AgentGuard/internal/redact"
-	"github.com/basdotio/AgentGuard/internal/safeio"
+	"github.com/basdotio/bas-guard/internal/redact"
+	"github.com/basdotio/bas-guard/internal/safeio"
 	"gopkg.in/yaml.v3"
 )
 
@@ -51,7 +53,7 @@ type GateConfig struct {
 
 // LLMConfig configures the optional isolated intent judge (spec §5.2/§16.4).
 //
-// The call-budget knobs exist because a judge run is the only part of AgentGuard that costs
+// The call-budget knobs exist because a judge run is the only part of BAS Guard that costs
 // wall-clock time and (on a paid endpoint) money. They are a COURTESY SELF-LIMIT: this is a
 // client-side file the user can edit, so it protects the user's own time and bill — it is
 // not, and must never be sold as, a security or cost control (spec §11).
@@ -75,6 +77,12 @@ type LLMConfig struct {
 	// the effective score. 1 (default) asks once. N costs N times as much, so it is opt-in —
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
+	// RequestOptions are extra members added to every request body as written (P-107): what a vendor
+	// takes beside the chat-completions members — `thinking: {type: disabled}` for a GLM model that
+	// thinks by default, `reasoning_effort` for another. The judge sets the members in
+	// ReservedRequestOptions itself, and Load refuses them here. Recorded in the judge block, since they
+	// change what the model does.
+	RequestOptions map[string]any `yaml:"request_options"`
 	// Authority decides whether this endpoint's opinion may have CONSEQUENCES: "advisory"
 	// (default) means the judge can only inform, "escalate" additionally permits the
 	// --fail-on-llm gate. It does not change what the effective score says — that number must
@@ -100,13 +108,16 @@ type LLMConfig struct {
 func (c LLMConfig) Problem() error { return c.problem }
 
 // validate is the llm section's own load-time check: the two durations, the provider (filling a
-// preset in), the authority. Not defaulted silently — each one either decides where excerpts
-// are sent or whether a build may fail on a verdict.
+// preset in), the request options (P-107), the authority. Not defaulted silently — each one either
+// decides what is sent and where, or whether a build may fail on a verdict.
 func (c *LLMConfig) validate() error {
 	if _, _, err := c.Durations(); err != nil {
 		return err
 	}
 	if err := c.applyPreset(); err != nil {
+		return err
+	}
+	if err := c.checkRequestOptions(); err != nil {
 		return err
 	}
 	switch c.Authority {
@@ -117,6 +128,74 @@ func (c *LLMConfig) validate() error {
 		// can fire.
 		return fmt.Errorf("config llm.authority %q: want %q or %q", c.Authority, AuthorityAdvisory, AuthorityEscalate)
 	}
+}
+
+// ReservedRequestOptions are the request members llm.request_options may not set (P-107): the three the
+// judge sets itself, and two that change the shape of the reply it reads (`stream`, `n`). The judge's
+// client refuses them too; its tests keep this list covering every member it sends.
+var ReservedRequestOptions = []string{"model", "messages", "temperature", "stream", "n"}
+
+// RequestOptionsJSON is llm.request_options as one compact JSON object, keys in order and HTML left
+// unescaped — the form the judge block records — or "" when there are none.
+func (c LLMConfig) RequestOptionsJSON() (string, error) {
+	if len(c.RequestOptions) == 0 {
+		return "", nil
+	}
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(c.RequestOptions); err != nil {
+		return "", err
+	}
+	return strings.TrimRight(b.String(), "\n"), nil
+}
+
+// checkRequestOptions refuses a reserved member and a value with no JSON form, so neither waits for a
+// scan to fail on (P-107).
+func (c LLMConfig) checkRequestOptions() error {
+	for _, k := range ReservedRequestOptions {
+		if _, ok := c.RequestOptions[k]; ok {
+			return fmt.Errorf("config llm.request_options.%s: the judge sets %q itself; remove it", k, k)
+		}
+	}
+	if at := nonStringMember("llm.request_options", c.RequestOptions); at != "" {
+		return fmt.Errorf("config %s: a member name must be a string", at)
+	}
+	if _, err := c.RequestOptionsJSON(); err != nil {
+		return fmt.Errorf("config llm.request_options: every value must have a JSON form: %w", err)
+	}
+	return nil
+}
+
+// nonStringMember is the path of the first map under v with a member name that is not a string (`1: x`
+// in YAML, which yaml.v3 hands over as a map[any]any), or "". The answer is given here because the
+// encoder's differs by toolchain: encoding/json refuses such a map when built with go1.23.5, the
+// release toolchain, and writes the number as the member's name when built with go1.27.1, so one config
+// would load on one build and not on the other (P-107). Keys are walked in order, so the path named is
+// the same on every run.
+func nonStringMember(path string, v any) string {
+	switch t := v.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if at := nonStringMember(path+"."+k, t[k]); at != "" {
+				return at
+			}
+		}
+	case map[any]any:
+		return path
+	case []any:
+		for i, e := range t {
+			if at := nonStringMember(fmt.Sprintf("%s[%d]", path, i), e); at != "" {
+				return at
+			}
+		}
+	}
+	return ""
 }
 
 // Default returns the safe default: LLM disabled, local endpoint.
@@ -282,7 +361,7 @@ func (c Config) ResolveAPIKey() (string, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return "", fmt.Errorf("llm.api_key_file %s does not exist — run `aguard llm setup`", path)
+			return "", fmt.Errorf("llm.api_key_file %s does not exist — run `bas-guard llm setup`", path)
 		}
 		return "", err
 	}
@@ -295,12 +374,12 @@ func (c Config) ResolveAPIKey() (string, error) {
 	}
 	key := strings.TrimSpace(string(b))
 	if key == "" {
-		return "", fmt.Errorf("llm.api_key_file %s is empty — run `aguard llm setup`", path)
+		return "", fmt.Errorf("llm.api_key_file %s is empty — run `bas-guard llm setup`", path)
 	}
 	return key, nil
 }
 
-// KeySource says where the key would come from, for `aguard llm status` — never the key itself.
+// KeySource says where the key would come from, for `bas-guard llm status` — never the key itself.
 func (c Config) KeySource() string {
 	if c.LLM.APIKeyEnv != "" {
 		if v, from := LookupEnv(c.LLM.APIKeyEnv); v != "" {
@@ -330,7 +409,7 @@ func (c Config) JudgeReady() bool {
 type Preset struct {
 	BaseURL string
 	Model   string
-	Label   string // human name for `aguard llm setup --list`
+	Label   string // human name for `bas-guard llm setup --list`
 }
 
 // ProviderGeneric is the escape hatch: any OpenAI-style endpoint, base_url and model spelled out.
@@ -433,7 +512,7 @@ func IgnoredLegacyConfigDir() (string, bool) {
 }
 
 // DefaultPath is the config file `--config` falls back to; DefaultKeyPath is where
-// `aguard llm setup` puts the key.
+// `bas-guard llm setup` puts the key.
 func DefaultPath() (string, error) {
 	d, err := ConfigDir()
 	if err != nil {

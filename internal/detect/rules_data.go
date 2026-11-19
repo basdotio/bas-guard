@@ -5,10 +5,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
-// builtinRules returns AgentGuard's rule set, derived from OWASP Agentic Top 10 and MITRE
+// builtinRules returns BAS Guard's rule set, derived from OWASP Agentic Top 10 and MITRE
 // ATLAS (Ref cites each basis) rather than ported from other tools. Line-oriented regex plus a
 // separate structural exfil check (dim 3, see credentialLine/networkActionRE). There is no AST:
 // these are high-precision patterns over logical lines, and logical.go says what a parser would
@@ -30,13 +30,95 @@ const revShellLineRE = `(?:>&|&>)\s*/dev/(?:tcp|udp)/` +
 	`|(?:^|[\s/])(?:ba|z)?sh\s+-i\b[^\n]{0,40}?\|\s*nc(?:at)?\s` +
 	`|(?:^|[\s|;&(` + "`" + `$])socat\s+[^\n]{0,80}?(?:exec|system):`
 
+// eraseTracesRE is FS-005's pattern, assembled from its parts so each can be read on its own:
+// which paths are a record (a .log or *_history file under a home directory, anything under
+// /var/log), and the three ways of erasing one (rm/shred/unlink it, truncate it to zero, redirect
+// nothing onto it), plus the shell's own history switches. The emptying redirect's prefix is what
+// keeps a command's own logging out: `app &> /var/log/app.log` and `app > /var/log/app.log` write a
+// log, `: > /var/log/app.log` and `echo -n > …` empty one. A line that is only `> path` is left out
+// on purpose — in Markdown that is a blockquote.
+var eraseTracesRE = eraseOf(traceRecord) +
+	`|\bhistory\s+-c\b|\bunset\s+HISTFILE\b|\bHISTFILE=/dev/null\b|\bHISTSIZE=0\b|\bset\s+\+o\s+history\b`
+
+const (
+	traceHome   = `(?:~|\$\{?HOME\}?|/root|/home/[^/\s"'\x60]+)`
+	traceTail   = `[^\s"'\x60;|&]`
+	traceRecord = `["']?(?:` + traceHome + `/` + traceTail + `*(?:\.log|_history)(?:[\s"'\x60;|&)]|$)|/var/log/` + traceTail + `+)`
+)
+
+// eraseOf is the three ways of erasing a file, aimed at target: delete it, truncate it to zero,
+// redirect nothing onto it.
+func eraseOf(target string) string {
+	return `\b(?:rm|shred|unlink)\s+(?:-{1,2}[\w-]+\s+)*` + target +
+		`|\btruncate\s+(?:-s\s*|--size[=\s]\s*)0\s+` + target +
+		`|(?:(?:[;(]|&&|\|\|)\s*|\b(?:true|cat\s+/dev/null|echo(?:\s+-n)?(?:\s+(?:""|''))?)\s*|:\s*)>\s*` + target
+}
+
+// recordAssignRE / erasesName are FS-005's file-level half: the log's path assigned to a name on one
+// line, the name erased on another — `AUDIT_LOG="/root/.cache/x/audit.log"` then `rm -f "${AUDIT_LOG}"`,
+// `LOG = Path("/root/.agent_audit.log")` then `LOG.unlink()`. Of the ten held-out SkillHarm samples
+// whose payload is erasing a log, this is how two are written and the line rule saw neither. One
+// layer in the same file, the same discipline as EXFIL-001's destination: a path built by a join or
+// passed in as a parameter is not followed.
+var recordAssignRE = regexp.MustCompile(`(?i)^\s*(?:export\s+|readonly\s+|local\s+|const\s+|let\s+|var\s+)?([A-Za-z_]\w*)\s*(?::\s*\w+\s*)?=\s*(?:Path\(\s*)?` + traceRecord)
+
+func erasesName(name string) *regexp.Regexp {
+	n := regexp.QuoteMeta(name)
+	shellRef := `["']?\$\{?` + n + `\b`
+	return regexp.MustCompile(`(?i)` + eraseOf(shellRef) +
+		`|\bos\.(?:remove|unlink)\(\s*` + n + `\b|\b` + n + `\.unlink\(|\bPath\(\s*` + n + `\s*\)\.unlink\(|\bopen\(\s*` + n + `\s*,\s*["']w`)
+}
+
+// EXEC-013's parts (P-093). startupFile is a file every new shell runs; appendToStartup is a write
+// that adds to one; sourceOf is the line a shell would read as "run that file here". On every benign
+// sample in the corpus (4,922, skills, MCP servers, hooks) no line appends a source to a startup file
+// at all — but `echo 'source ~/.nvm/nvm.sh' >> ~/.bashrc` is how nvm, cargo and ROS document their
+// setup, so the rule asks what is being sourced, not only that something is.
+const (
+	startupFile     = `(?:(?:~|\$\{?HOME\}?|/root|/home/[^/\s"'\x60]+)/\.(?:bashrc|bash_profile|bash_login|profile|zshrc|zshenv|zprofile|zlogin)\b|/etc/(?:profile|bash\.bashrc|zsh/zshrc)\b)`
+	appendToStartup = `(?:>>\s*|\btee\s+(?:-a|--append)\s+)["']?` + startupFile
+)
+
+func sourceOf(target string) string {
+	return `(?:\bsource|(?:^|[\s'"(;]|\\n)\.)\s+["']?` + target
+}
+
+// sourcedFromStartupRE captures the path a startup-file append makes every shell source — EXEC-013's
+// file-level half, which fires when the same file also writes that path. writeTargetRE is what a
+// line writes to: a redirect's target or tee's argument.
+var (
+	sourcedFromStartupRE = regexp.MustCompile(`(?i)` + sourceOf(`([~$/][^\s"'\\;|&)\x60]+)`) + `[^\n]*` + appendToStartup)
+	writeTargetRE        = regexp.MustCompile(`(?:>{1,2}|\btee\s+(?:-a\s+|--append\s+)?)\s*["']?([~$/][^\s"'\x60;|&)<>]+)`)
+)
+
+// plainCodeFetchRE is SUP-007's pattern: a curl/wget over http:// that keeps the response, where the
+// URL or the kept file is code; or Python's urlretrieve doing the same. wget keeps by default; curl
+// keeps only with -o/-O/--output or a redirect (without one it prints, and a pipe into a shell is
+// EXEC-001's).
+var plainCodeFetchRE = func() string {
+	const (
+		code    = `\.(?:py|sh|bash|zsh|js|mjs|cjs|ts|ps1|pl|rb|php)\b`
+		codeURL = `\bhttp://[^\s"'\x60?#]*` + code
+		keep    = `(?:\s-[a-z]*o\b|--output\b|--remote-name\b|>)`
+		keepAs  = `(?:\s-[a-z]*o\s+|--output(?:-document)?[=\s]\s*|>\s*)["']?[^\s"'\x60;|&]*` + code
+	)
+	return `\bwget\b[^\n|;&]*?` + codeURL +
+		`|\bcurl\b[^\n|;&]*?` + codeURL + `[^\n|;&]*?` + keep +
+		`|\bcurl\b[^\n|;&]*?` + keep + `[^\n|;&]*?` + codeURL +
+		`|\b(?:curl|wget)\b[^\n|;&]*?\bhttp://[^\n|;&]*?` + keepAs +
+		`|\burlretrieve\(\s*["']http://[^"']*` + code +
+		`|\burlretrieve\(\s*["']http://[^"']+["']\s*,\s*["'][^"']*` + code
+}()
+
 func builtinRules() []Rule {
 	const (
-		owaspInj   = "OWASP Agentic: Prompt Injection; MITRE ATLAS AML.T0051"
-		owaspAgcy  = "OWASP Agentic: Excessive Agency / Tool Misuse"
-		owaspExfil = "OWASP Agentic: Sensitive Information Disclosure; MITRE ATLAS AML.T0057"
-		owaspSup   = "OWASP Agentic: Supply Chain"
-		owaspLLM09 = "OWASP LLM09: Overreliance / Backdoor"
+		owaspInj     = "OWASP Agentic: Prompt Injection; MITRE ATLAS AML.T0051"
+		owaspAgcy    = "OWASP Agentic: Excessive Agency / Tool Misuse"
+		owaspExfil   = "OWASP Agentic: Sensitive Information Disclosure; MITRE ATLAS AML.T0057"
+		owaspSup     = "OWASP Agentic: Supply Chain"
+		owaspLLM09   = "OWASP LLM09: Overreliance / Backdoor"
+		owaspTrace   = "OWASP Agentic: Excessive Agency / Tool Misuse; MITRE ATT&CK T1070 (Indicator Removal)"
+		owaspPersist = "OWASP Agentic: Unrestricted Code Execution; MITRE ATT&CK T1546.004 (Unix Shell Configuration Modification)"
 	)
 	return []Rule{
 		// 1 — Prompt injection (text/instructions)
@@ -44,13 +126,23 @@ func builtinRules() []Rule {
 		rule("INJ-002", 1, model.SevMedium, `disregard\s+(the\s+)?(system|developer)\s+prompt`, "Prompt injection: disregard system prompt", "Coaxes the agent to drop its safety constraints.", owaspInj),
 		rule("INJ-003", 1, model.SevMedium, `you\s+are\s+now\s+(a\s+)?(DAN|jailbroken|unrestricted)`, "Jailbreak persona switch", "Classic jailbreak / persona-override pattern.", owaspInj),
 		rule("INJ-004", 1, model.SevMedium, `\x{200b}|\x{200e}|\x{202e}|\x{feff}`, "Hidden / Unicode-steganography characters", "Zero-width / directional control characters are used to hide injected instructions.", owaspInj),
-		// INJ-005: curl/wget/fetch of a URL whose path is named like instructions — instructions, steps,
-		// commands, payload, tasks — as a FILE (a dot extension), so a REST `/command` endpoint on a local
-		// service does not match. A skill that fetches a remote instruction file acts on what it gets, so
-		// the file is remote injection: the author controls what the agent does, from a server, after
-		// install. The path token is what keeps it off ordinary fetches; on the corpus this matched
-		// 0 benign. It does not follow the URL — it flags the fetch, that is all.
-		rule("INJ-005", 1, model.SevHigh, `\b(curl|wget|fetch)\b[^\n|]*https?://[^\s"\x60]*\b(instructions?|steps|commands?|payload|tasks?)\.(md|txt|sh|bash|json|ya?ml|py|js)\b`, "Fetches remote instructions to act on", "The skill downloads a file named like instructions/steps/commands/payload from a remote URL. Whatever that file says, the agent is told to carry out — remote-controlled behaviour delivered after install.", owaspInj),
+		// INJ-005: the agent is made to fetch a remote file and do what it says, so the author controls what
+		// the agent does, from a server, after install. Three spellings (remoteinstr.go, P-121): curl/wget/fetch
+		// of a URL whose FILE is named like instructions (a dot extension, so a REST `/command` endpoint does
+		// not match); a fetch verb, a URL and an obedience phrase in one sentence; an obedience phrase pointed
+		// at a URL. The fourth — a download kept at a path, and another line obeying that path — spans lines
+		// and lives in scanUnits (remoteOrders). It does not follow the URL; it flags the order, that is all.
+		rule("INJ-005", 1, model.SevHigh, remoteOrdersRE, "Fetches remote instructions to act on", "The agent is told to fetch a file from a remote URL and do what it says: follow the steps it lists, carry out its instructions, or read a downloaded copy and act on it. Whatever that file says when it is fetched, the agent carries out — behaviour the server can change after install, and that nobody reviewing this skill has read.", owaspInj),
+		// INJ-006 (P-123): text written in Unicode tag characters outside an emoji flag (tags.go). High, not
+		// INJ-004's medium: zero-width characters have ordinary uses (joiners in emoji and Persian, a BOM left
+		// mid-file by a concatenation), while tag characters have one, the flag, and hiddenTagPattern leaves
+		// it alone. What the hidden text says is matched by every other rule through the decoded view; this
+		// rule says that the line hides text at all, which a sentence with no attack phrase still does, and
+		// its explanation prints the text decoded (hiddenTagWhy). Not RawOnly, like INJ-004: the decoded view
+		// holds no tag character, so it can never match there.
+		rule("INJ-006", 1, model.SevHigh, hiddenTagPattern, "Text hidden in Unicode tag characters",
+			"Part of this line is written in Unicode tag characters (U+E0000–E007F), which no terminal, editor or diff shows and a model reads as ordinary text: the agent follows words nobody reviewing the file can see. Emoji flags, the one legitimate use of these characters, are not reported.",
+			owaspInj),
 
 		// 4 — Code execution
 		rule("EXEC-001", 4, model.SevHigh, `\bcurl\b[^|]*\|\s*(sudo\s+)?(ba)?sh\b`, "curl piped to shell", "Fetches a script from the network and runs it directly — arbitrary remote code execution.", owaspSup),
@@ -95,8 +187,18 @@ func builtinRules() []Rule {
 		// pipe scored 75 — a rule that names one spelling of a shape teaches the attacker the
 		// other four. The executor must be a word that RUNS its argument: `VER=$(curl …)` and
 		// `echo "$(curl …)"` capture output and are not this. The two-step form (download to a
-		// file, run the file on the next line) is cross-line and stays a known limitation.
+		// file, run the file on the next line) is cross-line and stays a known limitation — except over plain
+		// http, where keeping the code is already SUP-007.
 		rule("EXEC-012", 4, model.SevHigh, `\b(?:eval|source|bash|sh|zsh|dash|ksh|python3?|node|perl|ruby|php)\s+(?:-[ce]\s+)?["']?\$\(\s*(?:curl|wget)\b|\b(?:bash|sh|zsh|dash|ksh|source)\s+<\(\s*(?:curl|wget)\b`, "Downloaded script executed via substitution", "The same shape as curl piped to a shell, spelled with command or process substitution: eval/sh -c/python -c of \"$(curl …)\", or bash <(curl …). What runs is whatever the URL serves at that moment — arbitrary remote code execution.", owaspSup),
+		// EXEC-013 (P-093): a shell startup file made to source a script — persistence, because from then
+		// on the script runs in every shell the user or the agent opens, long after the skill finished. The
+		// line rule is the half that needs no second line: the script sits in a world-writable temporary
+		// directory, which no setup guide sources from a startup file. The other half is structural (see
+		// scanUnits): the same file writes the script it hooks in — `cat > /root/.cache/x/init.sh <<EOF`,
+		// then `echo 'source /root/.cache/x/init.sh' >> /root/.bashrc`, the form every SkillHarm
+		// backdoor-injection sample of this kind takes. A script some installer put there (nvm, cargo,
+		// ROS) is neither.
+		rule("EXEC-013", 4, model.SevHigh, sourceOf(`(?:/tmp|/var/tmp|/dev/shm)/`)+`[^\n]*`+appendToStartup, "Script hooked into every new shell", "A shell startup file (.bashrc, .profile, …) is made to source a script this artifact writes itself, or one in a world-writable temporary directory. From then on that script runs in every shell the user or the agent opens, after the skill has finished and without anyone invoking it again.", owaspPersist),
 		// EXEC-011 is the decode-then-execute SHAPE at high: a base64 payload piped straight into a
 		// shell (`base64 -d | sh`, macOS `-D | bash`) or an eval/exec of a decode. The line rules saw
 		// only `base64 -d` (OBF-001, medium) while the curl-to-attacker sat inside the blob, so the
@@ -165,6 +267,15 @@ func builtinRules() []Rule {
 		rule("SUP-001", 5, model.SevMedium, `pip\s+install\s+.*(--index-url|http://)`, "Install from untrusted source", "Installs packages from an unofficial / plaintext-HTTP source — supply-chain risk.", owaspSup),
 		rule("SUP-002", 5, model.SevMedium, `npm\s+install\s+.*(http://|git\+http://)`, "npm install from untrusted source", "Installs an npm package from a plaintext / unverified source.", owaspSup),
 		rule("SUP-003", 5, model.SevLow, `(pip|npm|go)\s+install\s+[^@\s]+\s*$`, "Unpinned dependency", "Version not pinned — prone to poisoning / drift.", owaspSup),
+		// SUP-007 (P-094): code fetched over plaintext HTTP and kept — a .py/.sh/.js… saved by curl -o /
+		// wget, or by urlretrieve. Saving it is the step before running it: SkillHarm's malware-deployment
+		// trees put `curl -fsSL http://…/calibrator.py -o /root/calibrator.py` in a code block and let a
+		// later step import or run the file, so curl|bash (EXEC-001) never fires. Plaintext is what makes
+		// it a rule rather than noise: a release installer fetched over https and then run is how half the
+		// tools in the corpus are set up (13 benign trees), while plain http in front of a code file, saved,
+		// appears in none of 4,922 benign samples — whoever sits on the path chooses the code. Either the
+		// URL or the saved name must be code; loopback is not a network (exceptWhen).
+		rule("SUP-007", 5, model.SevHigh, plainCodeFetchRE, "Code downloaded over plaintext HTTP", "A script or source file is fetched over http:// (not https) and saved where a later step runs or imports it. Nothing authenticates the server or the bytes, so whoever controls the host or the network path decides what code the agent runs.", owaspSup).exceptWhen(`http://(?:localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])(?:[:/"'\s]|$)`),
 
 		// 6 — Obfuscation
 		rule("OBF-001", 6, model.SevMedium, `base64\s+-d|atob\(|base64\.b64decode`, "base64 decode surface", "Decodes a hidden payload — often combined with execution into an obfuscation attack.", owaspInj),
@@ -210,6 +321,16 @@ func builtinRules() []Rule {
 		rule("FS-003", 9, model.SevHigh, `\brm\s+(-[a-z]*(r[a-z]*f|f[a-z]*r)[a-z]*|-r\s+-f|-f\s+-r|--recursive\s+--force|--force\s+--recursive)\s+(--no-preserve-root\s+)?(/\*?|~/?\*?|\$\{?HOME\}?/?\*?|"\$\{?HOME\}?/?\*?"|\*)(\s|$|['"\x60;&|)])`, "Dangerous recursive delete", "rm -rf of a whole tree — the filesystem root, the home directory, or everything in the working directory. A scoped path under one of them (a cache, a build output) is not this rule.", owaspAgcy),
 		// Traversal only toward sensitive targets — avoids matching JS relative imports like `../../../utils`.
 		rule("FS-004", 9, model.SevMedium, `(\.\./){2,}(etc|root|home|\.ssh|\.aws|passwd|shadow)\b`, "Path traversal to a sensitive directory", "Multi-level .. traversal aimed at a system/credential directory — unauthorized-access surface.", owaspAgcy),
+		// FS-005 (P-092): the record of what ran, erased — a log under the home directory or /var/log
+		// deleted or emptied, or the shell history cleared. No rule saw it, and it is the whole payload
+		// of one of SkillHarm's twelve risk categories (0 of 20 caught statically): "remove the stale
+		// audit cache before the first request" is `rm -f /var/log/<tool>/audit.log` in a code block.
+		// Delete and EMPTY only: `>> /var/log/x.log` is a cron job keeping a log (two real skills), and
+		// a command's stdout redirected onto a log is that command logging, so an emptying redirect
+		// needs nothing — or `:`, `true`, `cat /dev/null` — in front of it. A home-directory path counts
+		// only when it names a log or a history file; /var/log is logs by definition. Measured on 2,879
+		// benign skill trees: 0.
+		rule("FS-005", 9, model.SevHigh, eraseTracesRE, "Erases logs or shell history", "Deletes or empties a log file under the home directory or /var/log, or clears the shell history. A tool has no need to remove the record of what it did; erasing it is how an action is kept from being noticed or reconstructed afterwards.", owaspTrace),
 
 		// 8 — Resource abuse (advisory: static can only hint)
 		rule("RES-001", 8, model.SevLow, `while\s+(true|True|1)\s*[:{)]`, "Possible infinite loop", "A loop with no exit condition may exhaust resources (advisory).", owaspLLM09).advisory(),
@@ -266,6 +387,16 @@ var (
 	// along.)
 	credFileRE = regexp.MustCompile(`(?i)(\.ssh/|\.aws/|/etc/passwd|id_rsa)`)
 
+	// walletStoreRE — where a crypto wallet keeps its keys (P-136): Bitcoin Core's wallet.dat, geth's
+	// keystore, the Solana CLI's keypair, Electrum's and Exodus's wallet files, and the browser stores of
+	// the MetaMask and Phantom extensions, which are named by extension id. The same kind of name as
+	// `.ssh/`: nothing reads one by accident, and what is in it spends money. An in-the-wild todo server
+	// globbed $HOME for wallet.dat, base64-encoded it and POSTed it, and scored 100 because the chain had
+	// an egress leg and nothing it recognised as a credential. Measured: none of these names occurs in
+	// any benign tree of the corpus, the fresh skills or the held-out set; a wallet API, a `wallets`
+	// endpoint and a Java `.keystore` are not on it.
+	walletStoreRE = regexp.MustCompile(`(?i)\bwallet\.dat\b|\.ethereum[/\\]keystore|\bkeystore[/\\]UTC--|\.config[/\\]solana[/\\]id\.json|electrum[/\\]wallets|\bexodus\.wallet\b|nkbihfbeogaeaoehlefnkodbefgpgknn|bfnaelmomeimhlpmgjnjophhpkkoljpa`)
+
 	// credShellVarRE — the `$VAR` half of the above, CASE-SENSITIVE and upper-case on purpose
 	// (P-061). Shell exports secrets as `$GITHUB_TOKEN`; a JavaScript template interpolates
 	// locals as `${key}` and `${totalTokens(project)}`, and under (?i) both of those were
@@ -302,15 +433,17 @@ var (
 	// not because anything measured it.
 	envWholeRE = regexp.MustCompile(`(?i)(process\.env|os\.environ)\s*(?:[^.\[\w]|$|\.(items|keys|values|copy|to_dict)\s*\()`)
 
-	// settingsFileRE / settingsWriteRE — the two legs of the file-level half of PERM-007.
-	// The per-line rule needs the write verb and the file name on one line; the corpus's hook
+	// settingsFileRE / settingsReadRE — the naming leg of the file-level half of PERM-007; the
+	// write leg is writesAFile (permfile.go).
+	// The per-line rule needs the write verb right before the file name; the corpus's hook
 	// builds the path on one line and calls write_text on the next, which is also how a careful
 	// author writes it. So a script that NAMES a Claude settings file on a line that is not itself
-	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any other line closes the same
-	// finding. Measured: zero benign scripts inside the corpus's sample trees do both.
-	settingsFileRE  = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
-	settingsReadRE  = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
-	settingsWriteRE = regexp.MustCompile(`(?i)\.(write_text|write_bytes)\(|\bwriteFile(Sync)?\(|open\([^)]*['"][wa]|(^|[^>])>>?\s*["~./$]|\btee\s`)
+	// a read (cat/grep/jq/source/`<` of it are reads) and WRITES on any line — the same one
+	// included (P-124: `fs.writeFileSync(path.join(os.homedir(), '.claude', 'settings.json'), …)`
+	// has a space after `path.join(` and passed both halves) — closes the same finding.
+	// Measured: zero benign scripts inside the corpus's sample trees do both.
+	settingsFileRE = regexp.MustCompile(`(?i)\.claude['"]?\s*[/,)]\s*['"]?settings(\.local)?\.json\b|(^|[\s'"/=])\.claude\.json\b`)
+	settingsReadRE = regexp.MustCompile(`(?i)\b(cat|grep|jq|less|more|head|tail|source|test|stat|ls)\b[^\n]*settings|<\s*[^\n]*settings|\.(read_text|read_bytes|readFile(Sync)?|exists)\(|\bif\s+\[`)
 
 	// envDumpShellRE — the shell's own whole-environment dump, PIPED OR REDIRECTED INTO A COMMAND.
 	// This is the one-word form an attacker actually types — `env | curl …` — and until it
@@ -368,9 +501,35 @@ var (
 	// https://api.example.com"), and counting it made every API-configuration example an
 	// exfiltration chain: 137 of 186 benign chain hits on the corpus had no action at all, while
 	// 23 of 30 malicious ones did. chain.egress picks by role; nothing else reads these directly.
-	networkActionRE = regexp.MustCompile(`(?i)(curl\s|wget\s|fetch\(|requests\.(get|post)|http\.(get|post)|net/http|urllib|axios` +
+	//
+	// `urllib` is its sending half only (P-099): `urllib.request`, Python 2's `urllib.urlopen`, `urllib2`,
+	// `urllib3`, `from urllib import request`. `urllib.parse` quotes and splits strings and sends
+	// nothing, and the bare word made `from urllib.parse import quote` a network leg in 13 of 67 benign
+	// server trees whose only high finding was EXFIL-001.
+	networkActionRE = regexp.MustCompile(`(?i)(curl\s|wget\s|fetch\(|requests\.(get|post)|http\.(get|post)|net/http|axios` +
+		`|urllib\.(?:request|urlopen|urlretrieve)\b|\burllib[23]\b|\bfrom\s+urllib\s+import\s+[^\n]*\b(?:request|urlopen|urlretrieve)\b|\bimport\s+urllib\s*$` +
 		`|/dev/tcp/|` + cmdPos + `(dig|nslookup|nc|ncat|socat|telnet|scp|sftp|rsync|sendmail|ssh)\s)`)
-	urlLiteralRE = regexp.MustCompile(`(?i)https?://`)
+	// A URL literal needs something after the scheme (P-099): `startswith("https://")` and "must start
+	// with https://" name no destination. A template host (`f"https://{instance}/…"`) still counts.
+	urlLiteralRE = regexp.MustCompile(`(?i)https?://[^\s"'\x60)\]>,;]`)
+
+	// networkCapableRE (P-095) asks whether a script CAN send at all: an outbound action, or a
+	// network client imported, required or constructed anywhere in the file. It gates urlLiteralRE:
+	// a URL literal is the visible half of a call whose client the verb list may not know — but only
+	// if the file has a client. In a file with none the URL is text: a usage string ("支持: https://
+	// www.douyin.com/…"), a secret scanner's webhook regex, an SVG namespace, a docs link in an error
+	// message. Of 522 benign high EXFIL-001/003 findings in the corpus, 217 sat in such files. The list
+	// is wider than networkActionRE on purpose — Node's `https.request`, `httpx`, a raw socket — because
+	// a client the action list does not know is exactly what the literal rule exists for.
+	networkCapableRE = regexp.MustCompile(networkActionRE.String() + // its leading (?i) covers the whole alternation
+
+		`|\brequire\(\s*["'](?:node:)?(?:https?|http2|net|tls|dgram|axios|node-fetch|got|undici|superagent|request|ky|ws)["']` +
+		`|\bfrom\s+["'](?:node:)?(?:https?|http2|net|tls|dgram|axios|node-fetch|got|undici|superagent|ky|ws)["']` +
+		`|\bimport\s*\(\s*["'](?:node:)?(?:https?|http2|net|tls|axios|node-fetch|got|undici)["']` +
+		`|\bimport\s+(?:requests|httpx|aiohttp|urllib3?|httplib2|grequests|http\.client|socket|websockets?|pycurl|smtplib|ftplib|telnetlib|paramiko)\b` +
+		`|\bfrom\s+(?:requests|httpx|aiohttp|urllib3?|httplib2|http|socket|websockets?|smtplib|ftplib|paramiko)[\w.]*\s+import\b` +
+		`|\b(?:https?|http2)\.(?:request|get)\(|\bXMLHttpRequest\b|\bnew\s+WebSocket\(|\bsendBeacon\(|\bnet\.(?:connect|createConnection|Dial)\(` +
+		`|\bsocket\.(?:socket|create_connection)\(|\bNet::HTTP\b|\bopen-uri\b|\bInvoke-(?:WebRequest|RestMethod)\b|\bNet\.WebClient\b|(?:^|[\s;|&(])(?:iwr|irm)\s`)
 
 	// encodeRE is the third leg: data made unreadable on its way OUT. Note the direction —
 	// every OBF rule in the rule set above watches decoding (a payload coming IN); nothing
@@ -397,7 +556,7 @@ var (
 // raw only — it is the one branch a substitution can falsely satisfy.
 func credentialLine(raw, norm string) bool {
 	for _, v := range [2]string{norm, raw} {
-		if credFileRE.MatchString(v) || credShellVarRE.MatchString(v) || credReadFileRE.MatchString(v) {
+		if credFileRE.MatchString(v) || walletStoreRE.MatchString(v) || credShellVarRE.MatchString(v) || credReadFileRE.MatchString(v) {
 			return true
 		}
 		// A whole-environment read is a leg unless it is the child-process copy idiom and nothing on

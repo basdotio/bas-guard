@@ -1,0 +1,42 @@
+corpus: 5272 samples
+   malicious      n   719  flagged parent  238  branch  243   INJ-007 on 7
+   benign         n  4534  flagged parent  337  branch  337   INJ-007 on 0
+   hard-negative  n    19  flagged parent    4  branch    4   INJ-007 on 0
+   target mcp-mv-prompt-injection-attack--Ginga1402_Model-Context-: parent -        branch flagged  high for ['INJ-007']  (all high on branch: ['INJ-007'])
+   target mcp-mv-prompt-injection-attack--aegntic-knowledge-engine: parent -        branch flagged  high for ['INJ-007']  (all high on branch: ['INJ-007'])
+   target mcp-mv-prompt-injection-attack--brandon-powers_mcp-kafka: parent -        branch flagged  high for ['INJ-007']  (all high on branch: ['INJ-007'])
+   target mcp-mv-prompt-injection-attack--chigwell_telegram-mcp: parent -        branch flagged  high for ['INJ-007']  (all high on branch: ['INJ-007'])
+   target mcp-mv-prompt-injection-attack--guinacio_langchain-mcp-c: parent -        branch flagged  high for ['INJ-007']  (all high on branch: ['INJ-007'])
+   target skill-sc-T1-direct-injection-hard: parent flagged  branch flagged  high for ['INJ-007']  (all high on branch: ['EXFIL-003', 'FS-001', 'INJ-007'])
+   target skill-sg-hidden-html-comment-instruction: parent flagged  branch flagged  high for ['INJ-007']  (all high on branch: ['EXFIL-007', 'INJ-007'])
+== target: 7 of 7 carry a high INJ-007 and are flagged (line: 7) PASS
+== malicious: lost 0 [] (line: 0); gained 5: ['mcp-mv-prompt-injection-attack--Ginga1402_Model-Context-Protocol-MCP-Demo-with-langchain-MCP-ADAPTERS-Ollama', 'mcp-mv-prompt-injection-attack--aegntic-knowledge-engine', 'mcp-mv-prompt-injection-attack--brandon-powers_mcp-kafka', 'mcp-mv-prompt-injection-attack--chigwell_telegram-mcp', 'mcp-mv-prompt-injection-attack--guinacio_langchain-mcp-client'] PASS
+== benign: INJ-007 on 0 [] (line: 0); verdict changed on 0 [] (line: 0) PASS
+== hard negatives: verdict changed on 0 [] (line: 0) PASS
+
+   every corpus sample whose high rule IDs differ between the parent and the branch:
+     mal mcp-mv-prompt-injection-attack--Ginga1402_Model-Context-Pr parent -        branch flagged  +['INJ-007'] -[]
+     mal mcp-mv-prompt-injection-attack--aegntic-knowledge-engine   parent -        branch flagged  +['INJ-007'] -[]
+     mal mcp-mv-prompt-injection-attack--brandon-powers_mcp-kafka   parent -        branch flagged  +['INJ-007'] -[]
+     mal mcp-mv-prompt-injection-attack--chigwell_telegram-mcp      parent -        branch flagged  +['INJ-007'] -[]
+     mal mcp-mv-prompt-injection-attack--guinacio_langchain-mcp-cli parent -        branch flagged  +['INJ-007'] -[]
+     mal skill-sc-T1-direct-injection-hard                          parent flagged  branch flagged  +['INJ-007'] -[]
+     mal skill-sg-hidden-html-comment-instruction                   parent flagged  branch flagged  +['INJ-007'] -[]
+
+held-out (totals only): 459 samples
+   malicious  agent-skill-malware  n  123  flagged parent  121  branch  121   INJ-007 on 0
+   malicious  skillharm            n  120  flagged parent   12  branch   12   INJ-007 on 0
+   benign     agent-skill-malware  n  216  flagged parent    6  branch    6   INJ-007 on 0
+== held-out malicious: 133 -> 133 (line: not fewer) PASS
+== held-out benign: 6 -> 6 (line: not more) PASS
+
+fresh skills fresh216: 212 trees  flagged parent 9  branch 9  INJ-007 on 0 []  verdict changed []
+
+fresh skills fresh200: 200 trees  flagged parent 24  branch 24  INJ-007 on 0 []  verdict changed []
+== fresh benign skills: INJ-007 on 0 of 412 (line: 0); verdict changed on 0 (line: 0) PASS
+
+npm packages: 1890 checked on both builds, 0 not readable as a result []
+   exit 1 (a high finding) main 37  branch 37; (rule, severity) pairs that differ: {}
+== npm packages: INJ-007 on 0 [] (line: 0); newly flagged at high 0 [] (line: 0); no longer flagged 0 PASS
+
+GATE: PASS

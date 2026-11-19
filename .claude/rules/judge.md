@@ -6,15 +6,15 @@ paths:
 ## LLM judge(`internal/judge`,可选)
 
 必须同时满足 config `llm.enabled: true` **和** `--llm` 才会启用;`scan` 和 `check` 都接受 `--llm`(`check` 自 P-004),
-`clean`、加载时闸门和 `aguard approve` 永不调用它。
+`clean`、加载时闸门和 `bas-guard approve` 永不调用它。
 **配置和密钥(2026-09-04 改)**:不传 `--config` 时读 `$XDG_CONFIG_HOME/aguard/config.yaml`,否则
 `~/.config/aguard/config.yaml`(`config.LoadUser`;`config.Load` 保持纯函数给测试用)—— 放在扫描 root **之外**,
 放进 `~/.claude` 会被当成无人认领的散落文件每次披露。`provider` 可以是预设名(`config.Presets`,只填
 base_url 和默认模型,用户写的一律优先;不认识的名字是加载错误,不能悄悄退回 localhost)。密钥多了
 `api_key_file`:spec §16.3 原文是"只读环境变量,不落盘",**放宽的理由**是在线端点全都要 key,而"设环境
 变量"是非技术用户做不到的那一步——他们能做到的是把 key 粘进 `~/.zshrc`,同样是明文落盘,还没有权限检查。
-所以文件必须 0600,组/他人可读一律拒用并给出 chmod(`ResolveAPIKey`),env 仍然优先给 CI。`aguard llm
-setup/test/status` 是插件 `/aguard-llm` 驱动的三个原语:setup 在终端里用 x/term 隐藏输入读 key,管道时用 `--key-stdin`(两种都不进参数列表,
+所以文件必须 0600,组/他人可读一律拒用并给出 chmod(`ResolveAPIKey`),env 仍然优先给 CI。`bas-guard llm
+setup/test/status` 是插件 `/bas-guard-llm` 驱动的三个原语:setup 在终端里用 x/term 隐藏输入读 key,管道时用 `--key-stdin`(两种都不进参数列表,
 终端那条也不进 shell 历史和聊天记录,所以插件流程**先推终端**,贴进对话是知情的退路);只写
 用户做了决定的字段、结束前必须印"内容会发到 X";`CheckEndpoint` 拒绝非 https 的远程地址(key 是
 Bearer 头,明文 http 等于把它送上网),setup/test/judge 三处都过它,judge 侧是一条 `LLM-000`;test 用真实的 client 打一次(`HTTPClient.Ping`),
@@ -42,6 +42,9 @@ userinfo 整段、每个 query 值、fragment 换成 `<REDACTED>`,再过 `Secret
 的 `Why` 现在带最多三条没落地的引文(截 120 字符,再过一次 Redact),用来区分"模型在转述"和"摘录切掉了它要引的那行"。
 **伴随文档趟**(`judge/companion.go`,P-065):skill 正文点名的 `.md`/`.txt`/`.pdf` 走一趟注入问题,只读**点名的**(按路径,其次按裸名在树内找,`FileReach` 过滤,最多 8 份,同一个 6000 字节预算,放不下的经 `boundedNote` 披露),不读树里所有文档——真实 skill 中位带 3 份、最多 69 份 `references/*.md`,全读是误报和费用。PDF 只走 `pdfText`(标准库,ASCII85/Flate + 文本算子,不认的过滤器一律返回空),引文落到文件不落到行(collapsed)。**别把这一趟改成"读树里所有 .md"**,也别跟第二层(文档点名的文档):240 棵 SkillHarm 里 92 棵的载荷就在第一层的点名文档里,P-065 之前判官一棵没抓到。
 **结果趟**(`judge/steering.go`,`LLM-011`,维度 1,P-068):对 skill 的整份指令文本(正文 + P-065 的伴随文档,`fitUnits` 合装,放不下的经 `boundedNote` 披露)单独问一句"有没有必须的步骤改了用户拿到的结果",自己的类别表(`forced-value`/`data-tampering` high,`unrequested-artifact`/`presentation-change`/`other-steering` medium)。第一版措辞在 held-out 的 ClawHub 良性 216 棵上把三选二高危从 6 推到 26(单位换算、格式化、过滤、截断被读成篡改数据),第二版把"结果对用户的数据或任务而言是**假的**、用户在结果里**看不出来**"写成定义,把展示层变换列成 flagged=false 并给了 `presentation-change` 这个 medium 出口;**别删那一串 flagged=false 的例子**。**别把它并回注入问题**:P-066 试过把同一句话当从句加进注入问题、在注入表里加一行,840 棵树上模型一次没选那一行(`rejected/066`)。提示词里"步骤自己的理由不算证据"那句是对着 SkillHarm 的 output_manipulation 写的,它们每条都带一段工程说辞;**别把它放宽到"任何没被要求的步骤"**,真实 skill 满是"先跑 lint 再提交"。
+**P-115 加的两行**(服务器表 `resource-exhaustion`/`result-tampering`,都是 high):模型本来就描述对了 fork 炸弹、解压炸弹、往结果里塞商品,却归进 medium 的 `other`,三票一致也升不上去;加了之后 14 个里 10 个升级、Cisco 102→118、良性服务器经新行升级 0 个。**别删 `other` 那行里"X 属于新类别"的指路句**:P-066 往注入表加过一行、兜底没指路,840 棵树上模型一次没选。**别把服务器表并回意图表、也别把两行加进意图表**:两张表现在由 `intentBehaviours` 共享前九行、各自的兜底在后,`TestCategoryTables_ServerIsIntentPlusTwo` 钉着;意图趟的多数票从没落在 `other` 上,加了只多良性风险。**结果表的 `covert-transmission` 试过、撤了**:`unrequested-artifact` 那行也指了路,模型照样把暗中 BCC、`full_access` 授权归成 `unrequested-artifact`,9 个目标漏报只抓到 2 个(门槛 4),读数在 `baselines/results/aguard/2026-11-05-llm-gpt-4.1-mini-p115-branch-s3/compare.txt`——**指路是必要条件,不是充分条件**;要再加,先换措辞再量,别直接把 `unrequested-artifact` 抬成 high(真实 skill 满是写摘要、发通知)。**服务器表的 `code-execution` 也试过、撤了(P-118)**:想让"列表传参、不经 shell 跑一个固定程序"(xcodebuild、ffmpeg、`execFileSync`)不再落进 high 的 `remote-execution`,加了一行 high 的 `code-execution`(写明固定程序不算)、披露不降档、`serverTask` 加一句同样的话;模型选了新行,却照样把固定程序说成"由参数构建"——8 个目标只掉 1 个,良性升级 62→80,`other` 的指路句改了之后 4 个恶意被归进 `other` 降成 medium。读数在 `baselines/results/aguard/2026-11-16-llm-gpt-4.1-mini-p118-py-branch-s3/compare.txt`。**这条线要由工具查**(引文里有没有 `shell=True`、`exec`/`eval`、字符串命令,照 `categoryShown` 的做法),别再靠提示词里的一句话;**改 `other` 的指路句也要量**,它会改变模型往兜底里放什么。"已披露降一档"现在在理由里写 `[disclosed: one step lower]`(`disclosureLowered`,只是文字,严重度不变)。
+
+**`llm.request_options`**(P-107):原样加进每个请求体,判官问题、triage、`llm test` 都带。**被拒字段只有一份名单** `config.ReservedRequestOptions`(`model`/`messages`/`temperature` 加改变回复形状的 `stream`/`n`),`TestRequestOptions_ReservedCoversTheRequest` 让它跟着 `chatRequest` 的字段走——**加一个请求字段就要进这份名单**。拼接在 `chatRequest.MarshalJSON` 里:先按原样编码声明的字段(不转义 HTML,和客户端编码器一致),再按键序追加;**没有选项时请求体必须逐字节不变**(`TestPromptVersion_HashesWhatTheClientSends` 守着)。选项是配置,**不进 `PromptVersion`**,和模型名一样记在判官块、身份行、用量日志、账本行里——别漏记,关了思考的读数靠它分得开。
 **判官的两个版本号**(P-031):`ExcerptVersion`(`ground.go`)是**手动**的 —— 改了 `planFor` 给哪些 artifact 跑哪几趟、摘录怎么切
 (condense / capHeadTail / lineMap / 解码上限 / 声明用途和 hook、MCP、connector 的渲染 / 家目录替换与脱敏顺序)或引文怎么落地,**同一个提交里加一**,
 并把 `excerpt_version_test.go` 钉的 {版本, 摘要} 一起换掉;只换摘要不加版本,两份报告就会自称同样的摘录。
@@ -54,11 +57,11 @@ userinfo 整段、每个 query 值、fragment 换成 `<REDACTED>`,再过 `Secret
 **趟数按 artifact 种类选**(`judge/run.go` 里的 mode 表,不是固定四趟):injection(`LLM-003`,
 维度 1,跑 skill/CLAUDE.md/subagent/command/hook)、intent(`LLM-001`,维度 10,仅 skill)、
 deobfuscation(`LLM-004`,维度 6,**只解码、绝不执行**)、collusion(`LLM-006`,维度 3)、
-hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
+hook capability(`LLM-008`,维度 2)、server source(`LLM-010`,维度 10,P-053:`collect.LooksLikeServerSource` 认出的 `server` 种类;声明侧由 `serverDeclared` 从工具 docstring 首行拼出,**模块注释永远不进声明侧**——测试语料里它直接写着攻击名;行为侧复用 `behaviorExcerpt`;**只认 Python 是量过的结果,不是没做到**:P-116 让识别器认 TS/JS 服务器(同文件导入 SDK + 建服务器/声明工具,声明侧读四种写法),237 棵上恶意漏报只抓到 10 个里 5 个,良性 220 个里 42 个升级 high(19%,Python 约 9%;credential-read 的两道降档在 TS 上照常生效,多出来的是票本身多和 `execFileSync`/`spawn` 读成 remote-execution),已撤回(`rejected/116`);再做之前先想清楚良性那一半怎么压;**P-117:`detect.CredentialSentElsewhere` 只把发请求的行当目的地**(`networkActionRE` 加判官专用的 `requestLineRE`,再加同文件一层解析),**别改回"每个 URL 字面量都是目的地"**——命名空间、许可证、OAuth scope 曾把 44 张良性高票顶在 high,而恶意那边它只撑着 6 张、全是"答对了理由说错了"的;`requestLineRE` 漏认一个客户端会把那个文件读成"什么都没发",所以只许加不许删;它挂在 `chain.requestLine` 上,规则自己的链不设它,静态发现因此不动(1,438 棵树核过)。服务器趟的摘录跳过 `.github/`(`serverSkipDirs`),skill 的不跳;类别表和 `disclosed` 与意图趟相同,规则号独立以便折算分开)、MCP config(`LLM-009`,维度 5,**只提示**:`run.go` 的 `advisoryOnly` 让它无论几票都不升级,
 因为 500 个良性配置上它是唯一升级过的判官规则,P-019)、triage(仅展示用的标签)。
 `LLM-007`(artifact 试图指挥分析器,维度 1)的严重度由工具定死。**其余各趟的严重度自 P-041 也由工具定**:`severity.go` 的
 `categoryTables` 按 (趟, 类别) 查,模型只能从提示词列出的封闭名单里选 `category`,不认识的名字一律 medium;意图趟多一个 `disclosed`,
-为真降一档,`software-source` 除外;多票时**类别也投票**(`majorityCategory`:多数同意票选了同一类别就按那张票的严重度,否则取各票最低的严重度)。**引文要落在行为侧**(`behaviourUnits`,P-054):意图趟和服务器趟把声明当作一个 collapsed 单元一起送去落地,只落在声明上的引文不是行为证据——"声明说它恢复凭证,没找到行为,未披露"是自相矛盾——按引不到丢弃并在 LLM-005 里注明。**类别要在文本里有依据**(`categoryShown`,P-049):hook 的四个 high 类别要在发出的命令里有该行为的词(`hookCategoryTokens`,localhost URL 先剥掉),连接器的 `credential-read` 不能只落在 `▸ param` 行上;没依据的那票降到 medium、理由注明,类别名照记。**服务器趟的 `credential-read` 多一道**(`unitGoesHome`,P-062):引文落在的那个文件若按 EXFIL-001 的整条链(`detect.CredentialGoesHome`,全文而非摘录)读的是有名字的凭证、且只发往该凭证自家的服务或回环,这票降到 medium——`WEATHER_API_KEY` 调 `api.weather.com` 是 key 的用途,摘录里模型看不出来;key 去了别处、目的地读不出来、key 没名字,照旧 high。离线模拟 547 个良性服务器:96 个 high 里 74 个是 credential-read,只有 12 个过得了这道(其余 21 个是链不认的读法、20 个是调用在别的文件里、14 个域名对不上),Cisco 127 个 0 个过——**别为了多降几个把『一层、一个文件』放宽**,也别让 tree 级聚合放过带有读不出目的地的文件。词表是封闭的、故意很短——它漏掉的是行为藏在扫描器看不到的脚本里的 hook,那种情况模型也什么都没看见。**别把词表扩成第二套规则引擎**,也别用它抬高任何严重度。
+为真降一档,`software-source` 除外;多票时**类别也投票**(`majorityCategory`:多数同意票选了同一类别就按那张票的严重度,否则取各票最低的严重度)。**引文要落在行为侧**(`behaviourUnits`,P-054):意图趟和服务器趟把声明当作一个 collapsed 单元一起送去落地,只落在声明上的引文不是行为证据——"声明说它恢复凭证,没找到行为,未披露"是自相矛盾——按引不到丢弃并在 LLM-005 里注明。**类别要在文本里有依据**(`categoryShown`,P-049;hook 趟的 `install`/`network` 先剥掉 `hookMediumShapes` 三种写法再找词——npx@发布标签、npx 跑格式化工具、git pull,P-090 老板定的,别扩成"所有 npx":来历不明的包经 npx 仍是 high;P-087 加了一条:注入/结果趟上只靠一个词的引用不算依据,一个词的屏障引用不出 `LLM-007`——别为"短命令也该能被引用"去掉它,引用照样落地,只是撑不起"这是指令"):hook 的四个 high 类别要在发出的命令里有该行为的词(`hookCategoryTokens`,localhost URL 先剥掉),连接器的 `credential-read` 不能只落在 `▸ param` 行上;没依据的那票降到 medium、理由注明,类别名照记。**服务器趟的 `credential-read` 多一道**(`unitGoesHome`,P-062;注入趟同一问题在引用前后 12 行的窗口上问,`quoteGoesHome`,P-089——别改成整个文件,长 SKILL.md 里任一个别家服务就会把所有发回自家的示例都挡住):引文落在的那个文件若按 EXFIL-001 的整条链(`detect.CredentialGoesHome`,全文而非摘录)读的是有名字的凭证、且只发往该凭证自家的服务或回环,这票降到 medium——`WEATHER_API_KEY` 调 `api.weather.com` 是 key 的用途,摘录里模型看不出来;key 去了别处、目的地读不出来、key 没名字,照旧 high。离线模拟 547 个良性服务器:96 个 high 里 74 个是 credential-read,只有 12 个过得了这道(其余 21 个是链不认的读法、20 个是调用在别的文件里、14 个域名对不上),Cisco 127 个 0 个过——**别为了多降几个把『一层、一个文件』放宽**,也别让 tree 级聚合放过带有读不出目的地的文件。词表是封闭的、故意很短——它漏掉的是行为藏在扫描器看不到的脚本里的 hook,那种情况模型也什么都没看见。**别把词表扩成第二套规则引擎**,也别用它抬高任何严重度。
 类别说明里"**只按文本本身、不按脚本名猜**"那句是第一次实测换来的:hook 只写 `bash x.sh`,模型按 `check-secrets.sh`/`cmux-notify.sh` 的名字猜成凭证/网络,随机良性升级从 1 跳到 4、hard negative 从 0 到 2;加了这句之后回到 1 和 0。**改表就是改规则**:`categoryPrompt` 把表原样印进系统提示,所以 `PromptVersion` 随之变,不用手动;
 别给表加 low 行(一行 low 等于让模型自己选"不计分"),别让 `Severity` 那个词重新进 `finding()`。投票文本是 `[k of n samples agreed] [severities: a, b] [categories: c, d] [tool: X]`(`samples: 1` 时只有 `[category: c]`):
 `severities` 仍是模型逐票的词(benchmark 的 judgefold 用正则读这一格,**别改它的格式**),`[tool: X]` 是工具定的严重度;前者是以后拿表去核对模型的唯一记录,别删。被扫内容按**敌对**处理:
@@ -69,7 +72,7 @@ k 个请求逐字节相同,端点的提示词缓存才接得住重复;重问和 
 11.7 s → 21.7 s),也别为了缓存加 `prompt_cache_key`(逐字节相同的请求本来就路由到一处,实测不带它命中 44.5%,带它 45.8%)。`base_url` 非 loopback 时追加 `LLM-002` 隐私警告。**`ScanResult.Judge`(2026-09-05)**:`--llm` 时必填,记录跑没跑、
 判了几个、几次调用、补了几条、没跑的原因;两个渲染器在摘要里印一行,HTML 的判官区块在请求了就出现(空则放那一行),
 没开 `--llm` 一律不提 —— "跑了没发现"和"没跑"以前在报告上一模一样,这是不变量 #5 用在判官自己身上。
-**`aguard llm preview` 和真跑共用同一份计划和同一段载荷代码**(`judge.Plan`,P-027):`Run` 和 `Plan` 都走 `schedule`
+**`bas-guard llm preview` 和真跑共用同一份计划和同一段载荷代码**(`judge.Plan`,P-027):`Run` 和 `Plan` 都走 `schedule`
 (建表 + `max_calls` 截断 + shortened 注记),客户端和预览都用 `judgePayload`/`triagePayload` 渲染栅栏里的文本,趟名和规则 ID 都读
 `modeInfo`。**不要在 `cmd/` 里另写一份渲染,也不要给预览单独的截断或排序**——预览一旦和发出去的字节不同,就成了会漂移的第二实现。
 `TestPlan_PayloadsAreWhatTheClientSends`(真 `NewHTTP` + httptest)和 `TestLLMPreview_MatchesWhatScanAndCheckSend`(二进制,真跑)逐字节钉着。
@@ -78,5 +81,6 @@ k 个请求逐字节相同,端点的提示词缓存才接得住重复;重问和 
 第一个对象后面以逗号开头的那段正是另一个 `flagged` 或 barrier 引文所在,只读前半个就是替判官换了答案(不变量 #4),`{…}{…}` 同理。
 干净回复仍按最外层 `{…}` 读,一个字节不变(`TestParseVerdict_ReadsOneObject` 拿旧读法当参照,`FuzzParseVerdict` 用独立判据);
 `Verdict.repaired` 不导出,模型写不进来,`Run` 数进 `repaired`。改读法不动 `PromptVersion`/`ExcerptVersion`(两者都不覆盖回复解析),由 `tool_version` 标识。**读不了的回复只再问一次**(`ReplyError` → `execute` 带 `Request.Reask` 重问,系统消息加 `reaskRule`,P-069):不是传输错误、不走退避重试;重问只是同一个抽样问题再抽一次,所以它决定不了第一次决定不了的事。**别把回复的原文塞进重问**(那是被扫内容),**别重问第二次**(两次都读不了就是失败,进 `LLM-000`),`reaskRule` 是固定文本、进 `PromptVersion` 的 call shape。
+**判官说明里给 artifact 起的名字只有 `artifactLabel` 一处**(`kind:name`,P-085):不过 `Redact`,和报告列 artifact 的名字一致。**别把 `Redact` 加回去**:熵兜底会把 `migrating-tailwindcss-v4` 这种名字整个换掉,两个 skill 在 `LLM-000` 里读成同一个 `skill:<REDACTED>`、`artifactSpan` 还按标签去重(issues/027)。标签不进任何请求体(`Request.Artifact` 是 notSent);发给模型的摘录照旧走 egress。
 完整参考:[docs/llm-judge.md](../../docs/llm-judge.md)。
-
+- **服务器趟的 `credential-read` 要看文件有没有越界**(P-098,`unitOverreaches`):引文所在文件 `detect.CredentialOverreach`(别的程序的密钥文件、系统文件、`/proc`/`/sys`、整环境读取但子进程复制环境不算、元数据服务、用户库、钥匙串、cookie 库、临时目录隐藏文件)和 `detect.CredentialSentElsewhere`(读凭证且发往写明的、不属于该凭证服务的主机;没有服务名的凭证如 `settings.password` 遇到任何写明的外部主机都算)都为假,才降 medium。**别把"目的地读不出来"加进 SentElsewhere 的反面**——那是 P-074 的地盘,读不出来的仍降;也别删清单项:每一项都对应 Cisco 集里一个恶意样本,删了它就从 high 掉下来。在 543 个良性服务器上降 43 个,Cisco 127 个恶意降 2 个(都是判官把注入/遍历错归成 credential-read),其余 12 个恶意 MCP 0 个。

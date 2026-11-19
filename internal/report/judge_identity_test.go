@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/basdotio/AgentGuard/internal/model"
+	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // A report whose LLM findings came from a judge says which judge: one line under the judge
@@ -47,6 +47,17 @@ func TestJudgeIdentityLine_NamesTheJudgeWhenItRan(t *testing.T) {
 		if n := strings.Count(out, want[name]); n != 1 {
 			t.Errorf("%s report carries the judge identity line %d time(s), want once:\n%s", name, n, out)
 		}
+	}
+}
+
+// TestJudgeIdentityLine_NamesTheRequestOptions (P-107): options that change what the model does are part
+// of which judge it was.
+func TestJudgeIdentityLine_NamesTheRequestOptions(t *testing.T) {
+	j := ranJudge("glm-5.3-flash")
+	j.RequestOptions = `{"thinking":{"type":"disabled"}}`
+	want := `LLM judge: model glm-5.3-flash · samples 3 · prompt_version 0123456789ab · excerpt_version 3 · request_options {"thinking":{"type":"disabled"}}`
+	if got := judgeIdentityLine(j); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
 	}
 }
 

@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/basdotio/AgentGuard/internal/collect"
-	"github.com/basdotio/AgentGuard/internal/detect"
-	"github.com/basdotio/AgentGuard/internal/model"
-	"github.com/basdotio/AgentGuard/internal/score"
+	"github.com/basdotio/bas-guard/internal/collect"
+	"github.com/basdotio/bas-guard/internal/detect"
+	"github.com/basdotio/bas-guard/internal/model"
+	"github.com/basdotio/bas-guard/internal/score"
 )
 
 // This file is the report's plain-language layer, shared by the terminal and HTML renderers so
@@ -72,10 +72,14 @@ func friendlyArtifact(art string) string {
 	case "hook":
 		return "hook " + name
 	case "permission":
-		if strings.Contains(name, "local") {
-			return "permission rules (project settings.local.json)"
+		what := "permission rules"
+		if strings.HasPrefix(name, collect.SettingsHelpersName) {
+			what = "helper commands" // apiKeyHelper, statusLine and the like (P-133): not rules
 		}
-		return "permission rules (settings.json)"
+		if strings.Contains(name, "local") {
+			return what + " (project settings.local.json)"
+		}
+		return what + " (settings.json)"
 	case "mcp":
 		return "MCP server " + name
 	case "memory":
