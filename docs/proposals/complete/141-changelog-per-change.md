@@ -80,14 +80,14 @@ fails when the entry is missing.
 2. What does a refactor do? Recommended: a commit-message line `Changelog: none — <reason>`, read by the check, with the
    reason required. **Decided (2026-11-19)**: as recommended.
 3. Are the old entries given authors? Recommended: no, see Out of scope. Not yet put to the maintainer as its own
-   question; raised in the pull request.
+   question; raised in PR #168.
 
 ## Done
 
 ```
-Merged: PR (fill in once opened; find the sha with git log --grep P-141 after the merge)
+Merged: PR #168 (find the sha with git log --grep P-141 after the merge)
 Released: (fill in after the release)
-Evidence: TestCheck (hack/changelog-check/check_test.go), 20 rows; TestUnreleased_EntriesAreWholeBullets, TestUnreleased_StopsAtTheNextSection, TestShipped. Written first: the package did not build without Input and Check
+Evidence: TestCheck (hack/changelog-check/check_test.go), 21 rows; TestUnreleased_EntriesAreWholeBullets, TestUnreleased_StopsAtTheNextSection, TestShipped. Written first: the package did not build without Input and Check
 Evidence: mutations, each run and reverted — any unreleased entry counts as new: "shipped code on top of somebody else's unreleased entry" fails; an opt-out without a reason counts: "opted out without a reason" fails; the section does not end at the next heading: TestCheck fails from its first row
 Evidence: end to end on this branch, base HEAD — one line appended to cmd/bas-guard/main.go: exit 1, naming the file; the same line appended to cmd/bas-guard/main_test.go: exit 0; -base origin/nope: exit 2, naming the ref
 Evidence: reverse — make verify green on macOS with the step in it; git diff origin/main --stat names no file under cmd/, internal/, plugin/ or npm/; go.mod's second line is go 1.23.5
