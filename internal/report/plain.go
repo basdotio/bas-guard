@@ -72,10 +72,14 @@ func friendlyArtifact(art string) string {
 	case "hook":
 		return "hook " + name
 	case "permission":
-		if strings.Contains(name, "local") {
-			return "permission rules (project settings.local.json)"
+		what := "permission rules"
+		if strings.HasPrefix(name, collect.SettingsHelpersName) {
+			what = "helper commands" // apiKeyHelper, statusLine and the like (P-133): not rules
 		}
-		return "permission rules (settings.json)"
+		if strings.Contains(name, "local") {
+			return what + " (project settings.local.json)"
+		}
+		return what + " (settings.json)"
 	case "mcp":
 		return "MCP server " + name
 	case "memory":

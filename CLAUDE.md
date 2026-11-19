@@ -58,7 +58,7 @@ echo '{"hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":
 ```
 
 退出码:`0` 低于阈值 · `1` 有 ≥ `--fail-on` 的发现 · `2` 运行错误 · `3` 仅 `clean`:部分执行 ·
-`4` 仅 `--fail-on-llm`:判官没跑或跑短了(有调用失败/没发出),或 `check` 的目标是判官一个问题都不问的(目录、隔离区,以及没有任何可加载 skill/命令/子 agent 的插件,P-038/P-044),闸门无法评估(P-026)。`scan` 默认不设
+`4` 闸门无法评估,原因印在 stderr:`--fail-on-llm` 时判官没跑或跑短了(有调用失败/没发出),或 `check` 的目标是判官一个问题都不问的(目录、隔离区,以及没有任何可加载 skill/命令/子 agent 的插件,P-026/P-038/P-044);`--fail-on` 时根目录下什么都没收集到,或有个项目的 `.claude` 没读到(根目录指高了一层,P-105)。`scan` 默认不设
 `--fail-on`(仅告知);`check` 默认 `high`(闸门)。
 
 

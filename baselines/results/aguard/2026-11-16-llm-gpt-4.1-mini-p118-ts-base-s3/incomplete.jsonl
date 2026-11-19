@@ -1,0 +1,6 @@
+{"sample":"ben-mcp-gh-0xintuition-intuition-mcp-server","path":"corpus/benign/mcp/gh-0xintuition-intuition-mcp-server","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-fkesheh-code-context-mcp","path":"corpus/benign/mcp/gh-fkesheh-code-context-mcp","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-gourraguis-glasses-mcp-src","path":"corpus/benign/mcp/gh-gourraguis-glasses-mcp-src","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-ranch-hand-robotics-rde-urdf-src","path":"corpus/benign/mcp/gh-ranch-hand-robotics-rde-urdf-src","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-sarva-20-heimdall-mcp","path":"corpus/benign/mcp/gh-sarva-20-heimdall-mcp","class":"benign","surface":["mcp"]}
+{"sample":"mal-mcp-dd-npm-fixthis-exchange-exfil","path":"corpus/malicious/mcp/dd-npm-fixthis-exchange-exfil","class":"malicious","surface":["mcp"],"severity":"critical"}

@@ -67,6 +67,13 @@ type unit struct {
 	// patterns stop reading at its first space, or whose key is not on the line at all (memberView, P-042). Nil
 	// for every other unit.
 	views map[string]string
+	// line is, for a synthetic unit that is one value of a config file, the line of file that value starts on, and
+	// every finding on the unit cites it instead of 0: a settings helper's command (P-133) is the same line the tree
+	// read of `check .` cites, so the report can print it once. 0 for every other unit.
+	line int
+	// statusInput marks a status line's stages (P-133): their stdin is the session JSON, metadata plus
+	// transcript_path, so HOOK-003's reading takes only the transcript as payload (statusLineEgress).
+	statusInput bool
 }
 
 // evidence is the snippet a finding on the logical line raw quotes: the unit's view of that line, bounded, or
@@ -113,8 +120,18 @@ func (e *Engine) Run(root string, arts []model.ArtifactReport) ([]model.Artifact
 			defer wg.Done()
 			for i := range idx {
 				a := arts[i]
-				units, cn := e.unitsFor(root, a)
+				// A script a hook or grant names resolves against the config root the artifact was read
+				// under (ConfigRoot, P-120); evidence is still named from the scan's root.
+				units, cn := e.unitsFor(resolveRoot(root, a), a)
 				a.Findings = append(a.Findings, e.scanUnits(root, units)...)
+				if a.Kind == model.KindHook {
+					// HOOK-003's command half (P-128): only a hook's own stages have the event on stdin.
+					a.Findings = append(a.Findings, hookPayloadEgress(root, a, units)...)
+				}
+				if a.Kind == model.KindPermission && strings.HasPrefix(a.Name, collect.SettingsHelpersName) {
+					// The status line's stages have the session status on stdin (P-133).
+					a.Findings = append(a.Findings, statusLineEgress(root, a, units)...)
+				}
 				// unitsFor mostly reports coverage gaps, which are scan-level notes. It can
 				// also produce a real SCORING finding — a structural one only the reader is
 				// in a position to notice, like instructions pointing into a tree the reader
@@ -190,6 +207,11 @@ func coalesceCoverageNotes(notes []model.Finding) []model.Finding {
 				"missing is the attribution: those findings do not record that a hook runs the file on every "+
 				"matching tool call, which is the difference between a script existing and a script running. "+
 				"Each reference is listed with the file it resolved to.", n)
+		},
+		helperRefNoteTitle: func(n int, whys []string) string {
+			return fmt.Sprintf("%d script reference(s) in settings helper commands (apiKeyHelper, statusLine and the "+
+				"like) were NOT read: %s. Claude Code runs these on its own, so an unread script is a real gap; the "+
+				"command lines themselves were scanned.", n, reasonBreakdown(whys, helperRefPrefix))
 		},
 		permRefNoteTitle: func(n int, whys []string) string {
 			return fmt.Sprintf("%d script reference(s) in permission grants were NOT read: %s. A grant is only "+
@@ -297,6 +319,9 @@ func (e *Engine) unitsFor(root string, a model.ArtifactReport) ([]unit, []model.
 		if strings.HasPrefix(a.Name, collect.SettingsEnvName) {
 			return settingsEnvUnit(a.Path), nil
 		}
+		if strings.HasPrefix(a.Name, collect.SettingsHelpersName) {
+			return helperUnits(root, a)
+		}
 		return permissionUnits(root, a)
 	default:
 		return nil, nil
@@ -308,8 +333,10 @@ func (e *Engine) unitsFor(root string, a model.ArtifactReport) ([]unit, []model.
 func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 	var findings []model.Finding
 	artifactChain, sameFileChain := chain{}, false
+	inj005, hasInj005 := e.byID("INJ-005")
 	for _, u := range units {
 		rel := relPath(root, u.file)
+		unitStart := len(findings)
 		// A1: which lines are entirely comment (real code files only; synthetic JSON blobs
 		// and unknown languages → nil = nothing dropped). Used to drop comment-only mentions.
 		var commentLines map[int]bool
@@ -321,6 +348,11 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		// see the same comment map the line rules do, so a redirect in a comment is not one.
 		if !u.synthetic {
 			findings = append(findings, shapeFindings(rel, u, commentLines)...)
+		}
+		// INJ-007 (P-137): an HTML comment written for the model. On text a reader is shown rendered — an
+		// instruction file or a document — which is the scope the prerequisite lure has (hiddencomment.go).
+		if lureScope(u) {
+			findings = append(findings, hiddenCommentFindings(rel, u)...)
 		}
 		// BD-004's language-native half: a socket opened and a shell's stdio bound to it, across
 		// lines no single rule can span. Real script files only — a config value or an instruction
@@ -335,10 +367,12 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		if u.role != roleDoc && u.role != roleToolDesc && u.role != roleNamedDoc {
 			fileChain.assigns = urlAssignments(u.text)
 		}
-		// File-level half of PERM-007: a script that names a Claude settings file on one line and
-		// writes on another. Only real scripts and hook commands — an instruction file
-		// naming settings.json is telling a person where to paste, and a config unit is data.
-		var settingsNameEv, settingsWriteEv *model.Evidence
+		// File-level half of PERM-007: a line that names a Claude settings file and writes it in code (P-124),
+		// or a line that assigns its path to a name and a later line that writes through that name (P-134,
+		// permfile.go). Only real scripts and hook commands — an instruction file naming settings.json is
+		// telling a person where to paste, and a config unit is data.
+		var settingsNames []settingsName
+		var perm007Ev []model.Evidence
 		permFileWriteScope := (u.role == roleScript && !u.synthetic) || u.role == roleHookCmd
 		perm007Fired := false
 		// File-level half of FS-005 (P-092): a log's path assigned to a name, the name erased on a
@@ -355,13 +389,19 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 			at   model.Evidence
 		}
 		exec013Fired := false
+		// File-level half of INJ-005 (P-121): a download kept at a path, another line obeying that path.
+		// Wherever INJ-005 itself runs; a config value is data, not an order.
+		var orders remoteOrders
+		ordersScope := !u.synthetic && hasInj005 && roleAllows(u.role, inj005)
+		lure := lureScope(u)
+		inj005Fired := false
 		// A.1: rules see the line an INTERPRETER would run (continuations joined, quoting that
 		// only splits a word folded, invisible characters gone); evidence quotes the line the
 		// FILE contains. See logical.go for why those must not be the same string.
 		for _, ll := range logicalLines(langForFile(u.file), u.text, commentLines) {
 			lineNo := ll.start
 			if u.synthetic {
-				lineNo = 0 // JSON value: per-line numbers are not meaningful
+				lineNo = u.line // JSON value: its own line numbers mean nothing; the value's line, when known (P-133)
 			}
 			for _, r := range e.rules {
 				if !roleAllows(u.role, r) || !r.matches(ll) {
@@ -373,9 +413,13 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				if u.role != roleScript && injectionQuotedAsExample(r, ll) {
 					continue // prose that quotes the attack in order to refuse it
 				}
+				why := r.Why
+				if r.ID == "INJ-006" {
+					why = hiddenTagWhy(why, ll.raw) // the snippet shows the tags as written; this says what they read
+				}
 				findings = append(findings, model.Finding{
 					RuleID: r.ID, Dimension: r.Dimension, Severity: r.Severity,
-					Title: r.Title, Why: r.Why, Source: model.SrcStatic, Advisory: r.Advisory,
+					Title: r.Title, Why: why, Source: model.SrcStatic, Advisory: r.Advisory,
 					Evidence: []model.Evidence{{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}},
 				})
 				if r.ID == "PERM-007" {
@@ -387,6 +431,20 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				if r.ID == "EXEC-013" {
 					exec013Fired = true
 				}
+				if r.ID == "INJ-005" {
+					inj005Fired = true
+				}
+			}
+			// SUP-010 (P-131): a prerequisite offered from a paste site, a password-protected archive or
+			// a platform look-alike. Structural rather than a table rule because each URL of the line is
+			// judged by its own host; on text a reader follows, documents included (lure.go).
+			if lure && !ll.comment {
+				if f, ok := lureFinding(rel, lineNo, u, ll); ok {
+					findings = append(findings, f)
+				}
+			}
+			if ordersScope && !ll.comment {
+				orders.observe(ll, func() model.Evidence { return model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)} })
 			}
 			if traceScope && !ll.comment {
 				at := model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
@@ -415,12 +473,31 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 					}
 				}
 			}
-			if permFileWriteScope && !ll.comment {
-				if settingsNameEv == nil && settingsFileRE.MatchString(ll.norm) && !settingsReadRE.MatchString(ll.norm) {
-					settingsNameEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
-				}
-				if settingsWriteEv == nil && settingsWriteRE.MatchString(ll.norm) {
-					settingsWriteEv = &model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
+			if permFileWriteScope && !ll.comment && perm007Ev == nil {
+				at := model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
+				names := settingsFileRE.MatchString(ll.norm) && !settingsReadRE.MatchString(ll.norm)
+				switch {
+				// raw first, as the rules read it: the normalized view folds a quoted word that
+				// splits a word, so open("w") reads there as open(w) and its mode is gone (P-124).
+				case names && (writesItself(ll.raw) || writesItself(ll.norm)):
+					perm007Ev = []model.Evidence{at} // one line is the whole story
+				case names:
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil {
+						settingsNames = append(forgetName(settingsNames, m[1]), settingsName{name: m[1], write: writesName(m[1]), at: at})
+					}
+				default:
+					for _, sn := range settingsNames {
+						if sn.write.MatchString(ll.raw) || sn.write.MatchString(ll.norm) {
+							perm007Ev = []model.Evidence{sn.at, at}
+							break
+						}
+					}
+					// The name now holds something else (`path = os.path.join(MIX_DIR, …)` in the next
+					// function): a write through it later is not a write of the settings. Assigned a file
+					// still named like one (`join(claudeDir, "settings.json")`), it is kept.
+					if m := settingsAssignRE.FindStringSubmatch(ll.norm); m != nil && !settingsBaseRE.MatchString(ll.norm) {
+						settingsNames = forgetName(settingsNames, m[1])
+					}
 				}
 			}
 			// Exfil chain is a code behavior — only on script/instruction files, per file (F4).
@@ -436,11 +513,19 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				})
 			}
 		}
-		if !perm007Fired && settingsNameEv != nil && settingsWriteEv != nil && settingsNameEv.Line != settingsWriteEv.Line {
+		// The shell Claude Code runs on invocation (P-132): after the line rules, so a line one of them
+		// already reports as a download run in one step is not restated.
+		if skillShellScope(u) {
+			findings = append(findings, skillShellFindings(rel, u, findings[unitStart:])...)
+		}
+		// The two legs may close on one line (P-124). Before, they had to be different lines, so a
+		// path built and written in one statement passed both halves — and in a hook command, a
+		// synthetic unit whose every line is 0, this half could never fire at all.
+		if !perm007Fired && perm007Ev != nil {
 			if r, ok := e.byID("PERM-007"); ok {
 				findings = append(findings, model.Finding{
 					RuleID: r.ID, Dimension: r.Dimension, Severity: r.Severity, Title: r.Title, Why: r.Why,
-					Source: model.SrcStatic, Evidence: []model.Evidence{*settingsNameEv, *settingsWriteEv},
+					Source: model.SrcStatic, Evidence: perm007Ev,
 				})
 			}
 		}
@@ -466,6 +551,12 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				}
 				break
 			}
+		}
+		if ev := orders.evidence(); !inj005Fired && ev != nil {
+			findings = append(findings, model.Finding{
+				RuleID: inj005.ID, Dimension: inj005.Dimension, Severity: inj005.Severity, Title: inj005.Title, Why: inj005.Why,
+				Source: model.SrcStatic, Evidence: ev,
+			})
 		}
 		if fileChain.complete() {
 			sameFileChain = true
@@ -537,6 +628,10 @@ type chain struct {
 	// is how it talks to it — reading those two as a chain turned the standard remote-MCP
 	// shape into EXFIL-001 on 45 benign configs and no malicious one. See egress.
 	literalIsEgress bool
+	// requestLine, when set, is a second set of request calls that count as the network leg
+	// beside networkActionRE. Only the judge's CredentialSentElsewhere sets it (P-117); the rules'
+	// chains leave it nil, so no static finding depends on it.
+	requestLine *regexp.Regexp
 	// Destination consistency: credService holds the service tokens of every named secret
 	// the file reads (DEEPL_API_KEY -> deepl); destHosts holds every readable non-loopback
 	// destination; destUnreadable is set when an off-box line names a destination we cannot read.
@@ -556,7 +651,7 @@ type chain struct {
 // literalIsEgress says so. A literal that is not a leg also does not vote on the loopback
 // downgrade — observe only reaches that code for lines that are legs.
 func (c *chain) egress(norm string) bool {
-	if networkActionRE.MatchString(norm) {
+	if networkActionRE.MatchString(norm) || (c.requestLine != nil && c.requestLine.MatchString(norm)) {
 		return true
 	}
 	return c.literalIsEgress && urlLiteralRE.MatchString(norm)
@@ -884,11 +979,25 @@ func treeRole(dir, p string, named map[string]bool) fileRole {
 	if named[treeRel(dir, p)] {
 		return roleNamedDoc
 	}
-	if first, _, ok := strings.Cut(treeRel(dir, p), "/"); ok && first == "commands" &&
-		strings.EqualFold(filepath.Ext(p), ".md") {
+	if strings.EqualFold(filepath.Ext(p), ".md") && underCommands(treeRel(dir, p)) {
 		return roleInstruction
 	}
 	return role
+}
+
+// underCommands reports whether rel, a slash path inside a tree, is under the tree's commands/ — a
+// plugin's — or its .claude/commands/: a project's, which Claude Code loads in every session run in
+// that project. `check <repo>` reads the repository as a tree, and read as a bundled document a project
+// command ran the injection rules only, while `check <repo>/.claude` ran all of them (P-120).
+func underCommands(rel string) bool {
+	first, rest, ok := strings.Cut(rel, "/")
+	if !ok {
+		return false
+	}
+	if first == "commands" {
+		return true
+	}
+	return first == ".claude" && strings.HasPrefix(rest, "commands/")
 }
 
 // readTextTree reads every in-boundary text file under dir, DEDUPING identical file
@@ -899,6 +1008,9 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 	var units []unit
 	var notes []model.Finding
 	var skippedDirs, nonRegular, pyc, unreadable, outside []string
+	// What the walk learns about each file, for the checks that follow a reference inside the tree
+	// (the install-script check, P-129) without opening anything a second time.
+	tf := newTreeFiles()
 	// Keyed by content AND role: the same bytes as a doc and as a command are two different
 	// questions, and whichever the walk met first used to answer both.
 	type seenKey struct {
@@ -964,6 +1076,7 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 			nonRegular = append(nonRegular, treeRel(dir, p))
 			return nil
 		}
+		tf.present[p] = true
 		// The extension is a FAST PATH, not the decision. It used to be the decision, and the
 		// consequence was that an attacker needed no technique at all — just no `.sh` suffix.
 		// `bootstrap` and `.bashrc` are the two most natural forms a shell script takes, and both
@@ -982,6 +1095,9 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 		}
 		b, note := readCapped(p, boundary)
 		if note != nil {
+			if note.Title == fileTooLargeTitle {
+				tf.oversize[p] = true
+			}
 			notes = append(notes, *note)
 			return nil
 		}
@@ -993,19 +1109,25 @@ func readTextTree(boundary, dir string) ([]unit, []model.Finding) {
 			return nil
 		}
 		role := treeRole(dir, p, named)
+		text := stripBOM(string(b))
+		// Recorded before the duplicate check: a byte-identical copy is not scanned twice, but it is
+		// still a file of the tree at its own path, and a package.json is judged against the files
+		// beside IT (a decoy copy elsewhere must not stand in for it).
+		tf.text[p] = text
 		key := seenKey{sha256.Sum256(b), role}
 		if seen[key] {
 			return nil // identical content already scanned (mirror copy)
 		}
 		seen[key] = true
 		if role == roleNamedDoc {
-			text := stripBOM(string(b))
 			units = append(units, unit{file: p, text: text, role: roleDoc}, unit{file: p, text: codeOnly(text), role: roleNamedDoc})
 			return nil
 		}
-		units = append(units, unit{file: p, text: stripBOM(string(b)), role: role})
+		units = append(units, unit{file: p, text: text, role: role})
 		return nil
 	})
+	// Dimension 5: Run routes these to the artifact, as it does the bytecode finding below.
+	notes = append(notes, installScriptFindings(dir, tf)...)
 	if len(outside) > 0 {
 		notes = append(notes, refusedLinksFinding(dir, outside)) // dimension 9: Run routes it to the artifact
 	}
@@ -1377,7 +1499,7 @@ func readCapped(path, relBase string) ([]byte, *model.Finding) {
 	if len(b) > maxScanBytes {
 		n := model.Finding{
 			RuleID: "COV-000", Dimension: 0, Severity: model.SevLow, Source: model.SrcStatic,
-			Title: "File too large, content scan skipped (incomplete coverage)",
+			Title: fileTooLargeTitle,
 			Why:   "Files above the 1 MiB cap are not scanned line-by-line; not silently ignored.",
 			// No snippet: the Title says what happened and File says to what, so a label here is a
 			// third line saying neither. Coverage notes that carry a real VALUE (which script a hook
@@ -1390,7 +1512,8 @@ func readCapped(path, relBase string) ([]byte, *model.Finding) {
 }
 
 // MCPServerKey is the key an MCP artifact's server sits under in the server map of a.Path — its
-// `mcpServers`, or the top level of a plugin file without the wrapper (mcpServerMap, P-029). The
+// `mcpServers`, the top level of a plugin file without the wrapper (P-029), or a project's
+// `mcpServers` in a .claude.json (P-119); see mcpServerMap. The
 // rule engine, the content hash and the LLM judge all find the entry through it, so the three
 // cannot be reading different entries.
 //
@@ -1408,7 +1531,7 @@ func MCPServerKey(a model.ArtifactReport) string {
 	if a.MCPServer != "" {
 		return a.MCPServer
 	}
-	if _, ok := mcpEntry(a.Path, a.MCPUnwrapped, ""); ok {
+	if _, ok := mcpEntry(a, ""); ok {
 		return ""
 	}
 	return a.Name

@@ -43,6 +43,9 @@ collect  → detect → permcheck → reputation → ignore/baseline → judge(�
   是硬要求。
 - **`check` 的入口是布局路由,不是 `scan`** —— `collect.CollectTarget` 按"从具体到宽泛"依次判定:
   单文件 → `SKILL.md` → plugin manifest(整树,外加它的 skill、命令、子 agent)→ 像 root → 其他目录(整棵树当一个 artifact 读掉)。
+  目录,以及名为 `settings.json`、`settings.local.json`、`.mcp.json` 的文件,还会读它们声明的 Claude Code 配置——**在整树之外另读,
+  绝不代替整树**(`collect.withDeclared`,P-120);读出来的 artifact 在 `Within` 里指回目标,和目标算一个单元(`score.Families`)。
+  目录的 `CLAUDE.md` 也这样另读,用的是扫描它的 `.claude` 时那份清单和那套 `@` 导入展开(`collect.declaredInstructions`,P-125)。
 
 每个包都是围绕 [`internal/model`](../internal/model/model.go) 中不可变类型的一个(近似)纯函数阶段。
 
@@ -178,12 +181,25 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
   [`logical.go, shape.go`](../internal/detect/logical.go) 会把行连接、零宽字符、切词用的引号(`cu""rl`)
   还原成一个归一化字符串用于匹配,而证据保留原始字节 —— 文件里写的是 `cu""rl`、报告里印
   `curl …`,等于把用户自己机器上的事实告诉错了。规则**先跑 raw,没命中才看 norm**,所以归一化
-  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。
+  只会多报不会漏报(尤其 `INJ-004`,它存在的意义就是报告零宽字符)。Unicode tag 字符(U+E0000–E007F)
+  在 norm 里解码成它镜像的 ASCII,因为模型就是这么读的([`tags.go`](../internal/detect/tags.go),P-123):
+  用它写的一句话照样碰到每条规则;`INJ-006` 报 emoji 旗帜之外的任何 tag 字符,说明里印出解码后的隐藏文字。
+  归一化字符串是读者看到的那一行([`ignorable.go`](../internal/detect/ignorable.go),P-138):Unicode 规定显示为空的每个字符
+  (变体选择符在内)都去掉,ASCII 之外的每个空格读成 ASCII 空格 —— 被看不见的字符切开的词、
+  空格换成不换行空格的句子,照样碰到规则。这些字符不进 `detect.Invisible`(报告层会把那张表里的字符从名字里换掉):每个 emoji 都带一个选择符。
+  控制字符留在行里:去掉它们会让一个普通包里的转义表被读成 base64,所以被控制字符切开的词仍然查不到。
 - **有些检查是结构化的,不是正则。** `EXFIL-001/002/003` 与 `OBF-004` 在**两个粒度**上累计三条腿:
   读凭证、编码、出网。**凑齐链只要两条腿**(凭证 + 出网),编码腿是**放大器**。跨文件只到
   low + advisory,因为不相关的文件本来就会各干一半。同一文件的链若所有网络目标都是回环地址,降到
   同一档,避免本机 sidecar 把环境封顶在 69。`HOOK-002`(脚本在 HOME 外)和 `HOOK-003`(HTTP hook)
-  同样是结构化检查:它们给行级规则看不见的面打分。
+  同样是结构化检查:它们给行级规则看不见的面打分。`HOOK-003` 有一个 command 半边
+  (`internal/detect/hookegress*.go`,P-128):读 hook 命令和它跑的 shell、Python、Node 脚本,把事件(stdin)、
+  它的内容字段和 transcript 在一个文件里往前追到发送方 —— 是读,不是解释执行。settings 里的 status line
+  也这样读,它的 stdin 是会话元数据,所以那里只有 transcript 算数(P-133)。
+- **settings 里的 helper 命令就是命令**(`collect.SettingsHelpers`、`detect.helperUnits`,P-133):
+  `apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、`gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,
+  以及 `statusLine`、`fileSuggestion` 的 `command`,每个 settings 文件一个 `settings helpers` artifact,和
+  `settings env` 并列。每条命令跑脚本规则,证据落在值所在的那一行;它点名的本地脚本在边界内就跟进去读,否则出说明。
 - **advisory 的意思是"我们无法确认"。** 维度 7、8 在构造上就是 advisory,报告必须写明
   *not confirmed*。**会区分"我确定"和"我怀疑"的工具,才敢接进 CI。**
 
@@ -197,7 +213,7 @@ P-044)—— 合成一个单元,把它们的发现合在一起按单 artifact �
 不是 `LLM-` ID 的 note 写在代码里,覆盖它们的只有 epoch。扫描报告里叫 `rules_version`,
 `bas-guard version` 会打印它,`rules.md` 页眉也写着它,所以改了正则不跑 `make docs` 就过不了 CI。它**只覆盖确定性检测**——
 `overall` 的来源。**改 `builtinRules()` 之外的确定性检测代码时**——结构化/形状检查、角色门、词法层、读哪些文件、
-`collect` 的凭据 import 检查(`EXFIL-005`)、`permcheck`——只要改变了某个输入产出哪些发现,或发现的 ID/维度/严重度/advisory,
+`collect` 的凭据 import 检查(`EXFIL-005`)与项目 MCP 预批准检查(`PERM-009`)、`permcheck`——只要改变了某个输入产出哪些发现,或发现的 ID/维度/严重度/advisory,
 **同一个提交里把 `rulesEpoch` 加一。** 没有东西强制它;忘了加,两份报告就会自称同一版规则,而产出它们的代码其实不同。
 LLM 判官完全不在里面——提示词、证据落地、共识、严重度钳制都算:判官只动 `overall_effective`,所以改判官从不加 epoch;
 `--llm` 报告在自己的 `judge` 块里标识判官:`prompt_version` 和 `excerpt_version` 标它的代码,`model` 和 `samples` 标它怎么跑(P-031)。
@@ -260,7 +276,8 @@ nonce 每个问题取一次、由它的几次采样共用,端点的提示词缓�
 
 **已完成且承重的**:10 个维度的静态检测(规则条数以 [`rules.md`](rules.md) 头部由代码生成的计数块为准,
 这里再写一个数就是会过期的副本),含 `detect/shape.go` 的形状检查(空行填充、伪装压缩包、随包字节码、改包源)、
-带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、plugin 采集(`installed_plugins.json`、
+带可逃逸二进制表的权限体检、逐条 command 的 hook artifact(并跟进被引用脚本)、`.claude.json` 两个作用域里的 MCP server
+(顶层,以及每个项目的本地作用域——`claude mcp add` 的默认,`collect.localScopeServersFrom`)、plugin 采集(`installed_plugins.json`、
 Claude 桌面版自己的插件/skill 仓库 `collect/desktop.go`、以及沙箱的 `synced/<uuid>/` 布局;插件的 skill、命令、子 agent
 按 Claude Code 的加载规则各自成为 artifact,`collect/plugincontents.go`)、从桌面版缓存读取的远程 MCP
 connector 工具清单(`collect/connectors.go`,从不联网)与 `MCP-001..004` 投毒规则、沙箱识别(在 Claude Cloud / Cowork 里跑出的

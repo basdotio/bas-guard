@@ -144,6 +144,8 @@ func collectUnowned(root string) ([]model.ArtifactReport, []model.Finding) {
 
 	var out []model.ArtifactReport
 	var unread []string
+	var notes []model.Finding
+	ownLayout := configRootLayout(root)
 	for _, e := range ents {
 		name := e.Name()
 		// The tool's own state files are not a gap in the user's environment: reporting
@@ -153,6 +155,18 @@ func collectUnowned(root string) ([]model.ArtifactReport, []model.Finding) {
 			continue
 		}
 		p := filepath.Join(root, name)
+		// A project's .claude is no user's cache: under a root that is not a config root of its own it is
+		// the root this scan should have been given, and it gets its own note, which the gate reads
+		// (P-105). Before the boundary check, because nothing under it is read either way — Stat only
+		// asks whether it is a directory, through a symlink too (a .claude linked to a dotfiles checkout
+		// is the same mistake), and the note keeps saying when it leaves the root. A FILE named .claude,
+		// or a .claude under ~/.claude or a skills/ root, falls through to the list below.
+		if name == projectDirName && !ownLayout {
+			if fi, serr := os.Stat(p); serr == nil && fi.IsDir() {
+				notes = append(notes, projectDirNote(p, !withinDir(root, p)))
+				continue
+			}
+		}
 		// Boundary first, as everywhere: resolve before reading, and a target that leaves the
 		// root is not read at all (invariant #2). Announced, because a symlink out of a config
 		// root is a more interesting fact than an ordinary unread file.
@@ -175,7 +189,7 @@ func collectUnowned(root string) ([]model.ArtifactReport, []model.Finding) {
 	}
 
 	if len(unread) == 0 {
-		return out, nil
+		return out, notes
 	}
 	ev := make([]model.Evidence, 0, len(unread))
 	for _, n := range unread {
@@ -183,7 +197,7 @@ func collectUnowned(root string) ([]model.ArtifactReport, []model.Finding) {
 		// a third restatement (see the oversized note in detect.go).
 		ev = append(ev, model.Evidence{File: filepath.Join(root, n), Line: 0})
 	}
-	return out, []model.Finding{{
+	return out, append(notes, model.Finding{
 		RuleID: "COV-000", Dimension: 0, Severity: model.SevLow, Source: model.SrcStatic,
 		Title: UnownedNoteTitle,
 		// The names go in Why, not only in Evidence: the terminal renderer prints ONE evidence
@@ -198,5 +212,5 @@ func collectUnowned(root string) ([]model.ArtifactReport, []model.Finding) {
 			"residual gap is stated rather than assumed: a payload parked in one of these and " +
 			"referenced by nothing is not scanned.",
 		Evidence: ev,
-	}}
+	})
 }

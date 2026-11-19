@@ -1,0 +1,51 @@
+# Written by baselines/cmd/baseline. Read baselines/README.md before citing any
+# figure produced alongside this file.
+#
+# measured by agent-guard's own adapter (agent-guard baselines/adapter/aguard), threshold "high" chosen by us, placement: by content, into a fake home; unplaceable trees are handed to `check` directly. EXTRA ARGS: --llm --config /Users/lewisqin/Projects/bascan/agent-guard-repo/agent-guard-work/judge-s3.yaml — the verdicts below fold deterministic findings only and are unaffected; anything these flags added lives in raw/ and is not committed, except what the judge cost, which run.yaml sums under judge_usage
+
+tool: aguard
+tool_version: bas-guard v0.33.1-p115-measure2-7af6153 (commit 7af6153, built 2026-11-05T02:01:29Z) · reputation entries=18 · rules=717ada4c680b · judge-prompt=09f5ee912844 · judge-excerpt=9
+threshold: high
+tool_extra_args:
+    - --llm
+    - --config
+    - /Users/lewisqin/Projects/bascan/agent-guard-repo/agent-guard-work/judge-s3.yaml
+check_llm: true
+uploads_samples: true
+uploads_samples_basis: 'this run passed --llm to aguard: redacted excerpts of every judged artifact were sent to the endpoint named in the judge config. The verdicts fold deterministic findings only, so verdicts.jsonl and the scorecard are unaffected; what the judge found exists only in raw/ (kept as a release asset, never in the tree) and is folded by baselines/cmd/judgefold, and what it cost is summed under judge_usage.'
+corpus_commit: c314e4d9
+started_at: 2026-11-05T02:01:59.356112Z
+adapter: agent-guard baselines/adapter/aguard
+placement: by content, into a fake home; unplaceable trees are handed to `check` directly
+provisional: false
+counts:
+    scored: 520
+    no_verdict: 0
+    error: 0
+work_list_size: 520
+judge_usage:
+    basis: reported
+    basis_note: 'summed from the tool''s own counts: every sample with a judge summary reported triage_calls and retries. Questions asked = (calls - triage_calls) / the judge''s samples setting, exact only when skipped is 0'
+    reported_samples: 520
+    derived_samples: 0
+    calls: 1799
+    failed: 1
+    skipped: 0
+    repaired: 31
+    reasked: 10
+    triage_calls: 239
+    retries: 0
+    prompt_tokens: 3975552
+    completion_tokens: 771091
+    cached_prompt_tokens: 1017472
+    usage_by_pass:
+        result:
+            calls: 1560
+            reasked: 10
+            prompt_tokens: 3790194
+            completion_tokens: 754801
+            cached_prompt_tokens: 1017472
+        triage:
+            calls: 239
+            prompt_tokens: 185358
+            completion_tokens: 16290

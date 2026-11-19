@@ -77,7 +77,7 @@ func TestVerdictFollowsTheGatePredicate(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := model.ScanResult{Artifacts: []model.ArtifactReport{{Kind: model.KindSkill, Name: "a", Findings: tc.findings}}}
-			got := fill(ledger.Row{Sample: "s", Attempted: true}, res, tc.threshold)
+			got := fill(ledger.Row{Sample: "s", Attempted: true}, res, tc.threshold, Locator{ID: "s"})
 			// Rules is a diagnostic, not part of the verdict predicate this test pins, and
 			// comparing whole structs made the test brittle to every field added later.
 			// It gets its own assertion below.

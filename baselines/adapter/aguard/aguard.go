@@ -153,13 +153,13 @@ func (a *Adapter) Scan(ctx context.Context, s corpus.Sample, tree string) ledger
 		return row
 	}
 	a.keepRaw(s.Sample, out)
-	return scanned(row, res, out, a.Threshold)
+	return scanned(row, res, out, a.Threshold, Locator{ID: s.Sample, Loose: st.Loose, Tree: tree})
 }
 
 // scanned folds what `scan --root` printed into the row. Scan and Rebuild share it, so a row
 // rebuilt from raw/ cannot drift from the row the run itself produced.
-func scanned(row ledger.Row, res model.ScanResult, out []byte, threshold model.Severity) ledger.Row {
-	row = fill(row, res, threshold)
+func scanned(row ledger.Row, res model.ScanResult, out []byte, threshold model.Severity, loc Locator) ledger.Row {
+	row = fill(row, res, threshold, loc)
 	row.JudgeUsage = judgeUsage(out, res)
 	return row
 }
@@ -173,7 +173,7 @@ func (a *Adapter) checkBare(ctx context.Context, row ledger.Row, tree string, np
 		row.Detail = "no load path for `scan` (" + np.Reason + "); `check` then failed: " + err.Error()
 		return row
 	}
-	row = checked(row, res, out, np, a.Threshold)
+	row = checked(row, res, out, np, a.Threshold, Locator{ID: row.Sample, Tree: tree})
 	if row.Outcome == ledger.Scored {
 		a.keepRaw(row.Sample, out)
 	}
@@ -182,7 +182,7 @@ func (a *Adapter) checkBare(ctx context.Context, row ledger.Row, tree string, np
 
 // checked folds what `check` printed for a tree `scan` could not place. Scan and Rebuild share it
 // (see scanned); raw/ is only ever kept for the scored branch.
-func checked(row ledger.Row, res model.ScanResult, out []byte, np NotPlaceable, threshold model.Severity) ledger.Row {
+func checked(row ledger.Row, res model.ScanResult, out []byte, np NotPlaceable, threshold model.Severity, loc Locator) ledger.Row {
 	placementReason := np.Reason
 	if readNothing(res) {
 		row.Outcome = ledger.NoVerdict
@@ -192,7 +192,7 @@ func checked(row ledger.Row, res model.ScanResult, out []byte, np NotPlaceable, 
 		row.Detail = placementReason + "; `check` on the bare tree read nothing"
 		return row
 	}
-	row = fill(row, res, threshold)
+	row = fill(row, res, threshold, loc)
 	row.JudgeUsage = judgeUsage(out, res) // nil unless the server-source route was handed the judge flags
 	// Disclosed, not hidden. This verdict came from `check` on the bare tree rather than from
 	// the `scan --root` placement this sample's surface implies, and the difference is not
@@ -261,8 +261,9 @@ func readNothing(res model.ScanResult) bool {
 // fill folds a scan into the one word the corpus scores, at the gate's own predicate. Severity
 // is the highest deterministic severity seen, reported whether or not it flagged, so a second
 // pass at another threshold can be read off the same file. Dimensions are those of the findings
-// that carried the flag, translated; unmapped ones are dropped, not invented.
-func fill(row ledger.Row, res model.ScanResult, threshold model.Severity) ledger.Row {
+// that carried the flag, translated; unmapped ones are dropped, not invented. Files are where
+// those same findings pointed, mapped back onto the sample tree by loc (see Locator).
+func fill(row ledger.Row, res model.ScanResult, threshold model.Severity, loc Locator) ledger.Row {
 	row.Outcome = ledger.Scored
 	row.Verdict = "benign"
 	var maxSev model.Severity
@@ -291,6 +292,7 @@ func fill(row ledger.Row, res model.ScanResult, threshold model.Severity) ledger
 	}
 	sort.Strings(row.Dimensions)
 	row.Rules = FlaggingRules(res, threshold)
+	row.Files = FlaggedFiles(res, loc, flaggingAt(threshold))
 	return row
 }
 
