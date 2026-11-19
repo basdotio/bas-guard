@@ -58,5 +58,22 @@
 - 测试是 table-driven 的,fixture 用 `t.TempDir()` 现搭(没有 `testdata/` 目录);judge 的测试用
   `httptest`。真正值钱的是**不变量测试** —— 不执行、符号链接不越界、secret 已脱敏、LLM 发现不动分数、
   `--fail-on` 契约。上面编号的不变量只要有改动,就补一条对应的测试。
+- **改了用户装到或跑到的东西,同一个 PR 里就往 `CHANGELOG.md` 的 `## Unreleased` 加一条**(P-141),不等发版:
+
+  ```
+  - **What changed** (P-NNN, @author, YYYY-MM-DD). What a user sees differently, and what stays the same.
+  ```
+
+  `@author` 是写这个改动的人的 GitHub 账号(`gh api user -q .login`,或提交的作者;不是合并的人),日期是写的那天。
+  **发版时把这些条目原样挪到新版本标题下**,不重写、不删括号 —— 版本号和发版日期在标题上,内容、提交人、日期在条目上,
+  四样才齐。v0.38.0 及之前的条目是发版时一次写的,没有提交人,**不要回填**:那些条目里 P 号的位置不统一,
+  前一个仓库的 P-001 到 P-041 又和这里的编号重叠,按号反查会把人填错,而一个填错的名字比没有更糟。
+  - **什么算"用户装到或跑到的"只有一份名单**,在 `hack/changelog-check/check.go`:`cmd/`、`internal/` 下的非测试
+    `.go`,`plugin/`、`npm/` 整棵,以及 `hack/github-action.yml`。文档、测试、`hack/`、`baselines/`、CI 不算。
+  - **闸门是 `go run ./hack/changelog-check`**(`make verify` 里一步,CI 里 `changelog` 那个 job):动了名单里的
+    文件,而 `## Unreleased` 相对合并基点没有多出一条、也没有多出一个新版本标题,就红。**它比的是条目,不是文件
+    有没有被碰过** —— 改一个旧版本的措辞不算数。每条未发版条目的 `(…, @login, YYYY-MM-DD)` 也在这里校验。
+  - **用户观察不到的改动**(重命名、纯重构)在某个提交信息里单独写一行 `Changelog: none — <原因>`。不带原因的不算,
+    写在句子中间的也不算;原因是给评审看的。**不要为了过闸门写一条没有内容的条目**,那比空着更糟。
 - 推迟/待办的事项记在 [ROADMAP.md](../../ROADMAP.md),确认存在的缺陷与否决记录在
   [issues/](../../issues/README.md) —— 分工见 CLAUDE.md 开头那张表。

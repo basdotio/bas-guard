@@ -9,6 +9,24 @@ on:
   pull_request:
 
 jobs:
+  # A change to what a user installs or runs carries its own CHANGELOG.md entry, with its author
+  # and day (P-141). The changelog used to be written once per release from memory of what had
+  # merged, and a change nobody remembered was a release note nobody read. A job of its own
+  # because it needs the base branch's history, which the build does not.
+  changelog:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: shipped changes have a changelog entry
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./hack/changelog-check -base "origin/$BASE_REF"
   build-test:
     runs-on: ubuntu-latest
     steps:

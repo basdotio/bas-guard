@@ -5,6 +5,26 @@ What each release changed and why, newest first after the v0.1.0 baseline. Per-s
 numbers are deliberately absent: they live in `baselines/results/` with their denominators, and a
 rate copied into prose goes stale on the next rule. `git tag` and the Releases page list versions.
 
+A change to what a user installs or runs adds its entry under "Unreleased" in the pull request that
+makes it, as `- **What changed** (P-NNN, @author, YYYY-MM-DD). …`: the author's GitHub login and the
+day the change was written. A release moves those entries, as written, under its version and date,
+so from v0.39.0 on every entry says which version, which day, what and who. Entries up to v0.38.0
+were written at release time and carry no author; `git log --grep 'P-NNN'` has it. `make verify`
+and CI check both halves (`hack/changelog-check`, P-141).
+
+## Unreleased
+
+- **A judge question stops when its remaining samples cannot change the outcome** (P-103, #128, @stopWarByWar,
+  2026-10-26). At `llm.samples: 3` a question whose first two answers are clean is not asked a third time: no third
+  answer can reach the majority a finding needs. A sample that comes back flagged, blocked or failed releases the rest,
+  so a question that is not clean is asked in full and ends as it did before. The calls not made are counted as
+  `settled` in the JSON `judge` block and on the report's judge line; they are neither calls nor skipped, and
+  `--fail-on-llm` does not read them as a gap.
+- **The result question can be turned off** (P-106, #130, @stopWarByWar, 2026-10-26). `llm.result_pass: false` skips
+  the result question (`LLM-011`) for every skill, about a third of a skill's judge calls; what goes with it is the
+  judge's reading of output manipulation. The default is unchanged: the question is asked. A run with it off says so
+  (`passes_off: ["result"]` in the JSON `judge` block and on the judge line).
+
 ## v0.1.0
 
 - `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
