@@ -76,6 +76,10 @@ type Stats struct {
 	Retries int // retry attempts across all calls
 	Failed  int // calls that ended in an error after retries
 	Skipped int // calls never issued: budget exhausted or run deadline hit
+	// Settled is the planned calls a question did not need: its first answers were clean, so the
+	// samples left could not reach the consensus bar between them (P-103). Never made, and not a
+	// gap: nothing they could have said changes an escalation. Neither Calls nor Skipped.
+	Settled int
 	// Repaired is the part of the answered judge calls whose reply closed its object one member
 	// early and was read by dropping that brace (parseVerdict, P-034). They are answers, not
 	// failures; counted so the repair is never silent.
@@ -163,7 +167,10 @@ type task struct {
 // result is one task's outcome. `done` distinguishes "ran and produced nothing" from
 // "never ran" — without it, a skipped call would silently read as a clean verdict.
 type result struct {
-	done       bool
+	done bool
+	// settled says the call was never made because its question no longer needed it (P-103):
+	// not done, and not skipped either.
+	settled    bool
 	finding    *model.Finding
 	labels     []model.AdvisoryLabel
 	err        error
@@ -179,6 +186,14 @@ type result struct {
 	// shown in the vote list so a later run can audit the table, neither is weighed (P-041).
 	modelSeverity model.Severity
 	category      string
+}
+
+// clean reports whether a judge call's answer leaves its question exactly where it was: it answered,
+// flagged nothing that grounded, reported no barrier, and claimed nothing it could not quote. Only
+// clean answers can settle a question (P-103); a failure or a claim that failed to ground keeps
+// every sample in play, so the cases where the model struggles are asked in full.
+func (r result) clean() bool {
+	return r.done && r.err == nil && r.finding == nil && r.barrier == nil && !r.ungrounded
 }
 
 // groundedFinding turns a verdict into a finding ONLY if the text it quotes can be located in
@@ -342,6 +357,10 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 	var groupOrder []int
 	for i, t := range tasks {
 		r := results[i]
+		if r.settled {
+			stats.Settled++
+			continue
+		}
 		if !r.done {
 			stats.Skipped++
 			deadlineSkipped++
@@ -822,7 +841,8 @@ func hasFinding(a model.ArtifactReport, ruleID string) bool {
 
 // runTasks executes the plan with a bounded worker pool, writing each result to its own slot.
 // Workers share nothing mutable, so the merge above is race-free and order-stable. Each question's
-// samples share one nonce, and dispatchQueue decides which call a free worker takes next (P-080).
+// samples share one nonce, and dispatchQueue decides which call a free worker takes next (P-080)
+// and which a question no longer needs (P-103); those come back marked settled.
 func runTasks(ctx context.Context, c Client, tasks []task, opts Options) []result {
 	tasks = withQuestionNonces(tasks)
 	results := make([]result, len(tasks))
@@ -831,39 +851,71 @@ func runTasks(ctx context.Context, c Client, tasks []task, opts Options) []resul
 		workers = len(tasks)
 	}
 	idx := make(chan int)
-	finished := make(chan int, len(tasks)) // buffered: a worker never blocks on reporting
+	finished := make(chan outcome, len(tasks)) // buffered: a worker never blocks on reporting
+	progress := &progressCounter{report: opts.Progress, total: len(tasks)}
 	var wg sync.WaitGroup
-	var progressMu sync.Mutex
-	done := 0
 	for w := 0; w < workers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for i := range idx {
 				results[i] = execute(ctx, c, tasks[i], opts)
-				if opts.Progress != nil {
-					// Serialized here so callers can just print, and so the count can never go
-					// backwards or be reported twice for the same call.
-					progressMu.Lock()
-					done++
-					opts.Progress(done, len(tasks))
-					progressMu.Unlock()
-				}
-				finished <- i
+				progress.step()
+				finished <- outcome{index: i, clean: results[i].clean()}
 			}
 		}()
 	}
-	dispatch(ctx, newDispatchQueue(tasks), workers, idx, finished)
+	q := newDispatchQueue(tasks, opts.Samples)
+	dispatch(ctx, q, workers, idx, finished, progress.drop)
 	close(idx)
 	wg.Wait()
+	// A settled sample was never handed to a worker, so no worker writes its slot.
+	for _, i := range q.settled {
+		results[i].settled = true
+	}
 	return results
 }
 
+// outcome is what a worker tells the dispatcher about a finished task: which one, and whether its
+// answer was clean (result.clean), which is all the queue needs to decide its question (P-103).
+type outcome struct {
+	index int
+	clean bool
+}
+
+// progressCounter reports Options.Progress. Invocations are SERIALIZED here so callers can just
+// print, and so the count can never go backwards or be reported twice for the same call. A settled
+// question takes its unneeded calls off the total (P-103), so a terminal counter ends at its total.
+type progressCounter struct {
+	report      func(done, total int)
+	mu          sync.Mutex
+	done, total int
+}
+
+func (p *progressCounter) step() { p.update(1, 0) }
+
+func (p *progressCounter) drop(n int) {
+	if n > 0 {
+		p.update(0, n)
+	}
+}
+
+func (p *progressCounter) update(done, dropped int) {
+	if p.report == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.done += done
+	p.total -= dropped
+	p.report(p.done, p.total)
+}
+
 // dispatch hands tasks to free workers in the queue's order until every task was handed out or
-// the run deadline passed: then it stops queueing, and slots never handed out stay done=false.
-// inflight counts tasks handed out and not yet reported, so a send happens only while some worker
-// is free to receive it.
-func dispatch(ctx context.Context, q *dispatchQueue, workers int, idx chan<- int, finished <-chan int) {
+// settled, or the run deadline passed: then it stops queueing, and slots never handed out stay
+// done=false. inflight counts tasks handed out and not yet reported, so a send happens only while
+// some worker is free to receive it. settled is told how many calls each finished task settled.
+func dispatch(ctx context.Context, q *dispatchQueue, workers int, idx chan<- int, finished <-chan outcome, settled func(int)) {
 	inflight := 0
 	for {
 		for inflight < workers {
@@ -878,13 +930,15 @@ func dispatch(ctx context.Context, q *dispatchQueue, workers int, idx chan<- int
 				return // run deadline: stop queueing
 			}
 		}
+		// With nothing in flight every needed sample has finished, so every question is decided:
+		// what next could not hand out was either taken or settled.
 		if inflight == 0 {
 			return
 		}
 		select {
-		case i := <-finished:
+		case o := <-finished:
 			inflight--
-			q.finished(i)
+			settled(q.finished(o.index, o.clean))
 		case <-ctx.Done():
 			return
 		}

@@ -221,8 +221,10 @@ over the samples under `judge_usage: usage_by_pass:`, only when every sample tha
 the per-pass token counts only beside the run's token totals. They are token counts, not a cost, and two models'
 counts for one pass are not comparable. Rows committed before P-072 carry neither key and are read as before.
 Questions asked are
-`(calls − triage_calls) / samples`, with `samples` from the judge config (the summary does not
-carry it), exact only when `skipped` is 0; a `judge.jsonl` folded from a new run takes
+`(calls + settled − triage_calls) / samples`, with `samples` from the judge config (the summary does not
+carry it), exact only when `skipped` is 0; `settled` (P-103) is the calls a question did not need because its
+first answers were clean, absent from rows and runs before it, and a count of single votes is not comparable
+across that line; a `judge.jsonl` folded from a new run takes
 `triage_calls` from the ledger rather than inferring it. `raw/` holds the bytes the binary
 printed, whitespace removed, not the rig's re-encoding of them: the re-encoding wrote
 `"triage_calls":0` for a binary that never counted it, which is the one thing the basis is read

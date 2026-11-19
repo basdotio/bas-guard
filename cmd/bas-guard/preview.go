@@ -89,7 +89,7 @@ type previewReport struct {
 	RequestOptions string            `json:"request_options,omitempty"`
 	JudgeEnabled   bool              `json:"judge_enabled"`
 	MaxCalls       int               `json:"max_calls"`
-	Calls          int               `json:"calls"`          // calls that would be sent
+	Calls          int               `json:"calls"`          // calls that would be sent, at most: a question that settles sends fewer (P-103)
 	NotSent        int               `json:"calls_not_sent"` // calls the budget refuses
 	Instructions   map[string]string `json:"instructions"`   // pass → its system message's task text
 	Artifacts      []previewArtifact `json:"artifacts"`
@@ -211,7 +211,13 @@ func writePreviewText(w io.Writer, r previewReport) {
 	if r.RequestOptions != "" {
 		fmt.Fprintf(w, "Every request also carries %s (llm.request_options).\n", clean(r.RequestOptions))
 	}
-	fmt.Fprintf(w, "%d call(s) would be made", r.Calls)
+	if sampled(r) {
+		// P-103: a question asked several times sends its later samples only when one of its first
+		// answers is not clean, so the plan is an upper bound.
+		fmt.Fprintf(w, "Up to %d call(s) would be made (a question's later samples go out only when one of its first answers is not clean)", r.Calls)
+	} else {
+		fmt.Fprintf(w, "%d call(s) would be made", r.Calls)
+	}
 	if r.NotSent > 0 {
 		fmt.Fprintf(w, "; %d more are refused by llm.max_calls=%d", r.NotSent, r.MaxCalls)
 	}
@@ -303,4 +309,21 @@ func newLLMPreviewCommand(root, cfgPath, ignorePath *string, noRep *bool) *cobra
 	cmd.Flags().BoolVar(&asJSON, "json", false, "output JSON: each payload's exact bytes, and the instruction each pass is given")
 	cmd.Flags().StringVar(&inboxDir, "inbox", defaultInbox(), "without a path: also preview the Downloads items under this directory, as scan --llm judges them; '"+inboxOff+"' disables")
 	return cmd
+}
+
+// sampled reports whether any planned question is asked more than once, so that some of its calls
+// may settle instead of being sent (P-103). Triage is asked once and never settles.
+func sampled(r previewReport) bool {
+	arts := append([]previewArtifact(nil), r.Artifacts...)
+	for _, it := range r.Downloads {
+		arts = append(arts, it.Artifacts...)
+	}
+	for _, a := range arts {
+		for _, q := range a.Requests {
+			if q.Pass != "triage" && q.Calls > 1 {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -112,7 +112,7 @@ func assertLineIsBlock(t *testing.T, line usageLine, j *model.JudgeSummary, out 
 		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion, Model: j.Model, Samples: j.Samples,
 		RequestOptions: j.RequestOptions,
 		Calls:          j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries, TriageCalls: j.TriageCalls,
-		Repaired: j.Repaired, Reasked: j.Reasked, TemperatureOmitted: j.TemperatureOmitted,
+		Repaired: j.Repaired, Reasked: j.Reasked, Settled: j.Settled, TemperatureOmitted: j.TemperatureOmitted,
 		PromptTokens: j.PromptTokens, CompletionTokens: j.CompletionTokens,
 		CachedPromptTokens: j.CachedPromptTokens, UsageByPass: j.UsageByPass,
 	}
