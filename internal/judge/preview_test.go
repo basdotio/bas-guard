@@ -39,6 +39,16 @@ func (c capturedCall) key() string {
 // exactly those two lines, so a body of another shape would compare as something it is not.
 func captureServer(t *testing.T) (*httptest.Server, func() []capturedCall) {
 	t.Helper()
+	return captureServerReplying(t, `{\"flagged\":false,\"labels\":[]}`)
+}
+
+// unsettledReply claims something that is in no excerpt: an answer that is not clean, so a run at
+// samples > 1 asks every question in full and makes every call it planned (P-103).
+const unsettledReply = `{\"flagged\":true,\"evidence\":\"quoted from nowhere in what was sent\",\"labels\":[]}`
+
+// captureServerReplying is captureServer answering every call with the given message content.
+func captureServerReplying(t *testing.T, content string) (*httptest.Server, func() []capturedCall) {
+	t.Helper()
 	var mu sync.Mutex
 	var got []capturedCall
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +73,7 @@ func captureServer(t *testing.T) (*httptest.Server, func() []capturedCall) {
 		mu.Lock()
 		got = append(got, capturedCall{body.Model, *body.Temperature, instruction, strings.Join(lines[1:len(lines)-1], "\n")})
 		mu.Unlock()
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"flagged\":false,\"labels\":[]}"}}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"` + content + `"}}]}`))
 	}))
 	t.Cleanup(srv.Close)
 	return srv, func() []capturedCall {
@@ -198,7 +208,8 @@ func TestPlan_PayloadsAreWhatTheClientSends(t *testing.T) {
 
 // TestPlan_BudgetAndSamplesMatchRun: with each question asked three times and a budget that cuts
 // inside a question, Plan marks as not sent exactly the calls Run skips, and every payload Run sent
-// appears in the plan as often as it was sent.
+// appears in the plan as often as it was sent. Answers that are not clean make Run ask every
+// question in full; with clean ones the plan is an upper bound, short by exactly what settled (P-103).
 func TestPlan_BudgetAndSamplesMatchRun(t *testing.T) {
 	arts := previewFixture(t)
 	opts := Options{Samples: 3, MaxCalls: 8}
@@ -222,12 +233,34 @@ func TestPlan_BudgetAndSamplesMatchRun(t *testing.T) {
 		t.Errorf("the budget of %d no longer cuts inside a question; adjust the fixture: %+v", opts.MaxCalls, plan)
 	}
 
-	srv, sent := captureServer(t)
+	srv, sent := captureServerReplying(t, unsettledReply)
 	_, stats := Run(context.Background(), NewHTTP(srv.URL, "", "", srv.Client()), arts, opts)
-	if stats.Skipped != notSent || notSent == 0 {
-		t.Errorf("Run skipped %d call(s), Plan marks %d as not sent", stats.Skipped, notSent)
+	if stats.Skipped != notSent || notSent == 0 || stats.Settled != 0 {
+		t.Errorf("Run skipped %d and settled %d call(s), Plan marks %d as not sent", stats.Skipped, stats.Settled, notSent)
 	}
 	diffKeys(t, plannedKeys(plan, RequestModel("")), capturedKeys(sent()))
+
+	// Clean answers: every call sent is a planned one, and what the plan holds beyond them is what
+	// the budget refused plus what settled.
+	srv, sent = captureServer(t)
+	_, stats = Run(context.Background(), NewHTTP(srv.URL, "", "", srv.Client()), arts, opts)
+	planned := map[string]int{}
+	for _, k := range plannedKeys(plan, RequestModel("")) {
+		planned[k]++
+	}
+	for _, k := range capturedKeys(sent()) {
+		if planned[k]--; planned[k] < 0 {
+			t.Errorf("sent more often than planned: %q", k)
+		}
+	}
+	total := 0
+	for _, c := range plan {
+		total += c.Calls
+	}
+	if stats.Settled == 0 || stats.Calls+stats.Skipped+stats.Settled != total || stats.Skipped != notSent {
+		t.Errorf("calls %d + skipped %d + settled %d, want %d planned with %d skipped and some settled",
+			stats.Calls, stats.Skipped, stats.Settled, total, notSent)
+	}
 }
 
 // TestPlan_SourcesNameTheLinesSent: a payload built from a condensed excerpt names the original

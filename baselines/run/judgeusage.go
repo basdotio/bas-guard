@@ -32,6 +32,7 @@ type JudgeUsage struct {
 	Skipped          int  `yaml:"skipped"`
 	Repaired         int  `yaml:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
 	Reasked          int  `yaml:"reasked,omitempty"`  // calls asked once more after an unreadable reply (P-069)
+	Settled          int  `yaml:"settled,omitempty"`  // planned calls a settled question did not need (P-103)
 	TriageCalls      int  `yaml:"triage_calls"`
 	Retries          *int `yaml:"retries,omitempty"`
 	PromptTokens     *int `yaml:"prompt_tokens,omitempty"`
@@ -76,6 +77,7 @@ func SumJudgeUsage(rows []ledger.Row) *JudgeUsage {
 		t.Skipped += u.Skipped
 		t.Repaired += u.Repaired
 		t.Reasked += u.Reasked
+		t.Settled += u.Settled
 		t.TriageCalls += u.TriageCalls
 		if u.Retries == nil {
 			retriesKnown = false
@@ -146,7 +148,7 @@ func usageBasis(reported, derived int) (string, string) {
 	switch {
 	case derived == 0:
 		return ledger.UsageReported, "summed from the tool's own counts: every sample with a judge " +
-			"summary reported triage_calls and retries. Questions asked = (calls - triage_calls) / " +
+			"summary reported triage_calls and retries. Questions asked = (calls + settled - triage_calls) / " +
 			"the judge's samples setting, exact only when skipped is 0"
 	case reported == 0:
 		return ledger.UsageDerived, "derived: no sample's judge summary reported triage_calls (a " +

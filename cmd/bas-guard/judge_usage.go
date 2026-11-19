@@ -27,8 +27,12 @@ func tokensInOut(u judge.TokenUsage) string {
 // judgeUsageLine is the stderr line after a judge run: the same numbers as the JSON summary, for
 // the operator at the terminal; the human report deliberately carries no cost line.
 func judgeUsageLine(stats judge.Stats, elapsed time.Duration, u judge.TokenUsage) string {
-	return fmt.Sprintf("LLM judge: %d call(s) in %s (p50 %s, p95 %s) · %d retry · %d failed · %s\n",
-		stats.Calls, elapsed.Round(time.Millisecond),
+	calls := fmt.Sprintf("%d call(s)", stats.Calls)
+	if stats.Settled > 0 {
+		calls += fmt.Sprintf(", %d not needed,", stats.Settled) // P-103
+	}
+	return fmt.Sprintf("LLM judge: %s in %s (p50 %s, p95 %s) · %d retry · %d failed · %s\n",
+		calls, elapsed.Round(time.Millisecond),
 		stats.Percentile(0.5).Round(time.Millisecond), stats.Percentile(0.95).Round(time.Millisecond),
 		stats.Retries, stats.Failed, tokensInOut(u))
 }

@@ -75,7 +75,7 @@ func passServer(t *testing.T) (*httptest.Server, func() map[string]model.PassUsa
 			_, _ = w.Write([]byte(`{` + usage + `}`))
 			return
 		}
-		content := `{\"flagged\":false,\"labels\":[]}`
+		content := unsettledReply // not clean: every question is asked in full (P-103)
 		if pass == "injection" && seen[pass] == 1 {
 			content = `{\"flagged\": true, \"severity\": \"high\"]`
 		}
