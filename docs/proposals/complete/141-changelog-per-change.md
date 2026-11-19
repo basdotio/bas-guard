@@ -79,8 +79,7 @@ fails when the entry is missing.
    **Decided (2026-11-19)**: as recommended ("do it as you proposed").
 2. What does a refactor do? Recommended: a commit-message line `Changelog: none — <reason>`, read by the check, with the
    reason required. **Decided (2026-11-19)**: as recommended.
-3. Are the old entries given authors? Recommended: no, see Out of scope. Not yet put to the maintainer as its own
-   question; raised in PR #168.
+3. Are the old entries given authors? Recommended: no, see Out of scope. **Decided (2026-11-19)**: no, they stay as they are.
 
 ## Done
 
