@@ -43,6 +43,7 @@ verify:
 	golangci-lint run ./...
 	go run ./hack/gen-rules && git diff --quiet -- docs/rules.md || { echo "verify: docs/rules.md drifted from the code — commit the regenerated file" >&2; exit 1; }
 	go build -ldflags "$(LDFLAGS)" -o $(BIN) $(PKG) && HOME="$(VERIFY_HOME)" XDG_CONFIG_HOME="$(VERIFY_HOME)/.config" CLAUDE_CONFIG_DIR= $(BIN) check plugin --fail-on low --quiet
+	go run ./hack/changelog-check
 	@grep -qx 'go 1.23.5' go.mod || { echo "verify: go.mod's go directive moved off 1.23.5 (see .claude/rules/conventions.md)" >&2; exit 1; }
 	@echo "verify: all gates passed"
 
