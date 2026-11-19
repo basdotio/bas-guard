@@ -77,6 +77,12 @@ type LLMConfig struct {
 	// the effective score. 1 (default) asks once. N costs N times as much, so it is opt-in —
 	// and it only means anything with variance, so sampling raises the temperature.
 	Samples int `yaml:"samples"`
+	// ResultPass asks each skill the result question (LLM-011, P-068): does a required step change
+	// what the user gets. On unless the config says `result_pass: false` (P-106): it is about a third
+	// of a skill's calls, and what it catches is output manipulation — turning it off saves those calls
+	// and gives up that class. A pointer so that a config which never mentions it, and an LLMConfig
+	// built without it, both ask it; read it through AsksResultPass.
+	ResultPass *bool `yaml:"result_pass"`
 	// RequestOptions are extra members added to every request body as written (P-107): what a vendor
 	// takes beside the chat-completions members — `thinking: {type: disabled}` for a GLM model that
 	// thinks by default, `reasoning_effort` for another. The judge sets the members in
@@ -129,6 +135,9 @@ func (c *LLMConfig) validate() error {
 		return fmt.Errorf("config llm.authority %q: want %q or %q", c.Authority, AuthorityAdvisory, AuthorityEscalate)
 	}
 }
+
+// AsksResultPass reports whether the result question is asked: unless `result_pass: false` (P-106).
+func (c LLMConfig) AsksResultPass() bool { return c.ResultPass == nil || *c.ResultPass }
 
 // ReservedRequestOptions are the request members llm.request_options may not set (P-107): the three the
 // judge sets itself, and two that change the shape of the reply it reads (`stream`, `n`). The judge's

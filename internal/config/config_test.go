@@ -254,6 +254,32 @@ func TestLLMConfig_GateReady(t *testing.T) {
 	}
 }
 
+// TestLoad_ResultPassIsOnUnlessTurnedOff (P-106): the result question is asked unless the config says
+// `result_pass: false` — by the defaults, by a config that never mentions it, and by an LLMConfig built
+// without it.
+func TestLoad_ResultPassIsOnUnlessTurnedOff(t *testing.T) {
+	if !Default().LLM.AsksResultPass() || !(LLMConfig{}).AsksResultPass() {
+		t.Fatal("the defaults do not ask the result question")
+	}
+	for body, want := range map[string]bool{
+		"llm:\n  enabled: true\n":                       true,
+		"llm:\n  enabled: true\n  result_pass: true\n":  true,
+		"llm:\n  enabled: true\n  result_pass: false\n": false,
+	} {
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := cfg.LLM.AsksResultPass(); got != want {
+			t.Errorf("%q: asks the result question = %v, want %v", body, got, want)
+		}
+	}
+}
+
 // TestLoad_RequestOptions (P-107): llm.request_options is read as written — nested maps included — and a
 // member the judge sets itself, or a value that has no JSON form, is refused at load time rather than
 // sent. No key, no options.

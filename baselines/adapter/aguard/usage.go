@@ -55,6 +55,7 @@ func judgeUsage(out []byte, res model.ScanResult) *ledger.JudgeUsage {
 		// Not a "reported" pointer: absent and 0 are the same count here (P-071).
 		CachedPromptTokens: j.CachedPromptTokens,
 		Model:              j.Model,
+		PassesOff:          j.PassesOff,
 		RequestOptions:     j.RequestOptions,
 		UsageByPass:        rowUsageByPass(j.UsageByPass),
 	}

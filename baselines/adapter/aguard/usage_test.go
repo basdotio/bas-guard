@@ -297,6 +297,22 @@ func TestJudgeUsage_SettledIsCarriedWhenAny(t *testing.T) {
 	}
 }
 
+// TestJudgeUsage_PassesOffReachTheRow (P-106): the questions a run did not ask reach the row as printed, so
+// a reading without the result pass is never compared with one that asked it unseen; a block without the
+// key (every pass asked, or an older binary) folds into a row without it.
+func TestJudgeUsage_PassesOffReachTheRow(t *testing.T) {
+	doc := strings.Replace(budgetCut, `"completion_tokens":310}`, `"completion_tokens":310,"passes_off":["result"]}`, 1)
+	if doc == budgetCut {
+		t.Fatal("fixture: the replacement did not apply")
+	}
+	if got := foldDoc(t, doc); !reflect.DeepEqual(got.PassesOff, []string{"result"}) {
+		t.Errorf("passes_off = %v; want [result], as printed", got.PassesOff)
+	}
+	if row := show(foldDoc(t, budgetCut)); strings.Contains(row, "passes_off") {
+		t.Errorf("judge_usage %s carries passes_off; want no key when the binary printed none", row)
+	}
+}
+
 // TestJudgeUsage_RequestOptionsReachTheRow (P-107): the request options a run sent reach the row as printed,
 // so a reading with thinking turned off is never compared with one that thought, unseen.
 func TestJudgeUsage_RequestOptionsReachTheRow(t *testing.T) {

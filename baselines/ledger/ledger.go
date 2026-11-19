@@ -147,6 +147,9 @@ type JudgeUsage struct {
 	// Model is the model the binary printed in its judge summary (P-031), so a row copied or folded
 	// out of its run still says which model answered (P-072). Absent when the binary printed none.
 	Model string `json:"model,omitempty"`
+	// PassesOff names the optional questions the run did not ask, as the binary printed them (P-106):
+	// "result" when llm.result_pass was off. Absent when every pass was asked, or the binary predates it.
+	PassesOff []string `json:"passes_off,omitempty"`
 	// RequestOptions is the summary's request_options as the binary printed it (P-107): what every request
 	// also carried, such as thinking turned off. Absent when there were none, or the binary predates it.
 	RequestOptions   string `json:"request_options,omitempty"`

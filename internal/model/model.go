@@ -656,6 +656,11 @@ type JudgeSummary struct {
 	ExcerptVersion int    `json:"excerpt_version,omitempty"`
 	Model          string `json:"model,omitempty"`
 	Samples        int    `json:"samples,omitempty"`
+	// PassesOff names the optional questions the run did not ask, by the name `bas-guard llm preview`
+	// gives the pass: "result" unless llm.result_pass is true (P-106). Absent when every pass was asked,
+	// which is also how a report from before the option reads; set, like model and samples, only when
+	// the judge was configured to run.
+	PassesOff []string `json:"passes_off,omitempty"`
 	// RequestOptions is llm.request_options as every request carried it (P-107), one compact JSON object
 	// passed through the secret patterns — `{"thinking":{"type":"disabled"}}`. They change what the model
 	// does, so a reading names them like the model. Absent when there were none.

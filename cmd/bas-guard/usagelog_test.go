@@ -109,7 +109,7 @@ func assertLineIsBlock(t *testing.T, line usageLine, j *model.JudgeSummary, out 
 	want := usageLine{
 		Time: line.Time, Command: line.Command, Section: line.Section, Endpoint: line.Endpoint,
 		ToolVersion: out.ToolVersion, RulesVersion: out.RulesVersion,
-		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion, Model: j.Model, Samples: j.Samples,
+		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion, Model: j.Model, Samples: j.Samples, PassesOff: j.PassesOff,
 		RequestOptions: j.RequestOptions,
 		Calls:          j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries, TriageCalls: j.TriageCalls,
 		Repaired: j.Repaired, Reasked: j.Reasked, Settled: j.Settled, TemperatureOmitted: j.TemperatureOmitted,
