@@ -73,6 +73,13 @@ llm:
   # without it says so in its judge block (passes_off: ["result"]).
   result_pass: true
 
+  # Extra members added, as written, to every request body: what a vendor takes beside the
+  # chat-completions members. A GLM model thinks by default; this turns it off:
+  #   request_options:
+  #     thinking: { type: disabled }
+  # model, messages, temperature, stream and n are the judge's own and are refused. Run
+  # `bas-guard llm test` after setting them. A report records them in its judge block.
+
   # Whether this endpoint's opinion may have CONSEQUENCES.
   #   advisory (default) — the judge informs; no gate can act on it
   #   escalate           — additionally permits the --fail-on-llm gate

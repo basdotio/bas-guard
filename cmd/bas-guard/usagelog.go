@@ -64,7 +64,8 @@ type usageLine struct {
 	Model              string   `json:"model,omitempty"`
 	Endpoint           string   `json:"endpoint,omitempty"`
 	Samples            int      `json:"samples,omitempty"`
-	PassesOff          []string `json:"passes_off,omitempty"` // P-106: optional questions the run did not ask
+	PassesOff          []string `json:"passes_off,omitempty"`      // P-106: optional questions the run did not ask
+	RequestOptions     string   `json:"request_options,omitempty"` // P-107: what every request also carried
 	Calls              int      `json:"calls"`
 	Failed             int      `json:"failed"`
 	Skipped            int      `json:"skipped"`
@@ -125,7 +126,8 @@ func usageLineFor(command, section, toolVersion, rulesVersion, now string, j *mo
 		ToolVersion: toolVersion, RulesVersion: rulesVersion,
 		PromptVersion: j.PromptVersion, ExcerptVersion: j.ExcerptVersion,
 		Model: j.Model, Endpoint: endpointOrigin(j.Endpoint), Samples: j.Samples, PassesOff: j.PassesOff,
-		Calls: j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries,
+		RequestOptions: j.RequestOptions,
+		Calls:          j.Calls, Failed: j.Failed, Skipped: j.Skipped, Retries: j.Retries,
 		TriageCalls: j.TriageCalls, Repaired: j.Repaired, Reasked: j.Reasked,
 		TemperatureOmitted: j.TemperatureOmitted,
 		PromptTokens:       j.PromptTokens, CompletionTokens: j.CompletionTokens,

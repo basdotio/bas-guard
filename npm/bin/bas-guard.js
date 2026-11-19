@@ -12,8 +12,9 @@
 //   event it was asked about.
 //
 //   exit codes — they are this tool's contract: 0 below threshold, 1 a finding at or above
-//   --fail-on, 2 runtime error, 3 (clean only) acted partially, 4 (--fail-on-llm only) the
-//   judge could not answer for every artifact. So this launcher must never
+//   --fail-on, 2 runtime error, 3 (clean only) acted partially, 4 a gate could not be
+//   evaluated (--fail-on over a root it did not read, P-105; --fail-on-llm with a judge that
+//   could not answer for every artifact). So this launcher must never
 //   invent a 0: every path where the scanner did not actually reach a verdict exits 2. That is
 //   the same rule the tool states about itself — "exit code 2 is not a pass, the scan did not
 //   happen" — and it is why this file deliberately does NOT copy the common

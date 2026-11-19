@@ -10,29 +10,6 @@
 >
 > `scan` and `check` are strictly read-only. `clean` is the only command that writes, and it only ever MOVES things inside your config root — it never deletes.
 
-## Renamed from AgentGuard
-
-This tool was called **AgentGuard** (command `aguard`, plugin `aguard@AgentGuard`, repository `basdotio/AgentGuard`)
-through v0.29. Other projects use those names, including an unscoped npm package `aguard` that installs a different
-program, so it is now **BAS Guard**. What you set up keeps working, except a `go install` of the old path (last item):
-
-- The `aguard` command still works: the npm package installs it next to `bas-guard`, and an `aguard` binary you
-  installed by hand keeps working. A gate registered as `aguard hook` keeps firing; `bas-guard hook status` says how to
-  switch it.
-- `~/.config/aguard/` is still read when it is the only config directory, and every `AGUARD_*` variable still works
-  (`BAS_GUARD_*` wins when both are set).
-- Approvals (`.aguard-approvals.json`), baselines (`.aguardignore`) and quarantined skills (`.aguard-trash`) keep their
-  names.
-- The plugin is now `basguard@bas-guard`. The marketplace no longer lists `aguard`, so an `aguard@AgentGuard` install
-  stops loading when its marketplace refreshes ("Plugin aguard not found in marketplace AgentGuard"); the load-time gate
-  is not part of the plugin and keeps running. `bas-guard version` prints the exact commands to switch.
-- `npx bas-guard` runs the same package as `npx @bas.io/guard`. Install one of the two globally, not both: they
-  provide the same `bas-guard` command.
-- `go install github.com/basdotio/AgentGuard/cmd/aguard@latest` (the old CI template) **fails** from v0.30.0 on, with
-  `module declares its path as: github.com/basdotio/bas-guard`. Use
-  `go install github.com/basdotio/bas-guard/cmd/bas-guard@latest`, whose command is `bas-guard`, or pin `@v0.29.0` to
-  keep the old build.
-
 ## What it is
 
 AI coding agents **auto-load** a lot of external things — skills, MCP servers, hooks, subagents, instruction files (CLAUDE.md) — each handed your real tools and permissions, and any of them can hide a malicious directive. BAS Guard statically scans those artifacts on your machine and produces a risk report + cleanup suggestions.
@@ -220,18 +197,20 @@ That includes a note attached to one item, such as a `settings.json` that does n
 summary then names the item as not fully checked, and does the same for a file that could not be
 read. When something Claude Code loads was not fully read — a file that could not be read or parsed,
 an item carrying its own coverage note, a skill folder the scan could not open, a file over the size
-cap, a hook script it could not follow — the summary says coverage is incomplete instead of calling
+cap, a hook script it could not follow, a project's `.claude` under the root (the root is one level too
+high: point `--root` at the `.claude`) — the summary says coverage is incomplete instead of calling
 the setup safe. Notes about things the scan skips by design (your own session history at the top of
 the config directory, a plugin's `node_modules/`) are listed but do not change that sentence. When
 the inventory has nothing to count — `bas-guard check` on a single file or a plain folder — the summary
-says what it checked ("Checked 1 file.") rather than that nothing was found. Coverage notes never change the score, and change the exit code in one case only: with `--fail-on-llm`, a judge that could not answer for every artifact exits `4` (below). Findings are never folded in either mode, and `--json` / `--html` / `--md` always carry everything, so
+says what it checked ("Checked 1 file.") rather than that nothing was found. Coverage notes never change the score, and change the exit code in two cases only, both `4` (below): with `--fail-on`, a root that held nothing to check or held a project's `.claude` it did not read; with `--fail-on-llm`, a judge that could not answer for every artifact. Findings are never folded in either mode, and `--json` / `--html` / `--md` always carry everything, so
 what a CI job sees never depends on which flag a human passed.
 
 **Exit codes**: `0` below threshold · `1` a finding at/above `--fail-on` · `2` runtime error
-(and, for `clean` only, `3` = acted partially, with every refusal named; with `--fail-on-llm` only, `4` = the gate could not be
-evaluated — the judge did not run, a call failed or was never made, or (on `check`) it has no question for the target: a
-plain folder, or a plugin holding no skill, command or agent — with the reason on stderr; `4` is not a pass, and a
-finding at either threshold still exits `1`). A run stopped by a
+(and, for `clean` only, `3` = acted partially, with every refusal named; `4` = a gate could not be evaluated, with the
+reason on stderr: with `--fail-on`, the root held nothing to check, or held a project's `.claude` it did not read; with
+`--fail-on-llm`, the judge did not run, a call failed or was never made, or (on `check`) it has no question for the
+target: a plain folder, or a plugin holding no skill, command or agent. `4` is not a pass, and a finding at either
+threshold still exits `1`). A run stopped by a
 signal ends as `128 + signal` — `130` for Ctrl-C, `141` for a closed output pipe — through the
 npm launcher exactly as for the bare binary.
 `scan` does not exit non-zero on findings by default (informational mode); `check` defaults to `--fail-on high` (gate mode).
@@ -285,7 +264,7 @@ the question by itself. Full contract, including what it deliberately does *not*
 
 ## What it scans
 
-skills (SKILL.md + scripts + resources) · MCP config (statically: injection text and interpreter-preload `env` such as `NODE_OPTIONS`; an unpinned package or a credential written into `env` is reported only by the optional LLM judge, `LLM-009`) · **hooks** (settings.json — can silently run shell, a focus area) · **permission allowlists** · subagents · slash commands · installed **plugins** · CLAUDE.md · **Claude Desktop's own store** (plugins added in Customize → Plugins and the skills in Customize → Skills live under `~/Library/Application Support/Claude/`, not `~/.claude`, and are handed to the CLI as `--plugin-dir`; they are collected and marked "via Claude Desktop"). The default root honours `$CLAUDE_CONFIG_DIR`. **Downloads** are checked too: agent-shaped items under `~/Downloads` (a skill folder, a plugin, an MCP config, an instructions file, or a `.zip` holding one) are each checked on their own and listed in a separate Downloads section — they are not installed, so they never enter the score; everything else in the folder is counted, never read, never named. `--inbox <dir>` points elsewhere, `--inbox off` disables. `bas-guard check foo.zip` checks a downloaded archive directly. Install-symlink skills (e.g. `~/.agents/skills/*`) are resolved to their real target and audited; a symlink escaping to a system path is skipped with a warning.
+skills (SKILL.md + scripts + resources) · MCP config (user scope, local scope — the default of `claude mcp add`, kept per project in `~/.claude.json` — and a project's `.mcp.json`; statically: injection text and interpreter-preload `env` such as `NODE_OPTIONS`; an unpinned package or a credential written into `env` is reported only by the optional LLM judge, `LLM-009`) · **hooks** (settings.json — can silently run shell, a focus area) · **permission allowlists** · subagents · slash commands · installed **plugins** · CLAUDE.md · **Claude Desktop's own store** (plugins added in Customize → Plugins and the skills in Customize → Skills live under `~/Library/Application Support/Claude/`, not `~/.claude`, and are handed to the CLI as `--plugin-dir`; they are collected and marked "via Claude Desktop"). The default root honours `$CLAUDE_CONFIG_DIR`. **Downloads** are checked too: agent-shaped items under `~/Downloads` (a skill folder, a plugin, an MCP config, an instructions file, or a `.zip` holding one) are each checked on their own and listed in a separate Downloads section — they are not installed, so they never enter the score; everything else in the folder is counted, never read, never named. `--inbox <dir>` points elsewhere, `--inbox off` disables. `bas-guard check foo.zip` checks a downloaded archive directly. Install-symlink skills (e.g. `~/.agents/skills/*`) are resolved to their real target and audited; a symlink escaping to a system path is skipped with a warning.
 
 Two surfaces get extra treatment, because both hand over execution while looking narrow:
 
@@ -297,9 +276,19 @@ Two surfaces get extra treatment, because both hand over execution while looking
   gap and an unaudited silent-execution point are different facts. `PermissionRequest` raises
   that to high, because the hook takes the authorization decision. An HTTP hook (`type: http`)
   is a first-class artifact: posting events to loopback is `HOOK-003` low, posting
-  `PermissionRequest` to loopback or posting anything off-box is high. A hook command that
+  `PermissionRequest` to loopback or posting anything off-box is high. A command hook that sends
+  what it is handed — its stdin (`curl --data-binary @-`, `cat | nc`), a field carrying the
+  conversation (the prompt, a tool's input or output), or the transcript file — is the same
+  `HOOK-003`, in the command line or in the script it runs; a hook that posts a fixed message or
+  a notification field (`message`, `cwd`) to ntfy or Slack is not reported. A hook command that
   chains shell (`;` `&&` `||` `|` backticks `$(`) is `HOOK-001` — unremarkable in a script,
   telling in a hook, so that rule runs on hook commands only.
+- **Helper commands** in a settings file are commands too: `apiKeyHelper`, `awsAuthRefresh`,
+  `awsCredentialExport`, `gcpAuthRefresh`, `otelHeadersHelper`, `processWrapper`, and the `command`
+  of `statusLine` and `fileSuggestion` run every script rule, and a local script they name is read
+  inside your home directory (outside it, a `COV-000` note). A status line receives the session's
+  metadata and its `transcript_path` on stdin: sending the transcript is `HOOK-003`, sending the
+  rest is not reported.
 - **Permission allowlists** are checked against an escapable-binary list (`PERM-006`):
   `Bash(git *)` is arbitrary execution (`git -c core.pager=…`) wearing a narrow-looking
   disguise, and so are open-ended grants over `find` `awk` `tar` `docker` `ssh` `npm` `make`
@@ -392,6 +381,15 @@ Coverage caveats worth knowing:
   as one item, and a finding both carry is printed once), its hooks per (event, command), its MCP servers per server.
   Its output styles and inline manifest commands are read only as text in the tree; `check <plugin>` does not split
   its hooks and MCP servers the way `scan` does.
+- **`check <dir>`** reads the directory as one tree and, in addition, the Claude Code configuration it declares at its
+  top level, with the readers a scan uses: `.claude/settings.json` and `settings.local.json` (hooks, permission grants,
+  env), its own `settings*.json`, and `.mcp.json`; `check ./.mcp.json` and `check <path>/settings.json` read that file
+  as configuration too. It also reads the project's `CLAUDE.md` and `CLAUDE.local.md` (and those in its `.claude`) the
+  way `scan` does, following their `@` imports, so an import of `.env` or a key reports `EXFIL-005`. When the
+  project's `.claude` settings approve the servers of its `.mcp.json` in advance (`enableAllProjectMcpServers`,
+  `enabledMcpjsonServers`), each approved server reports `PERM-009`, as under `scan --root <repo>/.claude`. The score counts
+  the directory and that configuration as one item. Skills, agents and rules under a project's `.claude` are read as
+  part of the tree rather than one by one; `scan --root <repo>/.claude` lists them one by one.
 - A **hook script** is followed one level and only inside your home directory. An out-of-home
   reference is not read, and scores as `HOOK-002`.
 - Under a config root, **top-level directories no collector owns are not read** — on a real
@@ -481,10 +479,16 @@ carry the same review and fingerprint, and renew only on a machine that has the 
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
 # CI (GitHub Actions)
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
 See [`hack/`](hack/) for both. A single skill: `bas-guard check ./some-skill` (defaults to `--fail-on high`).
+
+The workflow's first line picks `--root`: the repository itself (`.`) when it keeps `skills/` at its top level or has
+no `.claude`, otherwise the project's `.claude`, which holds its skills, `settings.json` and agents (the project's
+`.mcp.json` and `CLAUDE.md` next to it are read from there too). Replace it with a fixed root if you prefer. Pointed one
+level too high — at a project's top level — a `--fail-on` gate exits `4` and says to scan the `.claude` it did not read,
+rather than passing over skills nobody read; so does a root with nothing to check at all.
 
 ## Reports
 

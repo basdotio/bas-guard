@@ -39,6 +39,12 @@ type Options struct {
 	// (run.yaml `check_llm`, P-059). Then a server-source row with no judge summary is a judge
 	// that did not run, not a static row by design.
 	CheckJudged bool
+	// Locate gives the mapping from aguard's reported paths back onto one sample's tree, for
+	// the verdict's `files` (the corpus's location score). The static files come with the
+	// ledger row, mapped by the adapter; an escalated LLM finding's grounded location is mapped
+	// here with the same Locator. Nil maps by sample id alone, which is right for every
+	// placement except a loose instruction file (Locator.Loose).
+	Locate func(s corpus.Sample) aguardadapter.Locator
 }
 
 // Answer is one attempt's fold of one sample: its judge.jsonl row and what the table and the
@@ -105,9 +111,32 @@ func Fold(s corpus.Sample, lrow ledger.Row, res model.ScanResult, opt Options) (
 		verdict = "malicious"
 	}
 	a.Row = row
-	a.Verdict = &corpus.Verdict{Sample: s.Sample, Verdict: verdict, Severity: string(f.severity), Dimensions: f.dimensions}
+	loc := aguardadapter.Locator{ID: s.Sample}
+	if opt.Locate != nil {
+		loc = opt.Locate(s)
+	}
+	files := aguardadapter.FlaggedFiles(res, loc, f.flagged)
+	// The adapter's own mapping of the static files wins where both name one: a row rebuilt
+	// from raw/ knew the staged layout, and the two must not disagree in the output.
+	files = union(lrow.Files, files)
+	a.Verdict = &corpus.Verdict{Sample: s.Sample, Verdict: verdict, Severity: string(f.severity), Dimensions: f.dimensions, Files: files}
 	a.Kinds, a.VoteArtifact = f.kinds, f.voteArtifact
 	return a, nil
+}
+
+// union merges two sorted-or-not string lists into one sorted, deduplicated list; nil when empty.
+func union(a, b []string) []string {
+	seen := map[string]bool{}
+	for _, x := range a {
+		seen[x] = true
+	}
+	for _, x := range b {
+		seen[x] = true
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	return sortedKeys(seen, nil)
 }
 
 // folded is what one pass over the findings yields.
@@ -119,10 +148,23 @@ type folded struct {
 	dimensions         []string
 	kinds              []model.ArtifactKind
 	voteArtifact       []int
+	// flagged selects the findings that carried the verdict: deterministic at or above the
+	// threshold, or escalated and at or above it (LLM-009 excluded) — the same findings whose
+	// dimensions were taken, so the files named are the files that decided.
+	flagged func(model.Finding) bool
 }
 
 func foldFindings(res model.ScanResult, threshold model.Severity, n int) (folded, error) {
 	out := folded{escalated: []string{}, votes: []Vote{}}
+	out.flagged = func(f model.Finding) bool {
+		if f.Severity.Rank() < threshold.Rank() {
+			return false
+		}
+		if score.Deterministic(f) {
+			return true
+		}
+		return f.Source == model.SrcLLM && f.Dimension != 0 && score.Escalating(f) && f.RuleID != advisoryRule
+	}
 	escalated, dims := map[string]bool{}, map[string]bool{}
 	raise := func(sev model.Severity) {
 		if sev.Rank() > out.severity.Rank() {

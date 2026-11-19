@@ -10,23 +10,6 @@
 >
 > `scan` 与 `check` 严格只读。`clean` 是唯一会写盘的命令,而且它只在你的配置根目录内部**移动**——**永不删除**。
 
-## 由 AgentGuard 改名而来
-
-这个工具在 v0.29 及之前叫 **AgentGuard**(命令 `aguard`,插件 `aguard@AgentGuard`,仓库 `basdotio/AgentGuard`)。这些名字也被
-别的项目在用,其中不带 scope 的 npm 包 `aguard` 装出来的是另一个程序,所以现在改名为 **BAS Guard**。已经配好的东西都照常能用,只有按旧路径 `go install` 的例外(最后一条):
-
-- `aguard` 命令仍然可用:npm 包会把它和 `bas-guard` 一起装上,你手动装的 `aguard` 二进制也照常能用。注册成 `aguard hook` 的闸门照常生效,
-  `bas-guard hook status` 会告诉你怎么切换。
-- 只有 `~/.config/aguard/` 时照旧从那里读配置,`AGUARD_*` 环境变量都照常有效(和 `BAS_GUARD_*` 同时设时以后者为准)。
-- 批准记录(`.aguard-approvals.json`)、基线(`.aguardignore`)、隔离区(`.aguard-trash`)都保留原来的文件名。
-- 插件现在是 `basguard@bas-guard`。marketplace 里不再列出 `aguard`,所以 `aguard@AgentGuard` 的安装在它的 marketplace 刷新后就
-  加载不了了("Plugin aguard not found in marketplace AgentGuard");加载时闸门不属于插件,照常运行。`bas-guard version`
-  会给出换过来的确切命令。
-- `npx bas-guard` 和 `npx @bas.io/guard` 跑的是同一个包。全局安装时二选一,不要两个都装:它们提供的是同一个 `bas-guard` 命令。
-- `go install github.com/basdotio/AgentGuard/cmd/aguard@latest`(旧的 CI 模板)从 v0.30.0 起**会失败**,报
-  `module declares its path as: github.com/basdotio/bas-guard`。改用 `go install github.com/basdotio/bas-guard/cmd/bas-guard@latest`
-  (装出来的命令是 `bas-guard`),或者钉在 `@v0.29.0` 继续用旧版。
-
 ## 是什么
 
 AI 编码 agent 会**自动加载**一堆外部东西——skills、MCP 服务器、hooks、subagents、指令文件(CLAUDE.md)——每一个都拿到你的真实工具和权限,任何一个都可能藏隐藏指令。BAS Guard 在你本地静态扫描这些 artifact,给出风险体检 + 垃圾清理建议。
@@ -192,16 +175,19 @@ bas-guard version
 `--verbose` 另外给出扫描看了哪些地方、清单、判官的版本号和卫生项列表。
 挂在单个条目上的说明也在其中,比如一个解析不了的 `settings.json`:摘要会点名它"没检查全",读不了的文件同样点名。
 当 Claude Code 加载的东西没读全 —— 有文件读不了或解析不了、某个条目带着自己的覆盖度说明、skill 里有打不开的目录、
-文件超过大小上限、hook 调的脚本跟不进去 —— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
+文件超过大小上限、hook 调的脚本跟不进去、根目录下有个项目的 `.claude`(根目录高了一层:把 `--root` 指向那个 `.claude`)
+—— 摘要就说覆盖不全(coverage is incomplete),不说配置安全。按设计不读的
 东西(配置目录顶层你自己的会话记录、插件的 `node_modules/`)照样列出,但不改这句话。清单里没有可数的东西时 ——
 `bas-guard check` 一个单独的文件或普通文件夹 —— 摘要说它检查了什么("Checked 1 file."),而不是说什么都没找到。
-覆盖度说明从不改变分数;退出码只有一种情况会变:开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答时,退出码 `4`(见下)。
+覆盖度说明从不改变分数;退出码只有两种情况会变,都是 `4`(见下):开了 `--fail-on` 而根目录下什么都没收集到,或有个项目的
+`.claude` 没读到;开了 `--fail-on-llm` 而判官没能对每个 artifact 给出回答。
 两种模式下发现都不会被折叠;`--json` / `--html` / `--md` 始终包含全部内容,所以 CI 看到的东西不会因为
 某个人加没加这个参数而变。
 
 **退出码**:`0` 未达阈值 · `1` 发现 ≥ `--fail-on` 级别 · `2` 运行错误
-(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;**仅 `--fail-on-llm` 有的** `4` = 闸门无法评估 ——
-判官没跑,或有调用失败、没发出去,或(`check` 时)判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件 —— 原因印在 stderr;`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
+(以及**仅 `clean` 有的** `3` = 部分执行,每一条被拒的都点名了原因;`4` = 闸门无法评估,原因印在 stderr:开了 `--fail-on` 时,
+根目录下什么都没收集到,或有个项目的 `.claude` 没读到;开了 `--fail-on-llm` 时,判官没跑,或有调用失败、没发出去,或(`check` 时)
+判官对这个目标没有可问的 —— 普通文件夹,或里面没有任何 skill、命令、子 agent 的插件。`4` 不是通过,任一阈值被发现命中时照样是 `1`)。
 被信号中断的运行以 `128 + 信号号` 结束 —— Ctrl-C 是 `130`,输出管道被关闭是 `141` ——
 经 npm launcher 和直接跑二进制完全一致。
 `scan` 默认不因发现而非零退出(信息模式);`check` 默认 `--fail-on high`(闸门模式)。
@@ -250,7 +236,7 @@ Claude Code **没有**"安装"这个 hook 事件,而且就算有也覆盖不全 
 
 ## 检测对象
 
-skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`bas-guard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
+skills(SKILL.md + 脚本 + 资源)· MCP 配置(用户作用域、本地作用域——`claude mcp add` 的默认作用域,按项目存在 `~/.claude.json` 里——以及项目的 `.mcp.json`;静态只查注入文本和 `NODE_OPTIONS` 这类解释器预加载的 `env`;包没钉版本、`env` 里写死凭证这两种只有可选的 LLM 判官会报,`LLM-009`)· **hooks**(settings.json,可静默执行 shell,重点)· **权限白名单** · subagents · slash commands · 已安装的**插件** · CLAUDE.md · **Claude 桌面版自己的仓库**(在 Customize → Plugins 装的插件和 Customize → Skills 里的 skill 放在 `~/Library/Application Support/Claude/` 下而不是 `~/.claude`,由桌面版以 `--plugin-dir` 交给 CLI;会被采集并标注 "via Claude Desktop")。默认 root 会读 `$CLAUDE_CONFIG_DIR`。**下载目录**也查:`~/Downloads` 下长得像 agent 的东西(skill 文件夹、插件、MCP 配置、指令文件、装着这些的 `.zip`)逐个单独检查,列在单独的 Downloads 一节——它们没装进去,所以永不计入分数;目录里其余东西只计数,不读、不列名。`--inbox <目录>` 换位置,`--inbox off` 关闭。`bas-guard check foo.zip` 可以直接查一个下载的压缩包。安装型软链 skill(如 `~/.agents/skills/*`)会解析真身审计;越界指向系统路径的软链会被跳过并告警。
 
 其中两个面单独加强 —— 它们都是"看着很窄、实际交出执行权":
 
@@ -260,8 +246,15 @@ skills(SKILL.md + 脚本 + 资源)· MCP 配置(静态只查注入文本和 `NOD
   越界的不读(`COV-000`)并另报 `HOOK-002`(计分):覆盖缺口和"静默执行点上有一段审不了的第二阶段"
   是两回事。`PermissionRequest` 升为 high,因为它拿走的是授权决定权。`type: http` 的 hook 是正式
   审计对象:转到本机是 `HOOK-003` low,`PermissionRequest` 转到本机或任何非回环目标都是 high。
+  command hook 把它拿到的东西发出去 —— stdin(`curl --data-binary @-`、`cat | nc`)、承载对话的字段
+  (prompt、工具的输入或输出)、或 transcript 文件 —— 同样是 `HOOK-003`,无论写在命令行里还是它跑的脚本里;
+  往 ntfy 或 Slack 发一条固定消息或通知字段(`message`、`cwd`)的 hook 不报。
   hook command 里出现 shell 串联(`;` `&&` `||` `|` 反引号 `$(`)
   报 `HOOK-001` —— 脚本里有管道再正常不过,hook 里才说明问题,所以这条规则只在 hook command 上跑。
+- settings 里的 **helper 命令**也是命令:`apiKeyHelper`、`awsAuthRefresh`、`awsCredentialExport`、
+  `gcpAuthRefresh`、`otelHeadersHelper`、`processWrapper`,以及 `statusLine`、`fileSuggestion` 的 `command`,
+  每条都跑全部脚本规则,它们点名的本地脚本在 home 目录内会被读进来(越界的出 `COV-000` 说明)。
+  status line 的 stdin 是会话元数据和 `transcript_path`:把 transcript 发出去是 `HOOK-003`,发其余的不报。
 - **权限白名单**会比对"可逃逸二进制"清单(`PERM-006`):`Bash(git *)` 就是套着窄外衣的任意执行
   (`git -c core.pager=…`),`find` `awk` `tar` `docker` `ssh` `npm` `make` `xargs` `rsync`
   这类开放参数的授权同理。参数写全的授权(`Bash(git status)`)不会被报。授权指向**你自己的脚本**时
@@ -337,6 +330,11 @@ bas-guard scan --llm --config config.yaml
 - **插件**由规则按整棵树扫,它的组成部分还会各自再采一遍:skills、commands、子 agent(Claude Code 会加载的那些——所以
   `--llm` 会判它们;分数把插件和它的这些子项算作一项,两边都带的发现只印一次),hook 按 (event, command),MCP 按 server。
   它的 output style 和 manifest 里内联的命令只在树里当文本读;`check <插件>` 不像 `scan` 那样拆出它的 hook 和 MCP server。
+- **`check <目录>`** 把目录当一整棵树读,并**另外**用扫描用的那些读取器读它在顶层声明的 Claude Code 配置:
+  `.claude/settings.json` 和 `settings.local.json`(hook、权限授权、env)、它自己的 `settings*.json`,以及 `.mcp.json`;
+  `check ./.mcp.json` 和 `check <路径>/settings.json` 也把那个文件当配置读。项目的 `CLAUDE.md`、`CLAUDE.local.md`
+  (以及 `.claude` 下的这两个)也照 `scan` 的方式读,跟进其中的 `@` 导入,所以导入 `.env` 或私钥会报 `EXFIL-005`。项目 `.claude` 的设置预先批准了 `.mcp.json` 里的 server(`enableAllProjectMcpServers`、`enabledMcpjsonServers`)时,每个被批准的 server 报 `PERM-009`,与 `scan --root <仓库>/.claude` 一致。分数把目录和这些配置算作一项。项目 `.claude`
+  下的 skill、子 agent、rule 作为树的一部分读,不逐个列;要逐个列用 `scan --root <仓库>/.claude`。
 - **hook 引用的脚本**只跟进一层,且只在 home 目录内读取。越界不读,并计分为 `HOOK-002`。
 - 配置 root 下**没有采集器认领的顶层目录不读** —— 真机上那些是你自己的会话记录、配置备份和 shell
   快照(`sessions/`、`history.jsonl`、`file-history/`),把它们读进报告等于用一个盲点换一次泄露。
@@ -413,10 +411,15 @@ bas-guard hash ./some-skill     # 打印 canonical hash,加进信誉名单
 cp hack/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
 # CI(GitHub Actions)
-cp hack/github-action.yml .github/workflows/agentguard.yml
+cp hack/github-action.yml .github/workflows/bas-guard.yml
 ```
 
 两者见 [`hack/`](hack/)。单个 skill:`bas-guard check ./some-skill`(默认 `--fail-on high`)。
+
+这个 workflow 的第一行负责选 `--root`:仓库顶层有 `skills/` 或者没有 `.claude` 时扫仓库本身(`.`),否则扫项目的 `.claude` ——
+放 skill、`settings.json` 和 agent 的那个根目录(项目顶层挨着它的 `.mcp.json` 和 `CLAUDE.md` 也从这里读)。想固定根目录就把这行换掉。
+如果指高了一层 —— 指到项目顶层 —— 开了 `--fail-on` 的闸门会以 `4` 退出,并提示去扫那个没读到的 `.claude`,而不是在没人读过的
+skill 上照样通过;根目录下什么都没有时也一样。
 
 ## 报告
 

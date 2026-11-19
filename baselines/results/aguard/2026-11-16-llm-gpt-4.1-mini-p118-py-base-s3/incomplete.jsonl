@@ -1,0 +1,5 @@
+{"sample":"ben-mcp-gh-eddmpython-dartlab-mcp","path":"corpus/benign/mcp/gh-eddmpython-dartlab-mcp","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-haresh-sai06-homerelay-homerelay","path":"corpus/benign/mcp/gh-haresh-sai06-homerelay-homerelay","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-mohan-c0des-mcp-alexa","path":"corpus/benign/mcp/gh-mohan-c0des-mcp-alexa","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-pranesh-2005-mcp-client","path":"corpus/benign/mcp/gh-pranesh-2005-mcp-client","class":"benign","surface":["mcp"]}
+{"sample":"mal-mcp-ci-template_command_injection","path":"corpus/malicious/mcp/ci-template_command_injection","class":"malicious","surface":["mcp"],"severity":"high"}

@@ -1,0 +1,65 @@
+# compare.txt: P-117 on the 237 TypeScript/JavaScript server trees — read, NOT gated. A measurement-only build
+# (v0.33.1-p117-ts-measure: P-117 plus P-116's reverted recogniser and declared side, excerpt version 11, never
+# committed), with the benchmark driver built from the same tree so that it routes these trees to `check --llm`.
+# The comparison ("main" below) is P-116's own branch run on the same trees (on PR #142's branch,
+# baselines/results/aguard/2026-11-05-llm-gpt-4.1-mini-p116-branch-s3/): P-116 without P-117. About US$1.1.
+# It answers one question: would P-116 now clear its lines? Misses caught 6 of 10 (P-116's line 7), benign
+# escalating LLM-010 at high 23 of 220 (line 20), benign flagged overall 78 (line 81). Not yet.
+
+samples 237; branch incomplete 3
+
+== benign 220: flagged main 94 branch 78 ; escalating LLM-010 high main 42 branch 23
+   branch high categories: {'file-deletion': 1, 'credential-read': 4, 'remote-execution': 14, 'exfiltration': 4}
+   main   high categories: {'credential-read': 19, 'remote-execution': 14, 'software-source': 3, 'exfiltration': 5, 'persistence': 1}
+   no longer flagged 19, newly flagged 3
+   - ben-mcp-arch-gdrive
+       main: The server source code reads and parses OAuth2 credential files without disclosing this in the tool description. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-arch-puppeteer
+       main: The puppeteer_navigate tool allows passing arbitrary Puppeteer launch options including dangerous flags like --no-sandbox, enabling remote code execution and reduced security. [2 of 3 samples agreed] [severities: high, medium] [categories: remote-execution, re
+   - ben-mcp-gh-bonanip512-dataversemcpserver
+       main: The server source reads and uses confidential client secrets for Azure authentication without disclosure in the tool descriptions. [3 of 3 samples agreed] [severities: high, high, high] [categories: credential-read, credential-read, credential-read] [tool: hig
+   - ben-mcp-gh-fabianwilliams-graph-search-mcp-src
+       main: The server source reads client secret credentials from environment variables without disclosing it in the tool description. [2 of 3 samples agreed] [severities: medium, medium] [categories: credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-felores-gdrive-mcp-server
+       main: The server code reads stored Google OAuth2 credentials from a file without disclosing this in the tool descriptions. [3 of 3 samples agreed] [severities: medium, high, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-inoguerols-verifactu-src
+       main: The source code reads private keys and certificates from input parameters without disclosing this in the tool descriptions. [2 of 3 samples agreed] [severities: medium, medium] [categories: credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-justalab-co-ens-mcp-server
+       main: The server source code allows setting a custom RPC provider URL for Ethereum mainnet from an environment variable or configuration, altering where this machine gets its blockchain data software. [3 of 3 samples agreed] [severities: medium, medium, medium] [cat
+   - ben-mcp-gh-kumoproductions-mcp-aftereffects-src
+       main: The server source code installs and uninstalls an agent by writing and deleting files in After Effects' Scripts/Startup folders, enabling persistent code execution within After Effects. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: 
+   - ben-mcp-gh-lastsearch-hq-lastsearch-api
+       main: The server source reads an API key from environment variables and uses it to authenticate API calls. [3 of 3 samples agreed] [severities: medium, medium, high] [categories: credential-read, exfiltration, exfiltration] [tool: high]
+   - ben-mcp-gh-leonardogilrodriguez-mcp-tmdb
+       main: Server source reads a secret API key from environment variables without disclosure in the tool descriptions. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-mkummer225-google-sheets-mcp
+       main: The server source reads Google Sheets API credentials from a file without disclosing this credential reading in the declared tool descriptions. [3 of 3 samples agreed] [severities: medium, medium, medium] [categories: credential-read, credential-read, credenti
+   - ben-mcp-gh-nacgarg-bazel-mcp-server
+       main: The server source invokes child processes to run Bazel commands, allowing execution of commands potentially influenced by client parameters. [2 of 3 samples agreed] [severities: medium, medium] [categories: remote-execution, remote-execution] [tool: high]
+   - ben-mcp-gh-nurawiguna-mcp-harbor-src
+       main: Server source reads Harbor API credentials (username, password) from environment variables without disclosure in any declared tool description. [3 of 3 samples agreed] [severities: high, high, high] [categories: credential-read, credential-read, credential-rea
+   - ben-mcp-gh-openlinksoftware-mcp-odbc-server-src
+       main: Source code reads credentials and API keys from .env file and environment variables without disclosing this in the tool descriptions. [3 of 3 samples agreed] [severities: medium, high, medium] [categories: credential-read, credential-read, credential-read] [to
+   - ben-mcp-gh-peng-shawn-mermaid-mcp-server
+       main: The server source includes a GitHub Actions workflow that publishes to npm using a secret token, revealing deployment automation and remote code execution capabilities not disclosed in the tool description. [2 of 3 samples agreed] [severities: medium, medium] 
+   - ben-mcp-gh-pipe-cd-docs-mcp-server-src
+       main: The server source clones a GitHub repository to load documentation files dynamically. [3 of 3 samples agreed] [severities: high, medium, high] [categories: remote-execution, software-source, remote-execution] [tool: high]
+   - ben-mcp-gh-rohans2-mcp-google-sheets
+       main: The server source reads Google API credentials from environment variables and credential files without disclosing this in the tool descriptions. [3 of 3 samples agreed] [severities: high, medium, high] [categories: credential-read, credential-read, credential-
+   - ben-mcp-gh-sirtenzin-autumn-mcp-server
+       main: The server source code reads and uses an Autumn API key without disclosing this in any declared tool description. [3 of 3 samples agreed] [severities: high, medium, medium] [categories: credential-read, credential-read, credential-read] [tool: high]
+   - ben-mcp-gh-xianminx-mcp-server-flomo
+       main: The server reads a personal access token (FLOMO_API_URL) from an environment variable without disclosing it in the tool's description. [2 of 3 samples agreed] [severities: medium, medium] [categories: credential-read, credential-read] [tool: high]
+   + ben-mcp-gh-fdrechsler-mcp-server-idapro
+       branch: The server executes arbitrary IDA Pro scripts via HTTP endpoints without disclosure in the tool descriptions. [2 of 3 samples agreed] [severities: high, high] [categories: remote-execution, remote-execution] [tool: high]
+   + ben-mcp-gh-noskillish-bankmcp-src
+       branch: The server code logs connection events and includes a webhook URL for notifications, implying it sends data to a network destination without disclosing this in the tool descriptions. [3 of 3 samples agreed] [severities: high, medium, high] [categories: exfiltr
+   + ben-mcp-gh-tidewave-ai-tidewave-js-src
+       branch: The installation handler runs package manager commands to install software, potentially executing arbitrary code. [3 of 3 samples agreed] [severities: high, medium, high] [categories: remote-execution, process-control, remote-execution] [tool: high]
+
+== malicious 17: flagged main 12 branch 13 ; escalating LLM-010 high main 10 branch 10
+   branch high categories: {'exfiltration': 6, 'remote-execution': 2, 'file-deletion': 1, 'credential-read': 1}
+   main   high categories: {'exfiltration': 6, 'credential-read': 2, 'file-deletion': 1, 'remote-execution': 1}
+   no longer flagged 0, newly flagged 1
+   + mal-mcp-dd-npm-redhat-kessel-mcp-worm
+       branch: Server source code fetches data from arbitrary URLs and executes a main run function potentially executing downloaded code. [3 of 3 samples agreed] [severities: high, high, high] [categories: remote-execution, remote-execution, remote-execution] [tool: high]

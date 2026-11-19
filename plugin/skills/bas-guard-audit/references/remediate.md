@@ -60,9 +60,18 @@ inside the home directory so the scanner can follow it, or accept the unaudited 
 baseline it with a written reason. `PermissionRequest` on this shape is high — that hook
 takes allow/deny.
 
-`HOOK-003` is an HTTP hook. A loopback URL on an ordinary event is a local sidecar; confirm it.
-A non-loopback URL, or any URL on `PermissionRequest`, is the event stream (or the
-authorization decision) leaving the box — remove it unless that is what you intended.
+`HOOK-003` is a hook that sends what Claude Code hands it: an HTTP hook, or a command hook
+(or the script it runs) that sends its stdin, the prompt or a tool's input or output, or the
+transcript file. A loopback destination on an ordinary event is a local sidecar; confirm it.
+A non-loopback one, or any one on `PermissionRequest`, is the event stream (or the
+authorization decision) leaving the box — remove it unless that is what you intended. A
+notifier that only needs to say "done" can send a fixed message instead. A status line
+(`statusLine` in settings) is reported the same way when it sends the transcript; its other
+input (model, cost, workspace) is not reported.
+
+Findings on `helper commands (settings.json)` come from `apiKeyHelper`, `statusLine` and the
+other commands a settings file has Claude Code run without asking: read the command and the
+script it names as you would a hook's, and remove what the user did not put there.
 
 If a hook is one the user did not add, that is the finding. Hooks are the surface where
 "I don't know where this came from" should stop the conversation and start an investigation.
@@ -87,6 +96,9 @@ If a hook is one the user did not add, that is the finding. Hooks are the surfac
 - `INJ-004` (zero-width / directional control characters) — **look at the bytes**, not the
   rendered text. That is the whole technique. `grep -nP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}\x{FEFF}]'`
   on the file shows where they are.
+- `INJ-006` (text in Unicode tag characters) — the finding's explanation prints the hidden text
+  decoded, between `⟦ ⟧`. Read that, not the rendered line: the rendered line is what a reviewer
+  saw and approved. Delete the tag characters; a skill has no reason to carry text nobody can see.
 - `OBF-001`…`OBF-004` — decode the blob and read it. Decode; never execute.
 
 ### Filesystem and exfiltration

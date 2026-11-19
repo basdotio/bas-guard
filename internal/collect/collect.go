@@ -151,7 +151,8 @@ func singleFileKind(path string) model.ArtifactKind {
 //   - a dir containing a plugin manifest  → one plugin artifact (whole-tree scanned), plus its skills,
 //     commands and agents as artifacts of their own (P-044)
 //   - a dir that looks like a root        → CollectAll (see looksLikeRoot)
-//   - any other dir                       → one directory artifact (whole-tree scanned)
+//   - any other dir                       → one directory artifact (whole-tree scanned), plus the
+//     Claude Code configuration it declares at its top level (withDeclared, P-120)
 //
 // The last branch used to fall through to CollectAll, which finds only known sub-layouts:
 // a bare directory yielded ZERO artifacts and ZERO notes, so a malicious install.sh at its
@@ -170,8 +171,10 @@ func CollectTarget(path string) (Result, error) {
 	}
 	if !fi.IsDir() {
 		// Single file: one unit; detect picks the rule set from the kind, or by name for an
-		// instruction file.
-		return single(singleFileKind(path), FileHash(path), model.EnvSummary{})
+		// instruction file. A settings file or a .mcp.json is also read as the configuration it is
+		// (withDeclared, P-120).
+		res, _ := single(singleFileKind(path), FileHash(path), model.EnvSummary{})
+		return withDeclared(res, path, false), nil
 	}
 	if _, serr := os.Stat(filepath.Join(path, "SKILL.md")); serr == nil {
 		return single(model.KindSkill, TreeHash(path, path), model.EnvSummary{Skills: 1})
@@ -189,10 +192,14 @@ func CollectTarget(path string) (Result, error) {
 	if looksLikeRoot(path) {
 		return CollectAll(path), nil
 	}
+	kind := model.KindDirectory
 	if LooksLikeServerSource(path) {
-		return single(model.KindServer, TreeHash(path, path), model.EnvSummary{})
+		kind = model.KindServer
 	}
-	return single(model.KindDirectory, TreeHash(path, path), model.EnvSummary{})
+	// The tree, whole, and then the Claude Code configuration it declares at its top level, read by
+	// the readers a scan uses — in addition to the tree, never instead of it (withDeclared, P-120).
+	res, _ := single(kind, TreeHash(path, path), model.EnvSummary{})
+	return withDeclared(res, path, true), nil
 }
 
 // serverImport and serverTool are what makes a Python file an MCP server's source (P-053): it
@@ -286,6 +293,85 @@ func emptyRootNote(root string) model.Finding {
 	}
 }
 
+// ProjectDirNoteTitle is projectDirNote's title, exported for the same reason as EmptyRootNoteTitle:
+// the report and the --fail-on gate read the decision through the producer's constant (P-105).
+const ProjectDirNoteTitle = "A .claude directory under this root was not read"
+
+// projectDirName is the directory a project keeps its agent files in, next to its .mcp.json and
+// CLAUDE.md. Under a root it is a top-level directory like any other, and those are never read
+// (unowned.go) — but this one is no user's cache: it is the root the scan should have been given.
+const projectDirName = ".claude"
+
+// projectDirNote is raised when a root that is not a config root of its own holds a .claude directory
+// (P-105). A root one level above a project's .claude — the top level of a repository, the shape
+// hack/github-action.yml used to scan — reads none of the project's skills, hooks or permission
+// grants, and it used to say so only as one more name in the unowned note, a deliberate skip: "looks
+// safe", and a --fail-on gate that exited 0 on every push. Its own note is not a deliberate skip, so
+// the headline hedges, and the gate reads it (UnauditedRoot). The scan does not descend by itself:
+// --root means what was typed (P-012). leaves keeps what the unowned list used to say about a .claude
+// linked out of the root.
+func projectDirNote(path string, leaves bool) model.Finding {
+	why := "This root holds a .claude directory, which is where a project keeps its skills, settings.json " +
+		"(hooks and permission grants), subagents and commands. Nothing under it was read: it is a root of its " +
+		"own, one level below this one. Scan it as the root instead (--root .claude from the project's top " +
+		"level); the project's .mcp.json and CLAUDE.md next to it are read from there too."
+	snippet := "not read"
+	if leaves {
+		why += " It is a symlink that leaves this root, so that scan reads wherever it points."
+		snippet = "not read (symlink leaves the root)"
+	}
+	return model.Finding{
+		RuleID: "COV-000", Dimension: 0, Severity: model.SevLow, Source: model.SrcStatic,
+		Title:    ProjectDirNoteTitle,
+		Why:      why,
+		Evidence: []model.Evidence{{File: path, Line: 0, Snippet: snippet}},
+	}
+}
+
+// configRootLayout reports whether root is laid out as a config root of its own, so a .claude under
+// it is not the root the scan should have been given (P-105). Claude Code writes <cwd>/.claude/
+// settings.local.json when it runs from inside ~/.claude, and a project's .claude can hold one the same
+// way: a .claude inside a root named .claude is that, never a project above. A root with its own
+// settings.json, skills/ or plugin registry (a CLAUDE_CONFIG_DIR with another name, a repository of
+// skills) is read by its own layout; the .claude next to that stays an unowned entry, as it was.
+func configRootLayout(root string) bool {
+	if filepath.Base(AnchorRoot(root)) == projectDirName {
+		return true
+	}
+	for _, f := range []string{"settings.json", "settings.local.json", filepath.Join("plugins", "installed_plugins.json")} {
+		if fi, err := os.Stat(filepath.Join(root, f)); err == nil && !fi.IsDir() {
+			return true
+		}
+	}
+	fi, err := os.Stat(filepath.Join(root, "skills"))
+	return err == nil && fi.IsDir()
+}
+
+// UnauditedRoot returns the note that says what this root holds was not audited at all: a .claude
+// directory under it that was not read, or nothing collected. A gate cannot pass or fail on content
+// it never read, so --fail-on exits 4 on either (failGate, P-105). The project-dir note comes first,
+// because it names the fix; a root holding nothing but an unread .claude raises both.
+func UnauditedRoot(notes []model.Finding) (model.Finding, bool) {
+	var empty *model.Finding
+	for i, n := range notes {
+		if n.RuleID != "COV-000" {
+			continue
+		}
+		switch n.Title {
+		case ProjectDirNoteTitle:
+			return n, true
+		case EmptyRootNoteTitle:
+			if empty == nil {
+				empty = &notes[i]
+			}
+		}
+	}
+	if empty != nil {
+		return *empty, true
+	}
+	return model.Finding{}, false
+}
+
 // AnchorRoot is the one spelling of a root that anything deriving home from it, or judging it by
 // its name, may use: the absolute, cleaned path. filepath.Dir and filepath.Base answer about the
 // STRING. Clean alone fixed `--root ~/.claude/` (shell completion adds the slash), which left
@@ -332,17 +418,20 @@ func CollectAll(root string) Result {
 	res.Artifacts = append(res.Artifacts, mcp...)
 	res.Notes = append(res.Notes, mn...)
 
-	settings, cn := collectSettings(root, &res.Env)
+	settings, cn, approvals := collectSettings(root, &res.Env)
 	res.Artifacts = append(res.Artifacts, settings...)
 	res.Notes = append(res.Notes, cn...)
 
+	// home's .mcp.json is the project's whose settings were just read: PERM-009 on each server they
+	// approve (P-127).
 	pmcp, pmn := mcpServersFrom(filepath.Join(home, ".mcp.json"), "", &res.Env)
+	pmcp = withMCPApprovals(pmcp, approvals)
 	res.Artifacts = append(res.Artifacts, pmcp...)
 	res.Notes = append(res.Notes, pmn...)
 
 	// The root's own MCP configs, under every spelling of the root; see RootMCPConfigs.
 	for _, p := range RootMCPConfigs(root, home) {
-		rm, rmn := mcpServersFrom(p, "", &res.Env)
+		rm, rmn := rootMCPServers(p, &res.Env)
 		res.Artifacts = append(res.Artifacts, rm...)
 		res.Notes = append(res.Notes, rmn...)
 	}
@@ -558,17 +647,17 @@ func collectNestedSkills(dir, home, group string, extraDepth int, env *model.Env
 }
 
 func collectMCP(home string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
-	return mcpServersFrom(filepath.Join(home, ".claude.json"), "", env)
+	return claudeJSONServers(filepath.Join(home, claudeJSONName), env)
 }
 
 // rootMCPFiles are the MCP configs read at the top of the ROOT as well as in home, in home's order.
-var rootMCPFiles = []string{".claude.json", ".mcp.json"}
+var rootMCPFiles = []string{claudeJSONName, ".mcp.json"}
 
 // RootMCPConfigs returns the MCP configs at the top of root that CollectAll reads besides home's: each
 // of rootMCPFiles that is there and is not the very file home's copy is (a symlink to it, or a root
 // with no parent). One that exists but cannot be stat'ed is returned too, so mcpServersFrom says so.
 //
-// A repository scanned as its own root — the CI template's `bas-guard scan --root .` — keeps its project
+// A repository scanned as its own root — `bas-guard scan --root .`, what the CI template runs in a repository of skills — keeps its project
 // .mcp.json exactly there. Before the root was anchored, `.` read it only because home WAS the root;
 // the absolute spelling never read it, and unowned.go counts both names as owned, so not even a note
 // said so: a curl-into-shell server in a repository's own .mcp.json failed the gate under `.` and
@@ -686,62 +775,93 @@ func ScopeFor(path string) string {
 	return "base"
 }
 
-func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding) {
+// collectSettings reads root's settings files. The third result is what they say about the servers of the
+// project's .mcp.json, in settingsScopes' order (P-127).
+func collectSettings(root string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding, []mcpApproval) {
 	var out []model.ArtifactReport
 	var notes []model.Finding
+	var approvals []mcpApproval
 	for _, sc := range settingsScopes {
-		path := filepath.Join(root, sc.file)
-		b, err := safeio.ReadFile(path, safeio.MaxConfigBytes)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			notes = append(notes, ioNote(path, err))
-			continue
-		}
-		var doc struct {
-			Hooks       map[string]json.RawMessage `json:"hooks"`
-			Permissions struct {
-				Allow []string `json:"allow"`
-				Deny  []string `json:"deny"`
-			} `json:"permissions"`
-			// Env used to be dropped here entirely, so ANTHROPIC_BASE_URL, NODE_OPTIONS and a
-			// plaintext key in the block never reached a rule. Only its presence is
-			// decided here; detect renders the block as KEY=VALUE lines.
-			Env map[string]json.RawMessage `json:"env"`
-		}
-		if json.Unmarshal(b, &doc) != nil {
-			out = append(out, withParseError(model.KindHook, sc.file, path))
-			continue
-		}
-		// No OwnerRoot: a settings.json hook ships in no tree, so there is nothing to resolve
-		// a relative reference against beyond the root and home candidates hookUnits already tries.
-		hooks, hn := collectHooks(path, sc.nameSuffix, "", doc.Hooks, env)
-		out = append(out, hooks...)
-		notes = append(notes, hn...)
-		if perms := len(doc.Permissions.Allow) + len(doc.Permissions.Deny); perms > 0 {
-			out = append(out, artifact(model.KindPermission, "permissions"+sc.nameSuffix, path, ""))
-			env.Permissions += perms
-		}
-		if len(doc.Env) > 0 {
-			out = append(out, artifact(model.KindPermission, SettingsEnvName+sc.nameSuffix, path, ""))
-		}
+		arts, n, ap := settingsFrom(filepath.Join(root, sc.file), sc.nameSuffix, env)
+		out = append(out, arts...)
+		notes = append(notes, n...)
+		approvals = append(approvals, ap)
 	}
-	return out, notes
+	return out, notes, approvals
 }
 
-func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
-	candidates := []struct{ path, name string }{
+// settingsFrom reads one settings file: its hooks per (event, matcher, command), its permission list,
+// its env block and its helper commands (P-133), each an artifact. An absent file yields nothing; one that cannot be read, a note;
+// one that does not parse, an artifact carrying PARSE-000. The third result is what the file says about
+// the servers of a project's .mcp.json (mcpApprovalFrom); it is never an artifact of its own.
+func settingsFrom(path, nameSuffix string, env *model.EnvSummary) ([]model.ArtifactReport, []model.Finding, mcpApproval) {
+	b, err := safeio.ReadFile(path, safeio.MaxConfigBytes)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, mcpApproval{}
+		}
+		return nil, []model.Finding{ioNote(path, err)}, mcpApproval{}
+	}
+	var doc struct {
+		Hooks       map[string]json.RawMessage `json:"hooks"`
+		Permissions struct {
+			Allow []string `json:"allow"`
+			Deny  []string `json:"deny"`
+		} `json:"permissions"`
+		// Env used to be dropped here entirely, so ANTHROPIC_BASE_URL, NODE_OPTIONS and a
+		// plaintext key in the block never reached a rule. Only its presence is
+		// decided here; detect renders the block as KEY=VALUE lines.
+		Env map[string]json.RawMessage `json:"env"`
+	}
+	if json.Unmarshal(b, &doc) != nil {
+		return []model.ArtifactReport{withParseError(model.KindHook, filepath.Base(path), path)}, nil, mcpApproval{}
+	}
+	// No OwnerRoot: a settings.json hook ships in no tree, so there is nothing to resolve
+	// a relative reference against beyond the root and home candidates hookUnits already tries.
+	out, notes := collectHooks(path, nameSuffix, "", doc.Hooks, env)
+	if perms := len(doc.Permissions.Allow) + len(doc.Permissions.Deny); perms > 0 {
+		out = append(out, artifact(model.KindPermission, "permissions"+nameSuffix, path, ""))
+		env.Permissions += perms
+	}
+	if len(doc.Env) > 0 {
+		out = append(out, artifact(model.KindPermission, SettingsEnvName+nameSuffix, path, ""))
+	}
+	// The commands Claude Code runs for this file on its own, outside hooks (P-133): presence is decided here,
+	// detect.helperUnits reads them.
+	if len(SettingsHelpers(b)) > 0 {
+		out = append(out, artifact(model.KindPermission, SettingsHelpersName+nameSuffix, path, ""))
+	}
+	return out, notes, mcpApprovalFrom(path, b)
+}
+
+// instructionFile is an instruction file Claude Code loads for a config root: where it is, and the
+// name the report gives it.
+type instructionFile struct{ path, name string }
+
+// instructionFiles lists the instruction files of root and of home (the project, when root is a
+// project's .claude), in order. A scan reads them under its root (collectInstruction) and `check`
+// reads them under a directory target as a project's (withDeclared, P-125): one list, so the two
+// commands read the same files under the same names.
+func instructionFiles(root, home string) []instructionFile {
+	return []instructionFile{
 		{filepath.Join(root, "CLAUDE.md"), "CLAUDE.md"},
 		{filepath.Join(root, "CLAUDE.local.md"), "CLAUDE.local.md"},
 		{filepath.Join(home, "CLAUDE.md"), "CLAUDE.md (project)"},
 		{filepath.Join(home, "CLAUDE.local.md"), "CLAUDE.local.md (project)"},
 	}
+}
+
+// isFile reports whether p exists and is not a directory, following a symlink.
+func isFile(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+func collectInstruction(root, home string, known []model.ArtifactReport) ([]model.ArtifactReport, []model.Finding) {
 	var out []model.ArtifactReport
 	var refused []model.Finding
-	for _, c := range candidates {
-		fi, err := os.Stat(c.path)
-		if err != nil || fi.IsDir() {
+	for _, c := range instructionFiles(root, home) {
+		if !isFile(c.path) {
 			continue
 		}
 		if !withinDir(home, c.path) {

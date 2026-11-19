@@ -48,7 +48,12 @@ Four of those orderings are decisions, not sequence:
 - **`check` enters through layout routing, not through `scan`** —
   `collect.CollectTarget` decides most-specific-first: single file → `SKILL.md` → plugin
   manifest (the tree, plus its skills, commands and agents) → looks-like-a-root → any other
-  directory (read as one whole tree).
+  directory (read as one whole tree). A directory, and a file named `settings.json`,
+  `settings.local.json` or `.mcp.json`, are also read for the Claude Code configuration they declare —
+  in addition to the tree, never instead of it (`collect.withDeclared`, P-120); what that adds names the
+  target in `Within` and counts as one unit with it (`score.Families`). A directory's `CLAUDE.md` files are
+  read the same way, with the list and the `@` import expansion a scan of its `.claude` uses
+  (`collect.declaredInstructions`, P-125).
 
 Each package is an approximately pure stage over the immutable types in
 [`internal/model`](../internal/model/model.go).
@@ -217,14 +222,34 @@ generated from `builtinRules()` — add a rule, run `make docs`, or CI fails. Re
   matching, while evidence keeps the raw bytes — printing `curl …` when the file says `cu""rl`
   would tell the user something false about their own machine. Rules run on raw first, then
   normalised, so normalisation can only add findings, never silence one (notably `INJ-004`,
-  whose whole purpose is reporting zero-width characters).
+  whose whole purpose is reporting zero-width characters). Unicode tag characters
+  (U+E0000–E007F) are decoded there to the ASCII they mirror, because that is how a model reads
+  them ([`tags.go`](../internal/detect/tags.go), P-123): a sentence written in them meets every rule,
+  and `INJ-006` reports any tag character outside an emoji flag, with the hidden text decoded in its
+  explanation. The normalised string is the line as a reader sees it
+  ([`ignorable.go`](../internal/detect/ignorable.go), P-138): every character Unicode displays as nothing
+  (variation selectors among them) is dropped, and every space but the ASCII one is read as it, so a word split by an unseen character, or a sentence
+  whose spaces are no-break spaces, still meets the rules. Those characters are not in
+  `detect.Invisible`, which the report layer replaces in names: every emoji carries a selector.
+  Control characters stay in the line: removing them made a table of escapes in an ordinary package
+  read as a base64 blob, so a word split by one is still not found.
 - **Some checks are structural, not regex.** `EXFIL-001/002/003` and `OBF-004` accumulate
   three legs — credential read, encode, network egress — at two granularities. Two legs
   (credential + egress) complete a chain; encoding is an amplifier. Cross-file only reaches
   low + advisory, because unrelated files legitimately do each half. A same-file chain whose
   every network target is loopback drops to that same band, so a local sidecar cannot cap the
   environment at 69. `HOOK-002` (script outside HOME) and `HOOK-003` (HTTP hook) are also
-  structural: they score a surface the line-oriented rules cannot see.
+  structural: they score a surface the line-oriented rules cannot see. `HOOK-003` has a command
+  half (`internal/detect/hookegress*.go`, P-128): a reading of the hook command and the shell,
+  Python or Node scripts it runs that follows the event (stdin), its content fields and the
+  transcript forward through one file to a sender — not an interpreter. The same reading runs on a
+  settings file's status line, whose stdin is session metadata, so there only the transcript counts
+  (P-133).
+- **A settings file's helper commands are commands** (`collect.SettingsHelpers`, `detect.helperUnits`,
+  P-133): `apiKeyHelper`, `awsAuthRefresh`, `awsCredentialExport`, `gcpAuthRefresh`, `otelHeadersHelper`,
+  `processWrapper`, and the `command` of `statusLine` and `fileSuggestion` are one `settings helpers`
+  artifact per file, beside `settings env`. Each command runs the script rules with its evidence on the
+  line of its value; a local script it names is followed inside the boundary, or noted.
 - **Advisory means "we cannot confirm this."** Dimensions 7 and 8 are advisory by
   construction, and the report must say *not confirmed*. A tool that distinguishes suspicion
   from certainty is one you can put in CI.
@@ -245,7 +270,7 @@ built inline, so the epoch is all that covers them. Scan reports carry it as `ru
 without `make docs`. It covers **deterministic detection only** — what `overall` is
 computed from. **When you change deterministic detection code outside `builtinRules()`** —
 structural or shape checks, the role gate, the lexical layer, which files are read, `collect`'s
-credential-import check (`EXFIL-005`), `permcheck` — in a way that changes which findings an input
+credential-import check (`EXFIL-005`) and project MCP approval check (`PERM-009`), `permcheck` — in a way that changes which findings an input
 produces or their ID/dimension/severity/advisory flag, **bump `rulesEpoch` in the same commit.**
 Nothing enforces it; a forgotten bump lets two reports claim the same rules while different code
 produced them. The LLM judge is outside it altogether — prompts, grounding, consensus and severity
@@ -336,7 +361,8 @@ Full reference: [`docs/llm-judge.md`](llm-judge.md).
 header of [`rules.md`](rules.md), generated from the code; any number restated here would be a
 stale copy), including the shape checks in `detect/shape.go` (padding, disguised archives,
 shipped bytecode, registry redirects), permission audit with the escapable-binary table,
-per-command hook artifacts that follow referenced scripts, plugin collection (both
+per-command hook artifacts that follow referenced scripts, MCP servers in both scopes a `.claude.json` holds (the
+top level, and each project's local scope, the default of `claude mcp add`; `collect.localScopeServersFrom`), plugin collection (both
 `installed_plugins.json`, Claude Desktop's own plugin/skill store in `collect/desktop.go`, and
 the sandbox's `synced/<uuid>/` layout; a plugin's skills, commands and agents are artifacts of
 their own, following Claude Code's loader, `collect/plugincontents.go`), remote MCP connectors read from the desktop's cached

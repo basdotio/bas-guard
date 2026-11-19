@@ -80,17 +80,20 @@ type previewOpts struct {
 // previewReport is `llm preview --json`. It carries no time and nothing random, so the same input
 // on the same machine gives the same bytes.
 type previewReport struct {
-	Previews     string            `json:"previews"` // the command whose calls these are
-	Target       string            `json:"target"`
-	Endpoint     string            `json:"endpoint"`
-	Model        string            `json:"model"`
-	JudgeEnabled bool              `json:"judge_enabled"`
-	MaxCalls     int               `json:"max_calls"`
-	Calls        int               `json:"calls"`          // calls that would be sent
-	NotSent      int               `json:"calls_not_sent"` // calls the budget refuses
-	Instructions map[string]string `json:"instructions"`   // pass → its system message's task text
-	Artifacts    []previewArtifact `json:"artifacts"`
-	Downloads    []previewItem     `json:"downloads,omitempty"`
+	Previews string `json:"previews"` // the command whose calls these are
+	Target   string `json:"target"`
+	Endpoint string `json:"endpoint"`
+	Model    string `json:"model"`
+	// RequestOptions is what every request also carries (llm.request_options, P-107), as the judge block
+	// records it; absent when there are none.
+	RequestOptions string            `json:"request_options,omitempty"`
+	JudgeEnabled   bool              `json:"judge_enabled"`
+	MaxCalls       int               `json:"max_calls"`
+	Calls          int               `json:"calls"`          // calls that would be sent
+	NotSent        int               `json:"calls_not_sent"` // calls the budget refuses
+	Instructions   map[string]string `json:"instructions"`   // pass → its system message's task text
+	Artifacts      []previewArtifact `json:"artifacts"`
+	Downloads      []previewItem     `json:"downloads,omitempty"`
 }
 
 type previewItem struct {
@@ -129,7 +132,8 @@ func runLLMPreview(w io.Writer, o previewOpts) error {
 	}
 	sink := newPreviewSink()
 	rep := previewReport{Endpoint: redact.Endpoint(cfg.LLM.BaseURL), Model: judge.RequestModel(cfg.LLM.Model),
-		JudgeEnabled: cfg.JudgeReady(), MaxCalls: cfg.LLM.MaxCalls, Instructions: map[string]string{}}
+		RequestOptions: requestOptionsShown(cfg.LLM),
+		JudgeEnabled:   cfg.JudgeReady(), MaxCalls: cfg.LLM.MaxCalls, Instructions: map[string]string{}}
 	// The options each command passes, minus llm: the preview never runs the judge, it plans it.
 	if o.target != "" {
 		rep.Previews, rep.Target = "check --llm", o.target
@@ -201,6 +205,9 @@ func writePreviewText(w io.Writer, r previewReport) {
 	}
 	fmt.Fprintf(w, "What `%s` would send for %s. Nothing was sent.\n", r.Previews, clean(r.Target))
 	fmt.Fprintf(w, "Endpoint %s, model %s; the judge is %s in this config.\n", clean(r.Endpoint), clean(r.Model), enabled)
+	if r.RequestOptions != "" {
+		fmt.Fprintf(w, "Every request also carries %s (llm.request_options).\n", clean(r.RequestOptions))
+	}
 	fmt.Fprintf(w, "%d call(s) would be made", r.Calls)
 	if r.NotSent > 0 {
 		fmt.Fprintf(w, "; %d more are refused by llm.max_calls=%d", r.NotSent, r.MaxCalls)

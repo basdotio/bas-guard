@@ -111,6 +111,12 @@ type Row struct {
 	// acts on: "EXFIL-001 fired on 144 benign samples" is a work item, while "false positives
 	// are 5.5%" is only a status. Check does not inspect it.
 	Rules []string `json:"rules,omitempty"` // Scored only
+	// Files is where the flagging findings pointed, as paths relative to the sample tree. It
+	// feeds the corpus's optional `files` verdict field, which unlocks its location score:
+	// on a caught sample with a quoted deciding line, did the scanner name the file it is in.
+	// The adapter owns the mapping from the tool's own paths (aguard: Locator). Check does not
+	// inspect it; it is attribution, like Dimensions.
+	Files []string `json:"files,omitempty"` // Scored only
 	// JudgeUsage is what the tool's model-backed pass cost on this sample (aguard's --llm judge),
 	// folded from the tool's own output. Nil when that output carried no judge summary — every
 	// static run, and any sample routed where the judge does not run — so a static ledger is
@@ -143,16 +149,19 @@ type JudgeUsage struct {
 	Model string `json:"model,omitempty"`
 	// PassesOff names the optional questions the run did not ask, as the binary printed them (P-106):
 	// "result" when llm.result_pass was off. Absent when every pass was asked, or the binary predates it.
-	PassesOff        []string `json:"passes_off,omitempty"`
-	Calls            int      `json:"calls"`
-	Failed           int      `json:"failed"`
-	Skipped          int      `json:"skipped"`
-	Repaired         int      `json:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
-	Reasked          int      `json:"reasked,omitempty"`  // calls whose first reply was unreadable and that were asked once more (P-069)
-	TriageCalls      int      `json:"triage_calls"`
-	Retries          *int     `json:"retries,omitempty"`
-	PromptTokens     *int     `json:"prompt_tokens,omitempty"`
-	CompletionTokens *int     `json:"completion_tokens,omitempty"`
+	PassesOff []string `json:"passes_off,omitempty"`
+	// RequestOptions is the summary's request_options as the binary printed it (P-107): what every request
+	// also carried, such as thinking turned off. Absent when there were none, or the binary predates it.
+	RequestOptions   string `json:"request_options,omitempty"`
+	Calls            int    `json:"calls"`
+	Failed           int    `json:"failed"`
+	Skipped          int    `json:"skipped"`
+	Repaired         int    `json:"repaired,omitempty"` // answered calls read by the closed-early repair (P-034)
+	Reasked          int    `json:"reasked,omitempty"`  // calls whose first reply was unreadable and that were asked once more (P-069)
+	TriageCalls      int    `json:"triage_calls"`
+	Retries          *int   `json:"retries,omitempty"`
+	PromptTokens     *int   `json:"prompt_tokens,omitempty"`
+	CompletionTokens *int   `json:"completion_tokens,omitempty"`
 	// CachedPromptTokens is the part of PromptTokens the endpoint reported serving from its prompt
 	// cache, which the vendor bills at its own rate (P-071): a subset, never added to it.
 	CachedPromptTokens int `json:"cached_prompt_tokens,omitempty"`

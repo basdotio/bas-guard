@@ -55,6 +55,7 @@ func judgeUsage(out []byte, res model.ScanResult) *ledger.JudgeUsage {
 		CachedPromptTokens: j.CachedPromptTokens,
 		Model:              j.Model,
 		PassesOff:          j.PassesOff,
+		RequestOptions:     j.RequestOptions,
 		UsageByPass:        rowUsageByPass(j.UsageByPass),
 	}
 	if reported("triage_calls", j.TriageCalls) == nil {

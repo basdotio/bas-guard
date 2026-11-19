@@ -359,10 +359,11 @@ func TestCollectTarget_Routing(t *testing.T) {
 				t.Fatalf("CollectTarget: %v", err)
 			}
 			// One artifact for the target. A plugin's skills, commands and agents follow it as children
-			// of their own (P-044), so they are not a second routing answer.
+			// of their own (P-044), and so does the configuration a directory or file declares (P-120):
+			// neither is a second routing answer.
 			var own []model.ArtifactReport
 			for _, a := range res.Artifacts {
-				if a.Plugin == "" {
+				if a.Plugin == "" && a.Within == "" {
 					own = append(own, a)
 				}
 			}
@@ -421,8 +422,17 @@ func TestCollectTarget_RootStillRouted(t *testing.T) {
 				if kinds[model.KindDirectory] {
 					t.Error("root collapsed into a single directory artifact")
 				}
-			} else if !kinds[model.KindDirectory] || len(res.Artifacts) != 1 {
-				t.Errorf("settings content alone must not route to the root collectors; got %v", kinds)
+			} else {
+				// Read whole, first; the settings file's grants are read too, as the configuration the
+				// directory declares (P-120), and point back at the tree. The skills collector did not run.
+				if res.Artifacts[0].Kind != model.KindDirectory || kinds[model.KindSkill] {
+					t.Errorf("settings content alone must not route to the root collectors; got %v", kinds)
+				}
+				for _, a := range res.Artifacts[1:] {
+					if a.Within != res.Artifacts[0].Name {
+						t.Errorf("artifact %s:%s is not the tree's declared configuration (Within=%q)", a.Kind, a.Name, a.Within)
+					}
+				}
 			}
 		})
 	}

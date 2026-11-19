@@ -37,7 +37,7 @@ import (
 type logicalLine struct {
 	start   int    // 1-based physical line where this logical line begins
 	raw     string // physical lines joined at continuations; quoted in evidence
-	norm    string // raw with invisibles stripped and interior quoting folded; matched against
+	norm    string // raw with what draws nothing stripped, tags decoded, other spaces as ' ', interior quoting folded; matched against
 	comment bool   // every physical line it spans is comment-only
 }
 
@@ -172,6 +172,13 @@ func endsWithContinuation(lang commentLang, line string) bool {
 // renderers strip the same characters from attacker-chosen names and paths that this engine
 // reports inside file contents. One table, one definition — a second copy would drift,
 // and the failure would be a report whose file names can be rewritten by the file's author.
+//
+// Unicode tag characters draw nothing either and are deliberately NOT in this table (tags.go, P-123).
+// Emoji flags are written in them, so a tag present is not text hidden; and the judge's padding fold
+// reads this table, so a sentence of more than 32 tag characters would be sent to it as nothing.
+// Neither are variation selectors and the other default-ignorable characters (ignorable.go, P-138):
+// the normalized view drops them through drawsNothing, and this table stays what report.Sanitize may
+// replace in a name without turning every emoji into U+FFFD.
 func Invisible(r rune) bool { return invisible(r) }
 
 func invisible(r rune) bool {
@@ -191,7 +198,14 @@ func invisible(r rune) bool {
 }
 
 // normalizeForMatch renders the line as the interpreter would read it: invisible characters
-// gone, quoting that only serves to split a word folded away.
+// gone, quoting that only serves to split a word folded away, and Unicode tag characters decoded to
+// the ASCII they mirror — the reader there is the model, which reads them, and a sentence written in
+// them is otherwise invisible to every rule (P-123).
+//
+// "Invisible characters" is wider than invisible(): every character Unicode displays as nothing
+// goes, and a space that is not the ASCII one becomes it, so a word split by a variation selector,
+// or a sentence whose spaces are no-break spaces, is read as the reader sees it (ignorable.go,
+// P-138). Control characters stay: removing them invented a finding (ignorable.go says where).
 //
 // It DOES fold homoglyphs, via a small hand-written confusables table (see confusable). The table
 // is deliberately not the full Unicode confusables data: the goal is not general homoglyph detection,
@@ -236,13 +250,31 @@ var punctFold = map[rune]rune{
 	'’': '\'', '‘': '\'', '“': '"', '”': '"',
 }
 
-func normalizeForMatch(s string) string {
+func normalizeForMatch(s string) string { return foldWordQuoting(foldCharacters(s)) }
+
+// foldCharacters is normalizeForMatch without the quote folding: invisibles and everything else that
+// draws nothing dropped, tags decoded, every other space read as the ASCII one (ignorable.go, P-138),
+// homoglyphs and punctuation folded. It is the second view of a line of Python or Node (P-128), where a
+// quote that sits inside a word is a string literal (`data.get("cwd")`), not shell word-splitting.
+func foldCharacters(s string) string {
 	var stripped strings.Builder
 	stripped.Grow(len(s))
 	for _, r := range s {
 		switch {
 		case invisible(r):
 			// dropped
+		case IsTag(r):
+			// A tag character is read as the ASCII it mirrors, because a model reads it that way and that
+			// is the attack (tags.go, P-123); the language and cancel tags mirror nothing and go.
+			if c := decodeTag(r); c >= 0 {
+				stripped.WriteRune(c)
+			}
+		case readsAsBlank(r):
+			// A space that is not the ASCII one, or a character drawn as a blank cell: the reader sees
+			// two words, and so does the pattern (ignorable.go, P-138).
+			stripped.WriteByte(' ')
+		case drawsNothing(r):
+			// dropped: displayed as nothing, and not in invisible() for the reasons ignorable.go gives
 		case confusable[r] != 0:
 			stripped.WriteRune(confusable[r])
 		case punctFold[r] != 0:
@@ -251,7 +283,7 @@ func normalizeForMatch(s string) string {
 			stripped.WriteRune(r)
 		}
 	}
-	return foldWordQuoting(stripped.String())
+	return stripped.String()
 }
 
 // foldWordQuoting removes quoting used INSIDE a word (`cu""rl`, `cur'l'`, `c\url`) — a form
