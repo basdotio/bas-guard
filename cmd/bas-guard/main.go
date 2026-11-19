@@ -325,6 +325,9 @@ func runJudge(cfg config.Config, arts []model.ArtifactReport, home string, quiet
 	ctx, cancel := context.WithTimeout(context.Background(), total)
 	defer cancel()
 	client := judge.NewHTTP(cfg.LLM.BaseURL, key, cfg.LLM.Model, nil)
+	if err := client.SetRequestOptions(cfg.LLM.RequestOptions); err != nil {
+		return notRun("LLM judge did not run: llm.request_options refused", err)
+	}
 
 	started := time.Now()
 	opts := judgePlanOptions(cfg, home)

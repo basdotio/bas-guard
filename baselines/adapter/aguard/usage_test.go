@@ -278,3 +278,18 @@ func TestJudgeUsage_ModelAndUsageByPassReachTheRow(t *testing.T) {
 		t.Errorf("a summary without model or usage_by_pass folds into a row that carries them: %s", old)
 	}
 }
+
+// TestJudgeUsage_RequestOptionsReachTheRow (P-107): the request options a run sent reach the row as printed,
+// so a reading with thinking turned off is never compared with one that thought, unseen.
+func TestJudgeUsage_RequestOptionsReachTheRow(t *testing.T) {
+	doc := strings.Replace(budgetCut, `"completion_tokens":310}`, `"completion_tokens":310,"request_options":"{\"thinking\":{\"type\":\"disabled\"}}"}`, 1)
+	if doc == budgetCut {
+		t.Fatal("fixture: the replacement did not apply")
+	}
+	if got := foldDoc(t, doc); got.RequestOptions != `{"thinking":{"type":"disabled"}}` {
+		t.Errorf("request_options = %q; want the block's, as printed", got.RequestOptions)
+	}
+	if row := show(foldDoc(t, budgetCut)); strings.Contains(row, "request_options") {
+		t.Errorf("judge_usage %s carries request_options; want no key when the binary printed none", row)
+	}
+}

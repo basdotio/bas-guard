@@ -117,6 +117,7 @@ llm:
 | `max_calls` | 单次扫描的调用上限;`0`(默认)= 不限。超预算的调用会被跳过**并报出**,且点名哪些 artifact 没查。这是给你自己的时间和账单用的**礼貌性自限** —— 它是客户端配置,所以不是花费管控手段。 |
 | `max_retries` | `429`/`5xx` 的重试次数,遵守 `Retry-After`(默认 `2`)。重试是同一个问题重发,**不计入** `max_calls`;`4xx`(密钥错、模型名错)是真实答复,永不重试。 |
 | `samples` | 每个问题问几遍(默认 `1`)。`>1` 时一条发现必须过**多数**才能影响 effective 分 —— 见[共识采样](#共识采样-samples)。调用量按这个数翻倍。 |
+| `request_options` | 原样加进每个请求体的额外字段(P-107)—— 厂商在 chat-completions 字段之外接受的东西,比如 `thinking: {type: disabled}`。`model`、`messages`、`temperature`、`stream`、`n` 在加载配置时就拒绝。判官块里会记下来。见[会思考的模型](#会思考的模型)。 |
 | `authority` | `advisory`(默认)或 `escalate`。这个端点的意见能不能卡构建 —— 见[用判官卡闸门](#用判官卡闸门-fail-on-llm)。卡闸门还要 `samples: 3` 或更多。 |
 
 每次跑完会往 stderr 打一行 —— `N call(s) in 12.4s (p50 …, p95 …) · 0 retry · 0 failed ·
@@ -148,6 +149,26 @@ bas-guard scan --llm --config config.yaml
 ```
 
 大模型(gpt-4o、Qwen2.5-72B)语义判得更准;本地把一切留在本机。这个权衡由你定。
+
+### 会思考的模型
+
+有些模型默认先思考再回答,除非请求里说不要;思考按输出 token 计费,而判官的每次调用要的只是一小段 JSON 判决。
+`request_options` 把厂商自己的字段原样带上(P-107)。以智谱的 GLM 模型为例:
+
+```yaml
+llm:
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-5.3-flash
+  request_options:
+    thinking: { type: disabled }
+```
+
+别的厂商叫法不同(`reasoning_effort`、`enable_thinking`……);工具照你写的发,不认识任何厂商的字段。先跑
+`bas-guard llm test`:端点不接受某个字段时会在那里报错,不用等到扫描。用 `glm-5.3-flash` 在语料的 40 个良性 + 40 个恶意 skill 上、
+`samples: 3` 实测(P-107):关掉思考后输出 token 少了约九成(良性 −89%、恶意 −92%),一次 `check` 从 110 秒降到 15 秒;按判官
+口径,良性仍是 40 个里 4 个,恶意从 40 个里 33 个变成 32 个。这只是一个模型、一小批样本——会思考的模型也许正需要思考来判你扫的
+东西,拿它卡闸门之前先在自己的样本上量一量。这些选项是"哪个判官出的这份报告"的一部分 ——
+判官块、身份行、用量日志都会记下 —— 所以关了思考的读数不会在看不出来的情况下和思考过的读数放在一起比。
 
 ## 隐私
 
