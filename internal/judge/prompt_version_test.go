@@ -105,7 +105,8 @@ func TestPromptVersion_EveryInputIsDecided(t *testing.T) {
 		{reflect.TypeOf(Request{}), map[string]string{
 			"Artifact": notSent, "Mode": enumerated, "Declared": standIn, "Behavior": standIn, "Temperature": enumerated, "Reask": enumerated, "Nonce": standIn}},
 		{reflect.TypeOf(TriageItem{}), map[string]string{"RuleID": standIn, "Evidence": standIn}},
-		{reflect.TypeOf(chatRequest{}), map[string]string{"Model": standIn, "Messages": rendered, "Temperature": rendered}},
+		{reflect.TypeOf(chatRequest{}), map[string]string{"Model": standIn, "Messages": rendered, "Temperature": rendered,
+			"Extra": standIn}}, // P-107: llm.request_options, config like the model, recorded in the judge block
 		{reflect.TypeOf(chatMessage{}), map[string]string{"Role": rendered, "Content": rendered}},
 	} {
 		for i := 0; i < c.typ.NumField(); i++ {

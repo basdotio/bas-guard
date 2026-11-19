@@ -251,3 +251,60 @@ func TestLLMConfig_GateReady(t *testing.T) {
 		t.Errorf("MinSamplesToEscalate = %d; the measurements behind it were taken at 3 (P-041), change them before this", MinSamplesToEscalate)
 	}
 }
+
+// TestLoad_RequestOptions (P-107): llm.request_options is read as written — nested maps included — and a
+// member the judge sets itself, or a value that has no JSON form, is refused at load time rather than
+// sent. No key, no options.
+func TestLoad_RequestOptions(t *testing.T) {
+	load := func(t *testing.T, body string) (Config, error) {
+		t.Helper()
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return Load(p)
+	}
+	cfg, err := load(t, "llm:\n  enabled: true\n")
+	if err != nil || cfg.LLM.RequestOptions != nil {
+		t.Fatalf("no key: options %v, err %v", cfg.LLM.RequestOptions, err)
+	}
+	cfg, err = load(t, "llm:\n  request_options:\n    thinking:\n      type: disabled\n    max_tokens: 800\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := cfg.LLM.RequestOptionsJSON(); err != nil || got != `{"max_tokens":800,"thinking":{"type":"disabled"}}` {
+		t.Errorf("options read as %q (%v)", got, err)
+	}
+	for _, key := range ReservedRequestOptions {
+		if _, err := load(t, "llm:\n  request_options:\n    "+key+": x\n"); err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("request_options.%s: err %v, want a refusal naming it", key, err)
+		}
+	}
+	if _, err := load(t, "llm:\n  request_options:\n    weird:\n      1: x\n"); err == nil {
+		t.Error("a value with no JSON form (a map keyed by a number) was accepted")
+	}
+	// The same answer on every toolchain: the encoder refuses a number for a member name when built with
+	// go1.23.5 and writes it as text when built with go1.27.1, so Load says it, naming where.
+	for body, at := range map[string]string{
+		"llm:\n  request_options:\n    weird:\n      1: x\n":                          "llm.request_options.weird",
+		"llm:\n  request_options:\n    a:\n      b:\n        true: x\n":               "llm.request_options.a.b",
+		"llm:\n  request_options:\n    list:\n      - ok\n      - 2: x\n":             "llm.request_options.list[1]",
+		"llm:\n  request_options:\n    first:\n      1: x\n    second:\n      2: x\n": "llm.request_options.first",
+	} {
+		if _, err := load(t, body); err == nil || !strings.Contains(err.Error(), "config "+at+": a member name must be a string") {
+			t.Errorf("%q: err %v, want a refusal naming %s", body, err, at)
+		}
+	}
+	// A value that has no JSON form on any toolchain is still refused by the encoder.
+	if _, err := load(t, "llm:\n  request_options:\n    bad: .nan\n"); err == nil || !strings.Contains(err.Error(), "JSON form") {
+		t.Errorf("a NaN was accepted: %v", err)
+	}
+	// Reverse: text that looks like a number is a string member name, and nested lists and maps load.
+	cfg, err = load(t, "llm:\n  request_options:\n    extra_body:\n      \"1\": x\n      stop: [a, b]\n      nested: {k: {deep: 1}}\n")
+	if err != nil {
+		t.Fatalf("string member names refused: %v", err)
+	}
+	if got, _ := cfg.LLM.RequestOptionsJSON(); got != `{"extra_body":{"1":"x","nested":{"k":{"deep":1}},"stop":["a","b"]}}` {
+		t.Errorf("options read as %q", got)
+	}
+}
