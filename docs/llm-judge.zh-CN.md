@@ -117,10 +117,10 @@ llm:
 | `max_calls` | 单次扫描的调用上限;`0`(默认)= 不限。超预算的调用会被跳过**并报出**,且点名哪些 artifact 没查。这是给你自己的时间和账单用的**礼貌性自限** —— 它是客户端配置,所以不是花费管控手段。 |
 | `max_retries` | `429`/`5xx` 的重试次数,遵守 `Retry-After`(默认 `2`)。重试是同一个问题重发,**不计入** `max_calls`;`4xx`(密钥错、模型名错)是真实答复,永不重试。 |
 | `samples` | 每个问题问几遍(默认 `1`)。`>1` 时一条发现必须过**多数**才能影响 effective 分 —— 见[共识采样](#共识采样-samples)。调用量按这个数翻倍。 |
-| `request_options` | 原样加进每个请求体的额外字段(P-107)—— 厂商在 chat-completions 字段之外接受的东西,比如 `thinking: {type: disabled}`。`model`、`messages`、`temperature`、`stream`、`n` 在加载配置时就拒绝。判官块里会记下来。见[会思考的模型](#会思考的模型)。 |
+| `request_options` | 原样加进每个请求体的额外字段(P-107)—— 厂商在 chat-completions 字段之外接受的东西,比如 `thinking: {type: disabled}`。`model`、`messages`、`temperature`、`stream`、`n` 在加载配置时就拒绝,和下面任何一个本构建用不了的设置一样处理。判官块里会记下来。见[会思考的模型](#会思考的模型)。 |
 | `authority` | `advisory`(默认)或 `escalate`。这个端点的意见能不能卡构建 —— 见[用判官卡闸门](#用判官卡闸门-fail-on-llm)。卡闸门还要 `samples: 3` 或更多。 |
 
-**本构建用不了的 `llm` 段只拦判官,不拦别的。** 不认识的 `provider` 或 `authority`、解析不了的 `timeout` / `total_timeout`,
+**本构建用不了的 `llm` 段只拦判官,不拦别的。** 不认识的 `provider` 或 `authority`、解析不了的 `timeout` / `total_timeout`、`request_options` 里判官自己要设的字段,
 会让 `--llm`、`--fail-on-llm`、`llm test`、`llm status`、`llm preview` 带着原因退出码 2。不用判官的运行根本不读这一段:
 `scan` 和 `check` 照常跑、报告不变,在 stderr 说一次这一段被忽略了(`--quiet` 下不说),加载时闸门照常审。
 YAML 解析不了、或 `gate` 的值不认识,仍然让每条命令都停下。

@@ -27,6 +27,8 @@ func TestLoad_InvalidLLMSectionIsSetAside(t *testing.T) {
 		{"unknown authority", "  authority: maybe\n", `config llm.authority "maybe"`},
 		{"unparsable timeout", "  timeout: \"60 seconds\"\n", `config llm.timeout "60 seconds"`},
 		{"unparsable total_timeout", "  total_timeout: soon\n", `config llm.total_timeout "soon"`},
+		{"reserved request option", "  request_options:\n    model: other\n", `config llm.request_options.model`},
+		{"request option name not a string", "  request_options:\n    extra:\n      1: x\n", `config llm.request_options.extra`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

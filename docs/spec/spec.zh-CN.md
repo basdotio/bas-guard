@@ -510,7 +510,7 @@ llm:
   max_retries: 2                  # 429/5xx 退避重试(遵守 Retry-After);重试不计入 max_calls
   authority: advisory             # advisory | escalate —— 是否允许 --fail-on-llm 生效(§5.2.1 前提③)
   samples: 1                      # k-of-n 采样数(1=不采样);>1 时取多数,调用量按 N 倍计
-  # request_options: { thinking: { type: disabled } }  # 原样加进每个请求体的字段(P-107);model/messages/temperature/stream/n 拒绝
+  # request_options: { thinking: { type: disabled } }  # 原样加进每个请求体的字段(P-107);model/messages/temperature/stream/n 拒绝(和其他 llm 段错误一样搁置,P-084)
 ```
 - **默认 provider = OpenAI 兼容协议**:一套代码兼容本地小模型(Ollama 等)与云 API,满足"独立模型"要求且不锁死;**config 的零值仍指向本地**(`localhost:11434`)。**但用户实际走到的路是在线的**(2026-09-04 决定「先只考虑在线模型」):`bas-guard llm setup --list` 给的预设是 `deepseek` / `openai` / `qwen` 三个在线端点加 `openai_compatible` 自填;`provider` 可以是预设名,只填 base_url 和默认 model,用户写的一律优先,不认识的名字是加载错误而不是悄悄退回 localhost。所以 §16.4「托管端点必须是用户显式选择」靠 setup 让用户**选 provider** 这一步满足,而不是靠默认值。
 - **配置文件默认位置是 `$XDG_CONFIG_HOME/bas-guard/config.yaml`,否则 `~/.config/bas-guard/config.yaml`**(改名前的 `aguard` 目录在只有它存在时照旧读取,两个都在时用新的、`llm status` 注明旧的被忽略,P-082),在扫描 root **之外**:放进 `~/.claude` 会被当成无人认领的散落文件每次披露。

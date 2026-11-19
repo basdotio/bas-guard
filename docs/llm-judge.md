@@ -136,11 +136,12 @@ llm:
 | `max_calls` | Ceiling on calls per scan; `0` (default) = no limit. Over-budget calls are skipped **and reported**, naming what went unchecked. A courtesy self-limit for your own time and bill — being client-side, it is not a spend control. |
 | `max_retries` | Retries on `429`/`5xx`, honouring `Retry-After` (default `2`). A retry is the same question re-sent, so it doesn't count against `max_calls`; a `4xx` is a real answer and is never retried. |
 | `samples` | How many times each question is asked (default `1`). `>1` requires a **majority** before a finding may weigh on the effective score — see [Consensus](#consensus-samples). Multiplies the call count. |
-| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads. Recorded in the judge block. See [Thinking models](#thinking-models). |
+| `request_options` | Extra members added, as written, to every request body (P-107) — what a vendor takes beside the chat-completions members, such as `thinking: {type: disabled}`. `model`, `messages`, `temperature`, `stream` and `n` are refused when the config loads, like any setting below that this build cannot use. Recorded in the judge block. See [Thinking models](#thinking-models). |
 | `authority` | `advisory` (default) or `escalate`. Whether this endpoint's opinion may gate a build — see [Gating on the judge](#gating-on-the-judge-fail-on-llm). The gate also needs `samples: 3` or more. |
 
 **An `llm` section this build cannot use stops the judge, nothing else.** An unknown `provider` or
-`authority`, or a `timeout` / `total_timeout` that does not parse, makes `--llm`, `--fail-on-llm`,
+`authority`, a `timeout` / `total_timeout` that does not parse, or a `request_options` member the
+judge sets itself, makes `--llm`, `--fail-on-llm`,
 `llm test`, `llm status` and `llm preview` exit 2 with the reason. A run without the judge never
 reads the section: `scan` and `check` go ahead with the same report and say once on stderr that the
 section was ignored (not under `--quiet`), and the load-time gate keeps auditing. A file that does not
