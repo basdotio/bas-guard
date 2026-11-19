@@ -106,6 +106,28 @@ section was ignored.
    it is unusable; printing the stand-in defaults would describe a judge nobody configured.
    **Decided (2026-10-21)**: as recommended.
 
+## Merged with main before landing (2026-11-19)
+
+The branch waited a month; `main` had moved to `d3d8bce`. What moved, and what did not:
+
+- **Paths**: `cmd/aguard` is `cmd/bas-guard` and the module path is `github.com/basdotio/bas-guard` (P-082); the new
+  command test moved with its directory.
+- **P-107's request options join the section's own check.** `llm.request_options` naming a member the judge sets itself
+  (`model`, `messages`, `temperature`, `stream`, `n`), a member name that is not a string, or a value with no JSON form
+  was a fourth way, added after this proposal, for the whole file to fail `Load` — and so for the gate to answer
+  `GATE-000` "config error, this call was NOT audited" on every load. That check now runs in `LLMConfig.validate`, so
+  the section is set aside like the other three. `TestLoad_RequestOptions` reads the same messages through `Problem()`,
+  and `TestLoad_InvalidLLMSectionIsSetAside` has two more rows (a reserved member, a member name that is not a string).
+  The llm-judge pair, spec §11 and the judge rule say a refused request option stops the judge only.
+- Unchanged: the gate section and unparsable YAML still fail `Load`; every judge path still refuses with the message.
+
+Built binaries, a skill with no finding, `PreToolUse` through `hook`:
+
+| Config | `main` `d3d8bce` | This branch |
+|---|---|---|
+| `llm: {provider: not-a-provider}` | `GATE-000` config error, not audited; `check` exit 2 | audited; `check` exit 0 with one stderr line; `check --llm` exit 2 |
+| `llm: {request_options: {model: other}}` | `GATE-000` config error, not audited | audited; `check` exit 0 with one stderr line; `check --llm` exit 2 |
+
 ## Done
 
 ```
@@ -116,4 +138,5 @@ Evidence: reverse — TestInvalidLLMSection_JudgePathsStillRefuse green before a
 Evidence: built binary, config `llm: {provider: not-a-provider}`: scan, check, approve exit 2 → 0 (scan and check with one stderr warning); hook PreToolUse and SessionStart GATE-000 → audited; version and hash unchanged
 Evidence: P-075's positive control caught the blind spot (config.Load accepted the planted llm.provider); both isolation tests now plant an invalid gate.action
 Evidence: make verify: all gates passed (go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 2 go 1.23.5; fresh test cache)
+Evidence: after merging main d3d8bce (2026-11-19): make verify: all gates passed (go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 2 go 1.23.5); the two-row table above
 ```
