@@ -122,10 +122,44 @@ func (c LLMConfig) checkRequestOptions() error {
 			return fmt.Errorf("config llm.request_options.%s: the judge sets %q itself; remove it", k, k)
 		}
 	}
+	if at := nonStringMember("llm.request_options", c.RequestOptions); at != "" {
+		return fmt.Errorf("config %s: a member name must be a string", at)
+	}
 	if _, err := c.RequestOptionsJSON(); err != nil {
 		return fmt.Errorf("config llm.request_options: every value must have a JSON form: %w", err)
 	}
 	return nil
+}
+
+// nonStringMember is the path of the first map under v with a member name that is not a string (`1: x`
+// in YAML, which yaml.v3 hands over as a map[any]any), or "". The answer is given here because the
+// encoder's differs by toolchain: encoding/json refuses such a map when built with go1.23.5, the
+// release toolchain, and writes the number as the member's name when built with go1.27.1, so one config
+// would load on one build and not on the other (P-107). Keys are walked in order, so the path named is
+// the same on every run.
+func nonStringMember(path string, v any) string {
+	switch t := v.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if at := nonStringMember(path+"."+k, t[k]); at != "" {
+				return at
+			}
+		}
+	case map[any]any:
+		return path
+	case []any:
+		for i, e := range t {
+			if at := nonStringMember(fmt.Sprintf("%s[%d]", path, i), e); at != "" {
+				return at
+			}
+		}
+	}
+	return ""
 }
 
 // Default returns the safe default: LLM disabled, local endpoint.
