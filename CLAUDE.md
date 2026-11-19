@@ -37,7 +37,7 @@ make build                       # -> bin/aguard(CGO_ENABLED=0,version/commit/da
 make test                        # go test -race -cover ./...
 make lint                        # golangci-lint run ./...(govet staticcheck errcheck ineffassign unused gofmt goimports misspell)
 make docs                        # 从代码重新生成 docs/rules.md(加/改规则后必跑,CI 会校验)
-make verify                      # 一条命令跑完整个闸门(vet test lint docs漂移 plugin自扫 go指令),交付前必过
+make verify                      # 一条命令跑完整个闸门(vet test lint docs漂移 plugin自扫 changelog条目 go指令),交付前必过
 make hooks                       # 装 pre-commit 到 .git/hooks/(clone 后跑一次;没装的机器拦不到)
 make dist                        # 交叉编译到 dist/(darwin/linux;windows 见下)
 go vet ./...                     # CI 也会跑

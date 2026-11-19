@@ -32,6 +32,11 @@ conventions in `.claude/rules/conventions.md` explain the one dependency that tr
   never pooled across sources.
 - A change that touches an invariant (`.claude/rules/invariants.md`) or the data model updates
   `docs/spec/spec.zh-CN.md` in the same pull request and adds or extends an invariant test.
+- A change to what a user installs or runs (non-test Go under `cmd/` and `internal/`, `plugin/`, `npm/`,
+  `hack/github-action.yml`) adds an entry under `## Unreleased` in `CHANGELOG.md` in the same pull request:
+  `- **What changed** (P-NNN, @your-login, YYYY-MM-DD). …`. `make verify` and the `changelog` CI job fail
+  without one. When no user can observe the change, put a line `Changelog: none — <reason>` in a commit
+  message instead. A release moves the entries under its version as written.
 - Confirmed bypasses, coverage gaps and rejected approaches are recorded under `issues/` with the
   evidence; a fix that leaves nothing worth knowing afterwards needs no record beyond its commit.
 

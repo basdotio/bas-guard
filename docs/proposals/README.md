@@ -22,7 +22,7 @@ always drift. A state change is one `git mv`; the file name stays the same, and 
 |---|---|---|
 | `draft/` | Proposed; the maintainer has not yet said whether it is worth designing (on the branch) | Only the problem, source, consequences and initial direction |
 | `design/` | The maintainer said it is worth designing. Add the Done criteria, Out of scope, Must not claim and Work items, and ask the Open questions **all at once**; once the maintainer has answered, it is accepted and implementation follows; it stays here until the PR is opened (on the branch) | All six sections |
-| `complete/` | Finished, and the maintainer said ship it; the "Done" section is filled in, with evidence lines, and reaches `main` with the PR. **Release records also go here** (`NNN-release-x.y.z.md`, not through draft/design) | Six sections + "Done"; a release record holds the included Ps, the changelog, what changed where, and evidence lines |
+| `complete/` | Finished, and the maintainer said ship it; the "Done" section is filled in, with evidence lines, and reaches `main` with the PR. **Release records also go here** (`NNN-release-x.y.z.md`, not through draft/design) | Six sections + "Done"; a release record holds the included Ps, the changelog (the `## Unreleased` entries of `CHANGELOG.md`, moved under the version as written, P-141), what changed where, and evidence lines |
 | `rejected/` | Finished or half done and the maintainer said no, or the same thing as another proposal; also reaches `main` with the PR | The body gives the reason for rejection, or which proposal it was merged into |
 
 "In progress" is not a directory: an existing `p/NNN-*` branch means in progress. Each of the four directories carries a
