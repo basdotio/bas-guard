@@ -1,0 +1,11 @@
+{"sample":"ben-mcp-gh-ethan-li222-shaniu-agent-scripts","path":"corpus/benign/mcp/gh-ethan-li222-shaniu-agent-scripts","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-mohan-c0des-mcp-alexa","path":"corpus/benign/mcp/gh-mohan-c0des-mcp-alexa","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-pranesh-2005-mcp-client","path":"corpus/benign/mcp/gh-pranesh-2005-mcp-client","class":"benign","surface":["mcp"]}
+{"sample":"ben-mcp-gh-wozibile5555-max-ai-fishing-game-main-tutusagi-mpp26-6-27","path":"corpus/benign/mcp/gh-wozibile5555-max-ai-fishing-game-main-tutusagi-mpp26-6-27","class":"benign","surface":["mcp"]}
+{"sample":"ben-skill-gh-thuroi0787-absent-author-paper-slop-screen","path":"corpus/benign/skills/gh-thuroi0787-absent-author-paper-slop-screen","class":"benign","surface":["skills"]}
+{"sample":"ben-skill-md-amarbel-llc-dodder-design-patterns-hamster-style","path":"corpus/benign/skills/md-amarbel-llc-dodder-design-patterns-hamster-style","class":"benign","surface":["skills"]}
+{"sample":"ben-skill-md-changgenglu-changgenglu-blog-code-mentor","path":"corpus/benign/skills/md-changgenglu-changgenglu-blog-code-mentor","class":"benign","surface":["skills"]}
+{"sample":"ben-skill-md-vamseeachanta-workspace-hub-cli-productivity","path":"corpus/benign/skills/md-vamseeachanta-workspace-hub-cli-productivity","class":"benign","surface":["skills"]}
+{"sample":"mal-mcp-ci-result_poisoning_data_injection","path":"corpus/malicious/mcp/ci-result_poisoning_data_injection","class":"malicious","surface":["mcp"],"severity":"high"}
+{"sample":"mal-mcp-ci-security_policy_bypass_rule_manipulation","path":"corpus/malicious/mcp/ci-security_policy_bypass_rule_manipulation","class":"malicious","surface":["mcp"],"severity":"high"}
+{"sample":"mal-skill-si-hf_dataset_creator-2649e32ce0","path":"corpus/malicious/skills/si-hf_dataset_creator-2649e32ce0","class":"malicious","surface":["skills"],"severity":"high"}

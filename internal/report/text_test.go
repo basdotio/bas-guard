@@ -674,6 +674,56 @@ func TestText_BidiInNamesIsNeutralised(t *testing.T) {
 	}
 }
 
+// TestText_TagCharactersInNamesAreNeutralised (P-123): Unicode tag characters (U+E0000–E007F) draw nothing,
+// so a file named `setup<tags "-evil">.sh` printed as `setup.sh` in both human reports while the file on
+// disk is another name. Text hidden in them gets the same visible mark as a bidi override; an emoji flag,
+// the one legitimate use of tag characters, is left alone; JSON keeps the bytes.
+func TestText_TagCharactersInNamesAreNeutralised(t *testing.T) {
+	tagged := func(s string) string {
+		var b strings.Builder
+		for _, c := range s {
+			b.WriteRune(0xE0000 + c)
+		}
+		return b.String()
+	}
+	evil := "setup" + tagged("-evil") + ".sh"
+	scotland := "\U0001F3F4" + tagged("gbsct") + "\U000E007F"
+	r := model.ScanResult{
+		Overall: 40,
+		Artifacts: []model.ArtifactReport{{
+			Kind: model.KindSkill, Name: "fixtures-" + scotland, Path: "/x/skill", Findings: []model.Finding{{
+				RuleID: "EXEC-001", Dimension: 4, Severity: model.SevHigh, Source: model.SrcStatic,
+				Title: "curl piped to shell", Why: "runs remote code",
+				Evidence: []model.Evidence{{File: "skill/" + evil, Line: 2, Snippet: "curl x | bash"}},
+			}},
+		}},
+	}
+	var tb bytes.Buffer
+	Text(&tb, r)
+	var hb bytes.Buffer
+	if err := HTML(&hb, r); err != nil {
+		t.Fatal(err)
+	}
+	for name, out := range map[string]string{"terminal": tb.String(), "HTML": hb.String()} {
+		if strings.Contains(out, evil) || strings.Contains(out, tagged("-evil")) {
+			t.Errorf("%s: text hidden in tag characters survived into the report", name)
+		}
+		if !strings.Contains(out, "setup�����.sh") {
+			t.Errorf("%s: each cleaned tag character must leave a visible mark", name)
+		}
+		if !strings.Contains(out, "fixtures-"+scotland) {
+			t.Errorf("%s: an emoji flag is not hidden text and must render as written", name)
+		}
+	}
+	js, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(js), evil) {
+		t.Error("JSON must carry the original bytes")
+	}
+}
+
 // TestText_WorstArtifactBesideTheMean pins the worst-artifact line: the headline is a mean, the worst item is
 // printed next to it with the spread, and the line is absent when it would only restate.
 func TestText_WorstArtifactBesideTheMean(t *testing.T) {

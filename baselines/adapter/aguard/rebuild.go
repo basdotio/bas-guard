@@ -36,13 +36,13 @@ func (a *Adapter) Rebuild(s corpus.Sample, tree string, raw []byte) (ledger.Row,
 
 	dir := filepath.Join(a.Work, filepath.Base(s.Sample))
 	defer func() { _ = os.RemoveAll(dir) }()
-	_, err := Stage(tree, s.Sample, dir)
+	st, err := Stage(tree, s.Sample, dir)
 	var np NotPlaceable
 	switch {
 	case errors.As(err, &np):
-		return checked(row, res, raw, np, a.Threshold), res, nil
+		return checked(row, res, raw, np, a.Threshold, Locator{ID: s.Sample, Tree: tree}), res, nil
 	case err != nil:
 		return ledger.Row{}, model.ScanResult{}, fmt.Errorf("staging %s to find its route: %w", s.Sample, err)
 	}
-	return scanned(row, res, raw, a.Threshold), res, nil
+	return scanned(row, res, raw, a.Threshold, Locator{ID: s.Sample, Loose: st.Loose, Tree: tree}), res, nil
 }

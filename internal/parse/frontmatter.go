@@ -112,6 +112,14 @@ func splitFrontmatter(s string) (front, body string, bodyLine int) {
 	return front, body, lineOf(orig, len(orig)-len(body))
 }
 
+// BodyOffset is the byte offset in s at which the body after the frontmatter begins, by the same
+// reading as everything else here: the text Claude Code hands on as a skill's or command's content,
+// where it looks for the shell commands it runs on invocation (P-132). The body is s[BodyOffset(s):].
+func BodyOffset(s string) int {
+	_, body, _ := splitFrontmatter(s)
+	return len(s) - len(body) // body is always a suffix of s
+}
+
 // lineOf returns the 1-based line number of byte offset in s.
 func lineOf(s string, offset int) int {
 	if offset < 0 || offset > len(s) {

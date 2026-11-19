@@ -39,7 +39,9 @@ bas-guard version
 ```
 
 Exit codes: `0` below threshold · `1` a finding at or above `--fail-on` · `2` runtime error
-(the scan did not happen — never read a `2` as a pass) · `3` `clean` acted partially. A run cut
+(the scan did not happen — never read a `2` as a pass) · `3` `clean` acted partially · `4` a gate
+could not be evaluated (with `--fail-on`, the root held nothing to check or a project's `.claude` it
+did not read; with `--fail-on-llm`, the judge could not answer for everything). A run cut
 short by a signal ends as `128 + signal`, like any Unix program: `130` for Ctrl-C, `141` when
 the output pipe is closed (`bas-guard scan | head`). Anything non-zero that is not 1 or 3 means
 you did not get a verdict.

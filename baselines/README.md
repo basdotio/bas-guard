@@ -245,7 +245,7 @@ for `scan`, or handed to `check`) and its corpus source. A `raw/` whose judge su
 | file | what it is |
 |---|---|
 | `judge.jsonl` | one row per work-list sample, in work-list order: the schema of the committed judge runs, plus each vote's `kind` (the aguard artifact kind it sits on) and `incomplete` when the answer is not complete |
-| `verdicts.jsonl` | what `corpus score` reads, folded at the judge's predicate: malicious when a deterministic finding is at or above the threshold, or an escalated (grounded and k of n) LLM finding is and its rule is not `LLM-009` |
+| `verdicts.jsonl` | what `corpus score` reads, folded at the judge's predicate: malicious when a deterministic finding is at or above the threshold, or an escalated (grounded and k of n) LLM finding is and its rule is not `LLM-009`. Since 2026-10-29 each flagged row also carries `files`, the flagging findings' evidence mapped back onto the sample tree (`aguard.Locator`), which is what the scorer's location line — did the scanner name the file the label's quote is in — reads |
 | `ledger.jsonl` | the merged ledger, every row rebuilt from `raw/` by the aguard adapter's own code (`Rebuild`) and checked with `ledger.Check` against the whole work list |
 | `per-kind-rule.txt` | generated, never hand-edited: FP, FP per artifact, FP_any and recall per (aguard kind, rule), hard negatives on their own lines, Δrecall per kind, and rows per corpus source; the `run.SumJudgeUsage` totals in its header |
 | `incomplete.jsonl` | the work-list lines of every sample without a complete answer |

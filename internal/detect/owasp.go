@@ -68,6 +68,8 @@ var asiByRule = map[string][]string{
 	"INJ-003": {"ASI-01"},
 	"INJ-004": {"ASI-01"}, // hidden characters: concealment in service of a hijack
 	"INJ-005": {"ASI-01"}, // a fetched instruction file the agent acts on
+	"INJ-006": {"ASI-01"}, // text in tag characters: concealment in service of a hijack, as INJ-004
+	"INJ-007": {"ASI-01"}, // a comment the reader is not shown, written for the model
 	"OBF-005": {"ASI-01"}, // homoglyph disguise: same, by a different mechanism
 	// Connector tool-description poisoning: injection delivered through the tool list.
 	"MCP-001":   {"ASI-01", "ASI-02"},
@@ -93,6 +95,10 @@ var asiByRule = map[string][]string{
 	"EXEC-013": {"ASI-05"}, // a script hooked into every new shell: execution that outlives the skill and needs no further invocation
 	"EXEC-012": {"ASI-05"}, // curl|bash spelled with $(…) or <(…) — the same unrestricted execution of whatever a URL serves // a base64 payload decoded straight into a shell — unrestricted execution of hidden code
 
+	// A skill's own shell runs code it downloads, on invocation and unread (P-132): execution, and the
+	// code comes from outside the tree.
+	"EXEC-014": {"ASI-05", "ASI-04"},
+
 	// Reverse shell: a shell handed to a remote party is unrestricted code execution. Unlike
 	// BD-001/002/003 (advisory heuristics, deliberately unmapped) this is a definite construct.
 	"BD-004": {"ASI-05"},
@@ -103,6 +109,7 @@ var asiByRule = map[string][]string{
 	"SUP-003": {"ASI-04"},
 	"SUP-004": {"ASI-04"}, // instructions pointing the agent into a tree the scan does not read
 	"SUP-007": {"ASI-04"}, // code fetched over plaintext http: the network path chooses what runs
+	"SUP-011": {"ASI-04"}, // a skill's own shell runs a registry package at a version that can move
 
 	// Filesystem — reach beyond what the task needs, and destructive reach.
 	"FS-001": {"ASI-02"},

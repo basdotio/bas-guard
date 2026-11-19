@@ -14,12 +14,14 @@ import (
 
 // judgedDoc is a scan result shaped like a judged sample: a deterministic high, a judge vote,
 // scan-level notes, and a judge summary that reports its own triage count, so the row carries
-// every field Scan derives from the bytes (verdict, severity, rules, dimensions, judge_usage).
+// every field Scan derives from the bytes (verdict, severity, rules, dimensions, files,
+// judge_usage). The static finding points at the staged SKILL.md the way aguard reports it —
+// relative to the config root — so files has a mapping to get wrong.
 const judgedDoc = `{
   "root": "/staged/home/.claude",
   "artifacts": [{"kind": "skill", "name": "x", "path": "/staged/home/.claude/skills/x", "score": 60,
     "findings": [
-      {"rule_id": "EXE-001", "dimension": 4, "severity": "high", "title": "t", "why": "w", "evidence": [], "source": "static"},
+      {"rule_id": "EXE-001", "dimension": 4, "severity": "high", "title": "t", "why": "w", "evidence": [{"file": "skills/s/SKILL.md", "line": 5, "snippet": "x"}], "source": "static"},
       {"rule_id": "LLM-003", "dimension": 1, "severity": "high", "title": "t", "why": "w [3 of 3 samples agreed]", "evidence": [], "source": "llm", "escalates": true}
     ]}],
   "notes": [{"rule_id": "LLM-000", "dimension": 0, "severity": "low", "title": "t", "why": "w", "evidence": [], "source": "llm"}],
@@ -33,7 +35,7 @@ const judgedDoc = `{
 const checkDoc = `{
   "root": "/corpus/malicious/mcp/srv",
   "artifacts": [{"kind": "directory", "name": "srv", "path": "/corpus/malicious/mcp/srv", "score": 70,
-    "findings": [{"rule_id": "EXE-002", "dimension": 4, "severity": "medium", "title": "t", "why": "w", "evidence": [], "source": "static"}]}],
+    "findings": [{"rule_id": "EXE-002", "dimension": 4, "severity": "medium", "title": "t", "why": "w", "evidence": [{"file": "server.py", "line": 1, "snippet": "x"}], "source": "static"}]}],
   "notes": []
 }
 `
@@ -72,6 +74,9 @@ func TestRebuild_EqualsScan(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("rebuilt row differs from Scan's:\n got %+v\nwant %+v", got, want)
+			}
+			if want.Verdict == "malicious" && !reflect.DeepEqual(want.Files, []string{tc.file}) {
+				t.Errorf("files = %v, want [%s]: the flagging finding's evidence, mapped onto the sample tree", want.Files, tc.file)
 			}
 			if len(res.Artifacts) != 1 {
 				t.Errorf("Rebuild returned %d artifacts, want the one raw/ holds", len(res.Artifacts))
