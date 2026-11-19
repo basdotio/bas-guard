@@ -141,3 +141,22 @@ Evidence: measured, corpus 850fc546, 100 benign + 100 malicious skills drawn by 
 Evidence: one check at a time on 5 benign + 5 malicious of the same skills, main and branch alternating: median wall time 7.5 s (main) → 8.2 s (benign 12.9 → 12.6 s, malicious 6.2 → 6.7 s)
 Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
+
+### 2026-11-19: merged with `main` before landing
+
+The pull request sat for three weeks while `main` moved 236 commits (P-107's `llm.request_options` and the judge's
+server pass among them), and no longer merged. The maintainer said to land it, so `main` at `d3d8bce` was merged into
+the branch. What that showed:
+
+- **Conflicts**: six files, each one where this proposal and P-107 added a member or a line at the same place, kept
+  both: the `JudgeSummary` literal in `cmd/bas-guard/usagelog_test.go` (`Settled` and `RequestOptions`), the preview
+  report's fields and its plan line in `cmd/bas-guard/preview.go` (the request options line, then "Up to N call(s)"),
+  two adjacent tests in `baselines/adapter/aguard/usage_test.go`, three lines of `docs/spec/spec.zh-CN.md`, and the
+  index row. The judgefold golden kept this proposal's two settled skill rows and took `main`'s `files` member on
+  `mal-mcp-py`.
+- **Nothing it decides moved**: the merged build prints `rules=64f57c6f747c`, `judge-prompt=9cd57da1a4bd` and
+  `judge-excerpt=10`, the values `main` prints. The Evidence above names the build of 2026-10-26; the measured numbers
+  are that build's and were not taken again.
+
+`make verify`: all gates passed on the merged branch; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod
+line 3 "go 1.23.5".
