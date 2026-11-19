@@ -125,3 +125,25 @@ Evidence: counterfactual on 100 benign + 100 malicious corpus skills (corpus 850
 Evidence: live, the result pass off (the build before W6 with result_pass unset, which asked what `result_pass: false` asks now) against main on the same skills, 199 complete on both (one sample was no longer in the corpus checkout when this build ran; the other 199 trees are byte-identical between the two runs): benign calls 955 → 655, prompt tokens 1,691,009 → 1,043,515, completion tokens 446,186 → 279,998, false positives 9 → 8; malicious calls 1,050 → 756, prompt tokens 1,705,757 → 1,153,070, completion tokens 374,182 → 276,739, at the judge verdict 75 → 72; LLM-011 in 0 of this build's reports (39 findings in main's), passes_off ["result"] on all 199
 Evidence: make verify: all gates passed; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod line 3 "go 1.23.5"
 ```
+
+### 2026-11-19: merged with `main` before landing
+
+The pull request sat for three weeks while `main` moved 240 commits (P-107's `llm.request_options` and the judge's
+server pass among them), and no longer merged. The maintainer said to land it, so `main` at `d3d8bce` was merged into
+the branch. What that showed:
+
+- **Conflicts**: seventeen files, each one where this proposal and P-107 added a member, a line or a test at the same
+  place, kept both: `LLMConfig` (`ResultPass` and `RequestOptions`, with their methods), `JudgeSummary`, the usage log
+  line and its test, the ledger row and its fold, the judge identity line (`· result pass off`, then
+  `· request_options …`) and its tests, the config tests, `config.example.yaml`, the option tables of both
+  `docs/llm-judge` files, two lines of `docs/spec/spec.zh-CN.md`, the paragraph in `.claude/rules/judge.md`, and the
+  index row. Where both members are printed, `passes_off` comes before `request_options`.
+- **Nothing it decides moved**: the merged build prints `rules=64f57c6f747c`, `judge-prompt=9cd57da1a4bd` and
+  `judge-excerpt=10`, the values `main` prints; with `result_pass` unset the plan is still `main`'s. The Evidence above
+  names the build of 2026-10-26; the measured numbers are that build's and were not taken again. Open question 4's
+  `judge-excerpt` numbering is history: `main` reached 10 by P-117, and this proposal moves nothing.
+- **P-103** (PR #128), also landing now, touches the usage log line, its fold test and the same spec line: whichever
+  merges second takes `main` again, keeping both.
+
+`make verify`: all gates passed on the merged branch; go version go1.23.5 darwin/arm64, no toolchain switch; go.mod
+line 3 "go 1.23.5".
