@@ -68,18 +68,13 @@ type dispatchQueue struct {
 func newDispatchQueue(tasks []task, samples int) *dispatchQueue {
 	q := &dispatchQueue{waiting: map[int][]int{}, question: map[int]int{}, conditional: map[int][]int{},
 		unanswered: map[int]int{}}
+	needed := neededSamples(samples)
 	first := map[int]int{} // judge group → index of its first sample
 	position := map[int]int{}
 	for i, t := range tasks {
 		if t.kind != taskJudge {
 			q.ready = append(q.ready, i)
 			continue
-		}
-		// A question is asked `samples` times, except one that sets its own count (the destination
-		// question, P-142: at least three whatever the run asks).
-		needed := neededSamples(samples)
-		if t.samples > 0 {
-			needed = neededSamples(t.samples)
 		}
 		f, ok := first[t.group]
 		pos := position[t.group]

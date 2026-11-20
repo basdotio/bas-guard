@@ -28,7 +28,6 @@ var passRates = map[string]model.PassUsage{
 	"mcp-config":    {PromptTokens: 7000, CompletionTokens: 77, CachedPromptTokens: 7},
 	"server":        {PromptTokens: 8000, CompletionTokens: 88, CachedPromptTokens: 8},
 	"triage":        {PromptTokens: 9000, CompletionTokens: 99, CachedPromptTokens: 9},
-	"destination":   {PromptTokens: 10000, CompletionTokens: 110, CachedPromptTokens: 10},
 }
 
 // passOf names the pass a system message belongs to, by the task text it starts with: the stub's
@@ -38,7 +37,7 @@ func passOf(t *testing.T, system string) string {
 	if strings.HasPrefix(system, triageTask+" ") {
 		return "triage"
 	}
-	for _, m := range passModes {
+	for m := ModeIntent; m <= ModeSteering; m++ {
 		if strings.HasPrefix(system, modeTask(m)+" TRUST RULE") {
 			return modeInfo(m).pass
 		}

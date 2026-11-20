@@ -131,43 +131,6 @@ type Finding struct {
 	// carries no weight. Deterministic findings never set this: they are not escalating
 	// anything, they ARE the score.
 	Escalates bool `json:"escalates,omitempty"`
-	// Ruling is the judge's answer to the destination question about this finding (P-142, spec
-	// §5.2.1). Only a deterministic finding of an unconfirmed rule (score.Unconfirmed) is ever asked
-	// about, and the ruling never changes the finding: rule, severity, evidence and position stay as
-	// the rules produced them, and Score, Overall and --fail-on do not read it. What it decides is
-	// whether the finding counts in the judged score and gate (score.Judged). Nil when the judge did
-	// not run, was not asked, or could not be shown the whole of what the rule counted.
-	Ruling *Ruling `json:"ruling,omitempty"`
-}
-
-// Answers to the destination question (P-142). The list is closed: a reply outside it reads as
-// RulingUnclear, the side on which nothing is cleared.
-const (
-	RulingOwnService = "own-service" // every credential the file reads goes only to the service it belongs to
-	RulingElsewhere  = "elsewhere"   // a credential is sent to a host that is not that service
-	RulingUnclear    = "unclear"     // the lines shown do not say
-)
-
-// Ruling is what a majority of the judge's samples answered about one unconfirmed finding, and
-// whether that answer met every bar for the finding to stop counting in the judged score.
-//
-// The model's text is in Destination and Evidence only, and both are located in what was sent
-// before they are stored: the judge never writes a sentence of its own here.
-type Ruling struct {
-	// Answer is the majority's answer; K of the N samples asked gave it.
-	Answer string `json:"answer"`
-	K      int    `json:"k"`
-	N      int    `json:"n"`
-	// Destination is what the tool read from the agreeing samples' quoted lines: a host, or the name
-	// of the configuration value the destination is taken from. Empty unless they all name one.
-	Destination string `json:"destination,omitempty"`
-	// Evidence is the quoted line the ruling rests on, at its line in the scanned file.
-	Evidence []Evidence `json:"evidence,omitempty"`
-	// Clears is set by the judge only when Answer is RulingOwnService, K is a majority of at least
-	// three samples, every agreeing quote was located in what was sent, they name one Destination and
-	// no sample of the question tripped the barrier. score.Judged reads this flag and checks the rule
-	// itself; nothing else may set it.
-	Clears bool `json:"clears"`
 }
 
 // Hook is ONE hook from a settings file (spec §4: matcher + command, or type=http + url).
@@ -694,8 +657,7 @@ type JudgeSummary struct {
 	Model          string `json:"model,omitempty"`
 	Samples        int    `json:"samples,omitempty"`
 	// PassesOff names the optional questions the run did not ask, by the name `bas-guard llm preview`
-	// gives the pass: "result" unless llm.result_pass is true (P-106), "destination" when llm.rulings is
-	// false (P-142). Absent when every pass was asked,
+	// gives the pass: "result" unless llm.result_pass is true (P-106). Absent when every pass was asked,
 	// which is also how a report from before the option reads; set, like model and samples, only when
 	// the judge was configured to run.
 	PassesOff []string `json:"passes_off,omitempty"`

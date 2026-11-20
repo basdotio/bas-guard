@@ -69,36 +69,6 @@ func Escalating(f model.Finding) bool {
 	return f.Source != model.SrcLLM || f.Escalates
 }
 
-// unconfirmedRules is the closed set of rules whose high finding the judge may rule on (P-142).
-// They are the rules whose own text says "a suspicious-surface flag, not confirmed" and that fire on
-// more benign samples than malicious ones (EXFIL-001: 214 and 65 of the corpus; EXFIL-003: 46 and
-// 21). It is code, not configuration and not something a reply can name: adding a rule is a proposal
-// with its own measurement, because every rule here is one whose finding a model's answer can take
-// out of the judged score.
-var unconfirmedRules = map[string]bool{"EXFIL-001": true, "EXFIL-003": true}
-
-// Unconfirmed reports whether f is a finding the judge may rule on: deterministic, at high, of a
-// rule in the closed set. The judge asks its destination question only about these, and Judged
-// honours a ruling only on these.
-func Unconfirmed(f model.Finding) bool {
-	return Deterministic(f) && f.Severity == model.SevHigh && unconfirmedRules[f.RuleID]
-}
-
-// Cleared reports whether the judge's ruling takes f out of the judged score: f is Unconfirmed and
-// carries a ruling that met every bar (Ruling.Clears). The rule is checked here as well as where the
-// ruling is written, so a ruling that reached any other finding by any route changes nothing.
-func Cleared(f model.Finding) bool {
-	return f.Ruling != nil && f.Ruling.Clears && f.Ruling.Answer == model.RulingOwnService && Unconfirmed(f)
-}
-
-// Judged is what counts in the EFFECTIVE score and --fail-on-llm (P-142): Escalating, less the
-// findings the judge cleared. With no ruling present it is Escalating, finding for finding.
-func Judged(f model.Finding) bool { return Escalating(f) && !Cleared(f) }
-
-// uncleared is Deterministic less the cleared findings: the ceiling the effective score keeps. It
-// feeds no score of its own and no gate; --fail-on and Overall read Deterministic.
-func uncleared(f model.Finding) bool { return Deterministic(f) && !Cleared(f) }
-
 // artifactScore = clamp(100 − Σ_dimension max(severity penalty), 0, 100). Advisory static
 // findings (dim 7/8) DO score, at their (low) severity.
 func artifactScore(a model.ArtifactReport, keep filter) int { return findingsScore(a.Findings, keep) }
@@ -178,22 +148,15 @@ func breakdown(units [][]model.Finding, keep filter) Breakdown {
 // findings can only add penalty — but they make "the LLM raised the score" an UNREPRESENTABLE
 // state rather than a bug someone could introduce later. One-way-ness is a property of the
 // shape here, not of an argument about the shape.
-//
-// Since P-142 the ceiling is the deterministic score WITHOUT the findings the judge cleared
-// (uncleared), not Overall itself: a ruling on an unconfirmed finding is the one way the effective
-// number may stand above the deterministic one, and by no more than that finding's weight. With
-// nothing cleared, uncleared is Deterministic and Judged is Escalating, so both lines below are the
-// ones they replaced. Score and Overall are computed from Deterministic alone, as before: no
-// ruling, and nothing else a model wrote, reaches them.
 func Apply(r *model.ScanResult) {
 	for i := range r.Artifacts {
-		a := r.Artifacts[i]
-		r.Artifacts[i].Score = artifactScore(a, Deterministic)
-		r.Artifacts[i].ScoreEffective = min(artifactScore(a, uncleared), artifactScore(a, Judged))
+		s := artifactScore(r.Artifacts[i], Deterministic)
+		r.Artifacts[i].Score = s
+		r.Artifacts[i].ScoreEffective = min(s, artifactScore(r.Artifacts[i], Escalating))
 	}
 	units := Families(r.Artifacts).units()
 	r.Overall = overallScore(units, Deterministic)
-	r.OverallEffective = min(overallScore(units, uncleared), overallScore(units, Judged))
+	r.OverallEffective = min(r.Overall, overallScore(units, Escalating))
 }
 
 func clamp(v, lo, hi int) int {

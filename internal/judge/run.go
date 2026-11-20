@@ -40,10 +40,6 @@ type Options struct {
 	// (P-106). The zero value asks it, as every run did before the option existed; every other
 	// question is the same either way.
 	SkipResult bool
-	// SkipRulings leaves the destination question (P-142) out of the plan: llm.rulings: false. Then
-	// no finding carries a ruling, and the effective score and --fail-on-llm are what they were
-	// before the question existed. The zero value asks it.
-	SkipRulings bool
 	// Home is the scanned environment's home directory, replaced by `~` in what is sent (egress.go)
 	// IN ADDITION to the OS user's home, which Run always replaces: empty adds nothing, it does
 	// not turn the scrub off. A relative Home is resolved against the working directory.
@@ -170,17 +166,7 @@ type task struct {
 	// operator must be told about rather than an ordinary cap (an MCP configuration cut to fit, decoded
 	// payloads or digest lines past the excerpt cap: shortenedNote, boundedNote).
 	shortened string
-	// target and samples belong to the destination question (ModeDestination, P-142). target is the
-	// index, in the artifact's findings as planned, of the static finding the question is about: Run
-	// only ever appends to that list, so the index still names it when the ruling is written.
-	// samples is how many times THIS question is asked (rulingSamples) when that is not the run's
-	// sample count; 0 on every other task, which is asked Options.Samples times.
-	target  int
-	samples int
 }
-
-// ruling reports whether the task is a sample of the destination question.
-func (t task) ruling() bool { return t.kind == taskJudge && t.req.Mode == ModeDestination }
 
 // result is one task's outcome. `done` distinguishes "ran and produced nothing" from
 // "never ran" — without it, a skipped call would silently read as a clean verdict.
@@ -204,29 +190,13 @@ type result struct {
 	// shown in the vote list so a later run can audit the table, neither is weighed (P-041).
 	modelSeverity model.Severity
 	category      string
-	// vote is set, instead of finding, when the task was a sample of the destination question
-	// (P-142) and it answered.
-	vote *rulingVote
-	// forRuling marks every result of a destination-question sample, answered or not: clean reads it.
-	forRuling bool
 }
 
 // clean reports whether a judge call's answer leaves its question exactly where it was: it answered,
 // flagged nothing that grounded, reported no barrier, and claimed nothing it could not quote. Only
 // clean answers can settle a question (P-103); a failure or a claim that failed to ground keeps
 // every sample in play, so the cases where the model struggles are asked in full.
-//
-// For a sample of the destination question (P-142) the outcome that can still change is a clearing,
-// which takes a majority of own-service answers and no barrier report. So the answer that leaves the
-// question where it was is the negative one: answered, not own-service, no barrier, and nothing
-// quoted that could not be located. Once the needed samples are all negative the rest cannot reach a
-// majority between them and are not sent; an own-service answer, a barrier report, a quote from
-// nowhere or a failure keeps every sample in play.
 func (r result) clean() bool {
-	if r.forRuling {
-		return r.done && r.err == nil && r.vote != nil && r.vote.answer != model.RulingOwnService &&
-			!r.vote.barrier && r.barrier == nil && (r.vote.located || !r.vote.quoted)
-	}
 	return r.done && r.err == nil && r.finding == nil && r.barrier == nil && !r.ungrounded
 }
 
@@ -388,7 +358,6 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 	deadlineSkipped := 0
 	failed, firstErr := 0, error(nil)
 	ballots := map[int]*ballot{}
-	rulings := map[int]*rulingBallot{} // destination questions, by group (P-142)
 	var groupOrder []int
 	for i, t := range tasks {
 		r := results[i]
@@ -421,16 +390,6 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 		if r.repaired {
 			stats.Repaired++
 		}
-		if t.ruling() {
-			rb := rulings[t.group]
-			if rb == nil {
-				rb = &rulingBallot{artifact: t.artifact, target: t.target, n: t.samples}
-				rulings[t.group] = rb
-				groupOrder = append(groupOrder, t.group)
-			}
-			rb.cast(r)
-			continue
-		}
 		switch t.kind {
 		case taskJudge:
 			b := ballots[t.group]
@@ -449,35 +408,7 @@ func Run(ctx context.Context, c Client, arts []model.ArtifactReport, opts Option
 	ungrounded := 0
 	var unquoted []string
 	seenBarrier := map[string]bool{} // artifact+file+line: several passes see the same directive
-	fam := score.Families(arts)
 	for _, g := range groupOrder {
-		if rb := rulings[g]; rb != nil {
-			// The ruling is written ONTO the static finding it is about and changes nothing else
-			// of it (model.Finding.Ruling). A plugin's child repeats its plugin row's finding
-			// (P-044), and only the child is of a kind the question is asked of, so the same ruling
-			// goes on the copy the plugin row carries: they are one finding, counted once.
-			target := &arts[rb.artifact].Findings[rb.target]
-			ruling := rb.ruling(target.Evidence[0].File)
-			target.Ruling = &ruling
-			if p := fam.Parent(rb.artifact); p >= 0 && fam.ShownByPlugin(rb.artifact, *target) {
-				for k := range arts[p].Findings {
-					y := &arts[p].Findings[k]
-					if score.Unconfirmed(*y) && y.RuleID == target.RuleID && len(y.Evidence) > 0 &&
-						y.Evidence[0].File == target.Evidence[0].File && y.Evidence[0].Line == target.Evidence[0].Line {
-						copied := ruling
-						y.Ruling = &copied
-					}
-				}
-			}
-			if barrier := tally(rb.barriers, nil, nil, rb.n); barrier != nil {
-				ev := barrier.Evidence[0]
-				if key := fmt.Sprintf("%d|%s|%d", rb.artifact, ev.File, ev.Line); !seenBarrier[key] {
-					seenBarrier[key] = true
-					arts[rb.artifact].Findings = append(arts[rb.artifact].Findings, *barrier)
-				}
-			}
-			continue
-		}
 		b := ballots[g]
 		f, barrier, dropped := b.result(opts.Samples)
 		if dropped {
@@ -538,9 +469,6 @@ func schedule(arts []model.ArtifactReport, opts Options) (send, refused []task, 
 	if opts.SkipResult {
 		send = withoutResult(send)
 	}
-	if opts.SkipRulings {
-		send = withoutRulings(send)
-	}
 	if over := len(send) - opts.MaxCalls; opts.MaxCalls > 0 && over > 0 {
 		notes = append(notes, coverageNote(fmt.Sprintf(
 			"call budget (llm.max_calls=%d) reached: %d planned call(s) covering %s were NOT made",
@@ -566,19 +494,6 @@ func withoutResult(tasks []task) []task {
 	out := make([]task, 0, len(tasks))
 	for _, t := range tasks {
 		if t.kind == taskJudge && t.req.Mode == ModeSteering {
-			continue
-		}
-		out = append(out, t)
-	}
-	return out
-}
-
-// withoutRulings is the plan with every sample of the destination question taken out (P-142,
-// llm.rulings: false), filtered after buildTasks for the reason withoutResult is. tasks is not modified.
-func withoutRulings(tasks []task) []task {
-	out := make([]task, 0, len(tasks))
-	for _, t := range tasks {
-		if t.ruling() {
 			continue
 		}
 		out = append(out, t)
@@ -634,17 +549,10 @@ func buildTasks(arts []model.ArtifactReport, samples int, eg egress) []task {
 			}
 			t.group = group
 			group++
-			n := samples
-			if t.ruling() {
-				// A ruling is never taken from one draw (P-142): at least minRulingSamples, which
-				// means sampling temperature even when the run asks everything else once.
-				n = rulingSamples(samples)
-				t.samples = n
-			}
-			if n > 1 {
+			if samples > 1 {
 				t.req.Temperature = samplingTemperature
 			}
-			for s := 0; s < n; s++ {
+			for s := 0; s < samples; s++ {
 				tasks = append(tasks, t)
 			}
 		}
@@ -797,10 +705,6 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 			out[len(out)-1].shortened = shortened
 		}
 	}
-
-	// The destination question (P-142): one per finding of an unconfirmed rule, about that finding's
-	// file. After the kind's own passes, so a budget that cuts the plan short cuts these first.
-	out = append(out, destinationQuestions(i, a, label, eg)...)
 
 	// Triage runs for ANY kind that has static findings — including permissions, whose
 	// findings come from permcheck rather than the detect engine. Snapshotting it here, while
@@ -1072,7 +976,7 @@ func dispatch(ctx context.Context, q *dispatchQueue, workers int, idx chan<- int
 // could not have; a second unreadable reply fails the call as before, visibly, in LLM-000.
 func execute(ctx context.Context, c Client, t task, opts Options) result {
 	start := time.Now()
-	res := result{done: true, forRuling: t.ruling()}
+	res := result{done: true}
 	ctx = withCallUsage(ctx, &res.usage)
 	try := func(req Request) error {
 		for attempt := 0; ; attempt++ {
@@ -1081,10 +985,7 @@ func execute(ctx context.Context, c Client, t task, opts Options) result {
 			switch t.kind {
 			case taskJudge:
 				var v Verdict
-				if v, err = c.Judge(cctx, req); err == nil && t.ruling() {
-					vote, barrier := groundedRuling(t, v)
-					res.vote, res.barrier, res.repaired = &vote, barrier, v.repaired
-				} else if err == nil {
+				if v, err = c.Judge(cctx, req); err == nil {
 					res.finding, res.barrier, res.ungrounded, res.unquoted = groundedFinding(t, v)
 					res.repaired = v.repaired
 					res.modelSeverity = clampSeverity(v.Severity)

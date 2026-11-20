@@ -348,90 +348,12 @@ func TestFailGate_LLMGateFiresOnlyOnQualifiedFindings(t *testing.T) {
 }
 
 // TestFailGate_LLMGateStillSeesStaticFindings: the effective set is deterministic findings
-// PLUS qualified LLM ones, less only what the judge cleared (P-142, below), so --fail-on-llm still
-// fires on a deterministic high. A gate that somehow saw only LLM findings would silently stop
-// catching real ones.
+// PLUS qualified LLM ones, so --fail-on-llm is at least as strict as --fail-on. A gate that
+// somehow saw only LLM findings would silently stop catching real ones.
 func TestFailGate_LLMGateStillSeesStaticFindings(t *testing.T) {
 	if _, ok := failGate(withHigh(), "", "high", gateGranted).(*failExit); !ok {
 		t.Error("--fail-on-llm must also fire on a deterministic high")
 	}
-}
-
-// ruledResult builds a scan whose only finding is the static high of rule, carrying ruling, under a
-// judge that ran over everything.
-func ruledResult(rule string, ruling *model.Ruling) model.ScanResult {
-	return model.ScanResult{
-		Artifacts: []model.ArtifactReport{{
-			Kind: model.KindSkill, Name: "s",
-			Findings: []model.Finding{{
-				RuleID: rule, Dimension: 3, Severity: model.SevHigh, Source: model.SrcStatic, Ruling: ruling,
-			}},
-		}},
-		Judge: &model.JudgeSummary{Ran: true, Artifacts: 1, Calls: 3},
-	}
-}
-
-// TestFailGate_AClearedFindingStopsOnlyTheLLMGate (P-142): a ruling takes an unconfirmed finding out
-// of what --fail-on-llm reads, and out of nothing else.
-//
-//   - --fail-on answers as if the ruling were not there, at every level, alone or beside the LLM
-//     gate: no model output changes the reproducible gate.
-//   - --fail-on-llm alone passes the cleared finding, and only that one: a ruling that did not meet
-//     the bar, an answer other than own-service, and a ruling on a rule outside the closed set all
-//     still fail the build.
-//   - A judge that ran short is still exit 4: a cleared finding does not turn "could not look" into
-//     a pass.
-func TestFailGate_AClearedFindingStopsOnlyTheLLMGate(t *testing.T) {
-	clears := &model.Ruling{Answer: model.RulingOwnService, K: 3, N: 3, Destination: "api.example.com", Clears: true}
-	cleared := ruledResult("EXFIL-001", clears)
-
-	for _, level := range []string{"low", "medium", "high"} {
-		if _, ok := failGate(cleared, level, "", gateDefault).(*failExit); !ok {
-			t.Errorf("--fail-on %s: a cleared finding must still gate; the deterministic gate never reads a ruling", level)
-		}
-		if _, ok := failGate(cleared, level, level, gateGranted).(*failExit); !ok {
-			t.Errorf("--fail-on %s --fail-on-llm %s: the deterministic gate must still fire beside the LLM gate", level, level)
-		}
-	}
-	if err := failGate(cleared, "critical", "", gateDefault); err != nil {
-		t.Errorf("--fail-on critical on a high finding: %v", err)
-	}
-	if err := failGate(cleared, "", "high", gateGranted); err != nil {
-		t.Errorf("--fail-on-llm high alone: a cleared finding must not gate, got %v", err)
-	}
-	if err := failGate(ruledResult("EXFIL-003", clears), "", "high", gateGranted); err != nil {
-		t.Errorf("--fail-on-llm high alone, EXFIL-003 cleared: %v", err)
-	}
-
-	for name, out := range map[string]model.ScanResult{
-		"no ruling":                        ruledResult("EXFIL-001", nil),
-		"one of three":                     ruledResult("EXFIL-001", &model.Ruling{Answer: model.RulingOwnService, K: 1, N: 3}),
-		"elsewhere":                        ruledResult("EXFIL-001", &model.Ruling{Answer: model.RulingElsewhere, K: 3, N: 3}),
-		"elsewhere with the flag set":      ruledResult("EXFIL-001", &model.Ruling{Answer: model.RulingElsewhere, K: 3, N: 3, Clears: true}),
-		"unclear":                          ruledResult("EXFIL-001", &model.Ruling{Answer: model.RulingUnclear, K: 3, N: 3}),
-		"a clearing ruling on EXEC-001":    ruledResult("EXEC-001", clears),
-		"a clearing ruling on EXFIL-002":   ruledResult("EXFIL-002", clears),
-		"a clearing ruling beside a hit":   withFindings(ruledResult("EXFIL-001", clears), model.Finding{RuleID: "EXEC-001", Dimension: 2, Severity: model.SevHigh, Source: model.SrcStatic}),
-		"a clearing ruling, LLM high too":  withFindings(ruledResult("EXFIL-001", clears), model.Finding{RuleID: "LLM-001", Dimension: 10, Severity: model.SevHigh, Source: model.SrcLLM, Escalates: true}),
-		"cleared on one file, not another": withFindings(ruledResult("EXFIL-001", clears), model.Finding{RuleID: "EXFIL-001", Dimension: 3, Severity: model.SevHigh, Source: model.SrcStatic}),
-	} {
-		if _, ok := failGate(out, "", "high", gateGranted).(*failExit); !ok {
-			t.Errorf("%s: --fail-on-llm high must still gate", name)
-		}
-	}
-
-	short := ruledResult("EXFIL-001", clears)
-	short.Judge.Failed = 1
-	fe, ok := failGate(short, "", "high", gateGranted).(*failExit)
-	if !ok || fe.code != exitNotEvaluable {
-		t.Errorf("a cleared finding under a judge that ran short: got %v, want exit %d", fe, exitNotEvaluable)
-	}
-}
-
-// withFindings is out with more findings on its first artifact.
-func withFindings(out model.ScanResult, more ...model.Finding) model.ScanResult {
-	out.Artifacts[0].Findings = append(out.Artifacts[0].Findings, more...)
-	return out
 }
 
 func TestFailGate_InvalidLLMLevel(t *testing.T) {

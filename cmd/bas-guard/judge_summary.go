@@ -33,17 +33,12 @@ func judgeConfigured(llm config.LLMConfig, artifacts int) *model.JudgeSummary {
 	}
 }
 
-// passesOff names the optional questions this config does not ask (P-106; the destination question,
-// P-142), by the name `llm preview` gives each, nil when it asks them all.
+// passesOff names the optional questions this config does not ask (P-106), nil when it asks them all.
 func passesOff(llm config.LLMConfig) []string {
-	var off []string
-	if !llm.AsksResultPass() {
-		off = append(off, "result")
+	if llm.AsksResultPass() {
+		return nil
 	}
-	if !llm.AsksRulings() {
-		off = append(off, "destination")
-	}
-	return off
+	return []string{"result"}
 }
 
 // requestOptionsShown is llm.request_options as a report records it (P-107): compact JSON through the

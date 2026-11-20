@@ -171,23 +171,16 @@ func TestPlan_PayloadsAreWhatTheClientSends(t *testing.T) {
 
 	passes := map[string]bool{}
 	var shortened []string
-	rulingsPlanned := 0
 	for _, c := range plan {
 		passes[c.Pass] = true
 		if c.Shortened != "" {
 			shortened = append(shortened, c.Shortened)
 		}
-		// The destination question is never one draw (P-142): three, whatever the run asks of the rest.
-		want := 1
-		if c.Pass == "destination" {
-			want = minRulingSamples
-			rulingsPlanned++
-		}
-		if c.Calls != want || c.NotSent != 0 {
-			t.Errorf("%s: with samples 1 and no budget the question is asked %d time(s), got calls=%d not_sent=%d", c.Pass, want, c.Calls, c.NotSent)
+		if c.Calls != 1 || c.NotSent != 0 {
+			t.Errorf("%s: with samples 1 and no budget a question is asked once, got calls=%d not_sent=%d", c.Pass, c.Calls, c.NotSent)
 		}
 	}
-	for _, p := range []string{"intent", "injection", "deobfuscation", "collusion", "capability", "mcp-config", "destination", "triage"} {
+	for _, p := range []string{"intent", "injection", "deobfuscation", "collusion", "capability", "mcp-config", "triage"} {
 		if !passes[p] {
 			t.Errorf("the fixture no longer exercises the %s pass; planned: %v", p, passes)
 		}
@@ -197,17 +190,6 @@ func TestPlan_PayloadsAreWhatTheClientSends(t *testing.T) {
 	notes, stats := Run(context.Background(), NewHTTP(srv.URL, "", "", srv.Client()), arts, Options{})
 	if stats.Failed != 0 || stats.Skipped != 0 {
 		t.Fatalf("the run did not make every call: %+v", stats)
-	}
-	// The stub answers every question "nothing found". For the destination question that is two
-	// negative answers out of three: the third cannot make a majority and is planned, settled and
-	// never sent (P-103's rule, read for a ruling). Everything else is sent as planned.
-	if stats.Settled != rulingsPlanned {
-		t.Fatalf("settled %d call(s), want one per destination question (%d)", stats.Settled, rulingsPlanned)
-	}
-	for i := range plan {
-		if plan[i].Pass == "destination" {
-			plan[i].Calls--
-		}
 	}
 	diffKeys(t, plannedKeys(plan, RequestModel("")), capturedKeys(sent()))
 

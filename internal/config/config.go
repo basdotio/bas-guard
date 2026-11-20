@@ -83,13 +83,6 @@ type LLMConfig struct {
 	// and gives up that class. A pointer so that a config which never mentions it, and an LLMConfig
 	// built without it, both ask it; read it through AsksResultPass.
 	ResultPass *bool `yaml:"result_pass"`
-	// Rulings asks the destination question of each finding of an unconfirmed rule (EXFIL-001,
-	// EXFIL-003; P-142): where do the credentials in that file go. A majority answering "its own
-	// service" takes the finding out of the effective score and --fail-on-llm, which is the one way
-	// the judge's answer makes a result count for less. On unless the config says `rulings: false`,
-	// which keeps the judge strictly one-way: it then only ever adds. A pointer for the reason
-	// ResultPass is one; read it through AsksRulings.
-	Rulings *bool `yaml:"rulings"`
 	// RequestOptions are extra members added to every request body as written (P-107): what a vendor
 	// takes beside the chat-completions members — `thinking: {type: disabled}` for a GLM model that
 	// thinks by default, `reasoning_effort` for another. The judge sets the members in
@@ -145,9 +138,6 @@ func (c *LLMConfig) validate() error {
 
 // AsksResultPass reports whether the result question is asked: unless `result_pass: false` (P-106).
 func (c LLMConfig) AsksResultPass() bool { return c.ResultPass == nil || *c.ResultPass }
-
-// AsksRulings reports whether the destination question is asked: unless `rulings: false` (P-142).
-func (c LLMConfig) AsksRulings() bool { return c.Rulings == nil || *c.Rulings }
 
 // ReservedRequestOptions are the request members llm.request_options may not set (P-107): the three the
 // judge sets itself, and two that change the shape of the reply it reads (`stream`, `n`). The judge's

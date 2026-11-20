@@ -132,36 +132,6 @@ func (d previewDoc) keys() []string {
 	return out
 }
 
-// lessSettledRulings is the preview as a run against recordingJudge sends it, and how many
-// destination questions it holds (P-142). The stub answers every question "nothing found". Every
-// other question is one call at the default sample count; a destination question is planned three
-// times, and after two negative answers the third cannot make a majority, so it is settled and
-// never sent (P-103's rule). A preview is the plan, which is an upper bound by exactly that call.
-func (d previewDoc) lessSettledRulings() (previewDoc, int) {
-	n := 0
-	trim := func(arts []previewDocArt) []previewDocArt {
-		out := make([]previewDocArt, len(arts))
-		for i, a := range arts {
-			out[i] = a
-			out[i].Requests = append(a.Requests[:0:0], a.Requests...)
-			for k, r := range out[i].Requests {
-				if r.Pass == "destination" && r.Calls-r.NotSent == 3 {
-					out[i].Requests[k].Calls--
-					n++
-				}
-			}
-		}
-		return out
-	}
-	out := d
-	out.Artifacts = trim(d.Artifacts)
-	out.Downloads = append(d.Downloads[:0:0], d.Downloads...)
-	for i := range out.Downloads {
-		out.Downloads[i].Artifacts = trim(d.Downloads[i].Artifacts)
-	}
-	return out, n
-}
-
 func sentKeys(calls []sentCall) []string {
 	out := make([]string, len(calls))
 	for i, c := range calls {
@@ -248,15 +218,11 @@ func TestLLMPreview_MatchesWhatScanAndCheckSend(t *testing.T) {
 		t.Fatalf("llm preview exited %d:\n%s", code, se)
 	}
 	d := decodePreview(t, so)
-	asSent, rulings := d.lessSettledRulings()
-	if rulings != 1 {
-		t.Errorf("the environment's skill carries one unconfirmed finding: want one destination question previewed, got %d", rulings)
+	if d.Previews != "scan --llm" || len(d.Downloads) != 1 || d.Calls != len(scanSent) {
+		t.Errorf("want a scan --llm preview with one Downloads item and %d call(s), got previews=%q downloads=%d calls=%d",
+			len(scanSent), d.Previews, len(d.Downloads), d.Calls)
 	}
-	if d.Previews != "scan --llm" || len(d.Downloads) != 1 || d.Calls-rulings != len(scanSent) {
-		t.Errorf("want a scan --llm preview with one Downloads item and %d call(s) plus one settled per destination question (%d), got previews=%q downloads=%d calls=%d",
-			len(scanSent), rulings, d.Previews, len(d.Downloads), d.Calls)
-	}
-	sameCalls(t, "scan --llm", asSent.keys(), sentKeys(scanSent))
+	sameCalls(t, "scan --llm", d.keys(), sentKeys(scanSent))
 	shortened := false
 	for _, a := range d.Artifacts {
 		for _, r := range a.Requests {
@@ -284,8 +250,7 @@ func TestLLMPreview_MatchesWhatScanAndCheckSend(t *testing.T) {
 		if d.Previews != "check --llm" {
 			t.Errorf("%s: previews=%q, want check --llm", name, d.Previews)
 		}
-		asSent, _ := d.lessSettledRulings()
-		sameCalls(t, "check "+name+" --llm", asSent.keys(), sentKeys(checkSent))
+		sameCalls(t, "check "+name+" --llm", d.keys(), sentKeys(checkSent))
 	}
 }
 
