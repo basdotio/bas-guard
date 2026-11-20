@@ -72,7 +72,7 @@ No `rulesEpoch`, no `ExcerptVersion`, no changelog entry: nothing a user runs or
   evidence, text and order), the fresh skills (412) and the held-out set (totals and a count of samples that differ):
   no finding differs
 - [x] Every existing test green without a character changed in what it asserts
-- [ ] `make verify` green, read from its own exit code
+- [x] `make verify` green, read from its own exit code
 
 ## Out of scope
 
@@ -99,4 +99,14 @@ No `rulesEpoch`, no `ExcerptVersion`, no changelog entry: nothing a user runs or
 
 ## Done
 
-Filled in at stage 4.
+```
+Merged: PR #173 (2026-11-20; find the sha with git log --grep P-146 after the merge)
+Released: (no changelog entry: nothing a user runs or reads changes; it rides whichever release follows)
+Evidence: internal/detect/chainreadings.go: rulesChain, homeChain, elsewhereChain and one replay loop, under a table of how the three differ and which proposal set each difference; the scan loop and CredentialGoesHome, CredentialGoesHomeAcross, CredentialSentElsewhere use them; the sentence that called the judge's reading "the same chain EXFIL-001 runs" is corrected
+Evidence: TestChainReadings_SideBySide: seven files, the rules' finding and both judge answers on each
+Evidence: TestNetworkClients_WhichListKnowsWhich: 28 spellings against networkActionRE, networkCapableRE, requestLineRE and HOOK-003's Python and Node senders
+Evidence: the judge's helpers on 8,162 code files of the corpus's skill and server trees, main 9efe48c against the branch: output byte-identical (cmp)
+Evidence: static, main 9efe48c against the branch: corpus 5,272 samples with every artifact's findings compared in full, 0 samples differ (benign 341 of 4,534, malicious 243 of 719, hard negatives 4); fresh skills 24 of 200 and 9 of 212, 0 samples differ; held-out, totals only, malicious 134 of 243 and benign 6 of 216
+Evidence: no existing test's assertions edited; rulesEpoch 29 and ExcerptVersion unchanged; make verify: all gates passed
+Evidence: Out of scope — the three readings stay three; the 77 files where the judge's wider readings see a chain the rules do not are as P-095 and P-117 left them
+```
