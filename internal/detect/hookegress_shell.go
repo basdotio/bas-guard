@@ -17,7 +17,7 @@ import (
 // shellEval is the state of one read: the names assigned so far and the sends found.
 type shellEval struct {
 	unit    int
-	assigns map[string]string // NAME -> host, the file's URL assignments (P-061)
+	assigns urlTable // NAME -> host, the file's URL assignments (P-061)
 	vars    map[string]taint
 	files   map[string]taint // literal paths this file wrote the payload to (redirectOut)
 	sends   []hookSend
