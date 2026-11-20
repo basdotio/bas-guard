@@ -38,6 +38,14 @@ and CI check both halves (`hack/changelog-check`, P-141).
   (`stripe` in `api.stripe.com`, `mlit` in `data-platform.mlit.go.jp`), and nothing under a hosting platform's suffix
   (`*.vercel.app`, `*.github.io`, `*.ts.net`). A key named after a product or a tenant of someone else's domain is
   high again: `OTX_API_KEY` to `otx.alienvault.com`, a Sheets key to `sheets.googleapis.com`.
+- **A well-known service's name vouches only under its own domain, and a word that names no service vouches for
+  nothing** (P-145, @jasonqindev, 2026-11-20). `EXFIL-001` drops to a low advisory when a named key goes to its own
+  service, decided by a word of the key's name matching the host. `STRIPE_SECRET_KEY` sent to `stripe.xyz`,
+  `SLACK_BOT_TOKEN` to `bot.xyz` and `WEBHOOK_SECRET` to `webhook.site` were all reported low. For 77 services whose
+  keys are worth stealing (clouds, code hosts, model and search APIs, payment and messaging accounts) the host must now
+  be under the service's own domain; a key named for one of them belongs to it alone; and words such as `bot`,
+  `webhook`, `service`, `personal`, `prod` no longer count as a service. Nothing that was high becomes low. A service
+  outside the list is matched by its name as before.
 
 ## v0.1.0
 
