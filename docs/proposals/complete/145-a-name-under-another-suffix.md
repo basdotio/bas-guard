@@ -124,29 +124,47 @@ costs no sample and catches none. What it closes is in the table of rows.
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
 | 1 | The table, the matcher, the owner of a name, the descriptive words; tests | `detect: a known service vouches only under its own domains, and a word that names no service vouches for nothing (P-145)` |
-| 2 | `rulesEpoch` 29, `docs/rules.md`, `.claude/rules/detect.md`, `CHANGELOG.md` | (with W1) |
+| 2 | `rulesEpoch` 29, `docs/rules.md`, `.claude/rules/detect.md`, `CHANGELOG.md` | (in W1's commit) |
 | 3 | Runs, readings into this file | `proposals: P-145 measured (P-145)` |
 | 4 | Done, the index, `complete/` | `proposals: P-145 done (P-145)` |
 
 ## Open questions
 
-All asked at once. Each has a recommended answer; the code is built under the recommendations.
+All asked at once. Each has a recommended answer; the code was built under the recommendations, and the maintainer,
+shown the result on 2026-11-20, said to merge it as built ("合").
 
 1. **A table at all?** Recommended: **yes.** Which suffix a service uses is a fact about the world, and no rule over
    host names can supply it: the corpus's own services are on fourteen suffixes, `.xyz` among them. The repository is
    wary of lists; this one is closed under one test (it can only narrow) and each line is a public fact.
+   **Decided (2026-11-20)**: as recommended.
 2. **Which services?** Recommended: **the seventy-seven in the code**, chosen by what their key is worth to someone
    else, not by how often they appear here. Smaller and it protects less; the long tail cannot be listed and is not.
+   **Decided (2026-11-20)**: as recommended.
 3. **Empty entries** (`aws`, `gcp`, `npm`, `datadog`, `jira`, `xai`). Recommended: **yes.** Their API is under a domain
    of another name, so a host called `aws.<anything>` is never AWS's; saying so costs nothing real and closes the most
    valuable key of all.
+   **Decided (2026-11-20)**: as recommended.
 4. **Narrowing only.** Recommended: **yes, in this proposal.** The same table could let `sheets.googleapis.com` vouch
    for a Google key and give back two of the three benign samples P-144 cost. That adds hosts that vouch, on domains
    where tenants store data, and deserves its own lines.
+   **Decided (2026-11-20)**: as recommended.
 5. **The descriptive words.** Recommended: **the forty in the code.** Each is a word for a kind, a holder or a
    place of use. A real service whose whole name is one of them (`live.com`) stops vouching for a key named after it,
    which fails toward high.
+   **Decided (2026-11-20)**: as recommended.
 
 ## Done
 
-Filled in at stage 4.
+```
+Merged: PR #172 (2026-11-20; find the sha with git log --grep P-145 after the merge)
+Released: (fill in after stage 5)
+Evidence: TestServiceDomains_OnlyNarrow (internal/detect/destination_test.go): 77 entries, 84 domains; each domain carries its token as the registrable label and is under no hosted suffix; the service's own hosts vouch; the same name under .xyz, .io, .net, .dev, .top and .co.uk does not unless the service uses that suffix; six entries are empty (aws, gcp, npm, datadog, jira, xai)
+Evidence: TestHostMatchesService_AKnownServiceUnderItsOwnDomains: 18 rows (stripe.com yes, stripe.xyz and api.stripe.io no; notion.com and notion.so yes; together.xyz yes, together.io no; aws.xyz and aws.com no; two services outside the table by name, one of them on .xyz)
+Evidence: TestCredentialServiceTokens_WordsThatNameNoService: SLACK_BOT_TOKEN → slack; GITHUB_PERSONAL_ACCESS_TOKEN and GITHUB_ENTERPRISE_TOKEN → github; GCP_SERVICE_ACCOUNT_KEY → gcp; AZURE_OPENAI_API_KEY → azure, openai; WEBHOOK_SECRET and BOT_TOKEN → nothing; ACME_BOT_TOKEN → acme; ACME_WIDGET_TOKEN → acme, widget
+Evidence: TestChain_AWordIsNotTheService: eleven keys sent to a host named for a word of theirs, EXFIL-001 high (all eleven low on main, read with main's binary on the same fixtures); five keys that go home low
+Evidence: the Problem table as sixteen one-skill fixtures, main 0894372 against the branch: the eleven 95/100 → 69/100; api.stripe.com, api.notion.so, myres.openai.azure.com, api.mengram.io and mesh.heurist.xyz 95/100 on both
+Evidence: static, main 0894372 → branch: corpus malicious 243 → 243 of 719, benign 341 → 341 of 4,534, hard negatives 4 → 4; fresh skills 24 of 200 and 9 of 212; held-out, totals only, malicious 134 of 243 and benign 6 of 216. No finding of any sample differs on any set, so none is lowered
+Evidence: the one pinned row that changes: hostMatchesService("openai.com.cn", "openai") true → false; an unlisted name takes its place as the country-suffix example
+Evidence: Out of scope — a service outside the table vouches by name as before; no host of another name is made to vouch; no judge run was made
+Evidence: rulesEpoch 29; docs/rules.md regenerated (the rules version only); make verify: all gates passed; CI build-test and changelog pass on the PR
+```
