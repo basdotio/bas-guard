@@ -81,8 +81,8 @@ func destinationQuestions(i int, a model.ArtifactReport, label string, eg egress
 		if !score.Unconfirmed(f) || len(f.Evidence) == 0 {
 			continue
 		}
-		text, unit, ok := destinationExcerpt(a.Path, f, eg)
-		if !ok {
+		text, unit, why := destinationExcerpt(a.Path, f, eg)
+		if why != "" {
 			continue
 		}
 		out = append(out, task{kind: taskJudge, artifact: i, label: label, target: j,
@@ -94,18 +94,18 @@ func destinationQuestions(i int, a model.ArtifactReport, label string, eg egress
 // destinationExcerpt is what the destination question about finding f is shown: the file the
 // finding is in, redacted and condensed like any excerpt, whole when that fits maxDestinationBytes
 // and otherwise cut down to the lines the chain counted (detect.ChainLines) with destinationContext
-// lines around each. ok is false, and nothing is asked, when the file is not found under root by
-// the rules' own predicate, was not read whole, holds a line of the finding that the chain does not
-// list (the file is not the one the rules read, or the two readings disagree), or does not fit even
-// cut down.
-func destinationExcerpt(root string, f model.Finding, eg egress) (text string, unit sourceUnit, ok bool) {
+// lines around each. why is empty when there is something to ask. Otherwise nothing is asked and why
+// says which bar was missed (the whyNot* values): the file is not found under root by the rules' own
+// predicate, was not read whole, holds a line of the finding that the chain does not list (the file
+// is not the one the rules read, or the two readings disagree), or does not fit even cut down.
+func destinationExcerpt(root string, f model.Finding, eg egress) (text string, unit sourceUnit, why string) {
 	path, rel, found := evidenceFile(root, f.Evidence[0].File)
 	if !found {
-		return "", sourceUnit{}, false
+		return "", sourceUnit{}, whyNotFound
 	}
 	raw := readAtMost(path, maxFileRead)
 	if raw == nil || len(raw) >= maxFileRead {
-		return "", sourceUnit{}, false // unread, or longer than the reader takes: not the whole file
+		return "", sourceUnit{}, whyNotWhole // unread, or longer than the reader takes: not the whole file
 	}
 	legs, assigns := detect.ChainLines(rel, string(raw))
 	counted := map[int]bool{}
@@ -114,7 +114,7 @@ func destinationExcerpt(root string, f model.Finding, eg egress) (text string, u
 	}
 	for _, e := range f.Evidence {
 		if e.File != f.Evidence[0].File || !counted[e.Line] {
-			return "", sourceUnit{}, false
+			return "", sourceUnit{}, whyNotCounted
 		}
 	}
 	for _, n := range assigns {
@@ -134,15 +134,24 @@ func destinationExcerpt(root string, f model.Finding, eg egress) (text string, u
 	}
 	for n := range counted {
 		if !sent[n] {
-			return "", sourceUnit{}, false // a counted line is not in what would be sent
+			return "", sourceUnit{}, whyNotSent // a counted line is not in what would be sent
 		}
 	}
 	out := fixRedact(red)
 	if out == "" || len(out) > maxDestinationBytes || strings.Count(out, "\n") != strings.Count(red, "\n") {
-		return "", sourceUnit{}, false
+		return "", sourceUnit{}, whyTooLarge
 	}
-	return out, sourceUnit{file: detect.Redact(rel), text: out, firstLine: 1, lineMap: lm}, true
+	return out, sourceUnit{file: detect.Redact(rel), text: out, firstLine: 1, lineMap: lm}, ""
 }
+
+// Why a finding's file yields no destination question (destinationExcerpt).
+const (
+	whyNotFound   = "the file the finding cites was not found in the artifact"
+	whyNotWhole   = "the file could not be read whole"
+	whyNotCounted = "the finding cites a line the chain does not count in that file"
+	whyNotSent    = "a line the chain counts would not be in what is sent"
+	whyTooLarge   = "the lines the chain counts do not fit the question's budget"
+)
 
 // evidenceFile finds the file a static finding cites inside the artifact rooted at root. The
 // citation is relative to the scan's root, the artifact to wherever it was collected, so the file is

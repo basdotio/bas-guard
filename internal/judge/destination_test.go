@@ -273,9 +273,9 @@ func TestDestinationExcerpt_LargeFileIsCutToTheCountedLines(t *testing.T) {
 	f := model.Finding{RuleID: "EXFIL-001", Dimension: 3, Severity: model.SevHigh, Source: model.SrcStatic,
 		Evidence: []model.Evidence{{File: "skills/wx/client.py", Line: 804}, {File: "skills/wx/client.py", Line: 806}}}
 
-	text, unit, ok := destinationExcerpt(dir, f, newEgress())
-	if !ok {
-		t.Fatal("no excerpt for a file whose counted lines fit the budget")
+	text, unit, why := destinationExcerpt(dir, f, newEgress())
+	if why != "" {
+		t.Fatalf("no excerpt for a file whose counted lines fit the budget: %s", why)
 	}
 	if len(text) > maxDestinationBytes || unit.text != text || unit.file != "client.py" {
 		t.Fatalf("excerpt is %d bytes (cap %d), unit file %q, unit text equals the payload: %v", len(text), maxDestinationBytes, unit.file, unit.text == text)
@@ -331,21 +331,21 @@ func TestDestinationExcerpt_RefusesWhatItCannotShowWhole(t *testing.T) {
 		}
 		return f
 	}
-	small := "import os, requests\nkey = os.environ[\"WX_API_KEY\"]\nrequests.post(\"https://api.wx.example.net/v1\", data=key)\n"
+	small := "import os, requests\nkey = os.environ[\"WX_API_KEY\"]\nrequests.post(\"https://api.wx.example.net/v1\", data=key)\nprint(\"done\")\n"
 
 	t.Run("the base case is asked", func(t *testing.T) {
-		if _, _, ok := destinationExcerpt(write(t, "a.py", small), high("a.py", 2, 3), newEgress()); !ok {
-			t.Fatal("a small file with the finding's lines counted must be asked about")
+		if _, _, why := destinationExcerpt(write(t, "a.py", small), high("a.py", 2, 3), newEgress()); why != "" {
+			t.Fatalf("a small file with the finding's lines counted must be asked about: %s", why)
 		}
 	})
 	t.Run("the cited file is not in the tree", func(t *testing.T) {
-		if _, _, ok := destinationExcerpt(write(t, "a.py", small), high("b.py", 2, 3), newEgress()); ok {
-			t.Error("asked about a file that is not there")
+		if _, _, why := destinationExcerpt(write(t, "a.py", small), high("b.py", 2, 3), newEgress()); why != whyNotFound {
+			t.Errorf("a file that is not there: %q, want %q", why, whyNotFound)
 		}
 	})
 	t.Run("a cited line the chain does not count", func(t *testing.T) {
-		if _, _, ok := destinationExcerpt(write(t, "a.py", small), high("a.py", 1, 3), newEgress()); ok {
-			t.Error("asked about a file whose cited line is not a leg: not the file the rules read")
+		if _, _, why := destinationExcerpt(write(t, "a.py", small), high("a.py", 4, 3), newEgress()); why != whyNotCounted {
+			t.Errorf("a cited line that is not a leg (not the file the rules read): %q, want %q", why, whyNotCounted)
 		}
 	})
 	t.Run("a symlink out of the tree", func(t *testing.T) {
@@ -357,8 +357,8 @@ func TestDestinationExcerpt_RefusesWhatItCannotShowWhole(t *testing.T) {
 		if err := os.Symlink(outside, filepath.Join(dir, "a.py")); err != nil {
 			t.Skip(err)
 		}
-		if _, _, ok := destinationExcerpt(dir, high("a.py", 2, 3), newEgress()); ok {
-			t.Error("read a file the rules' predicate refuses (invariant #2)")
+		if _, _, why := destinationExcerpt(dir, high("a.py", 2, 3), newEgress()); why != whyNotFound {
+			t.Errorf("a file the rules' predicate refuses (invariant #2): %q, want %q", why, whyNotFound)
 		}
 	})
 	t.Run("too many counted lines to fit", func(t *testing.T) {
@@ -370,8 +370,8 @@ func TestDestinationExcerpt_RefusesWhatItCannotShowWhole(t *testing.T) {
 				fmt.Fprintf(&b, "filler_%03d_%02d = compute(%d)\n", i, k, k)
 			}
 		}
-		if _, _, ok := destinationExcerpt(write(t, "a.py", b.String()), high("a.py", 2, 3), newEgress()); ok {
-			t.Error("asked about a file whose counted lines do not fit the budget")
+		if _, _, why := destinationExcerpt(write(t, "a.py", b.String()), high("a.py", 2, 3), newEgress()); why != whyTooLarge {
+			t.Errorf("a file whose counted lines do not fit the budget: %q, want %q", why, whyTooLarge)
 		}
 	})
 }
