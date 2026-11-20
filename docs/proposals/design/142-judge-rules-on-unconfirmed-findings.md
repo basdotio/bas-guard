@@ -299,6 +299,34 @@ heard of, and still rests on the same guess.
 holds since trial 2. Read on every probe written, it does not: **3 of 25, not met**. The second reading is the one the
 line was written for, so the question as designed in Initial direction 2 does not go to a corpus run on this evidence.
 
+**A ruling the model cannot be argued into, and what it would clear.** The opposite design was sized the same day:
+the model is never shown the file. It is asked, of each credential NAME a chain file reads (277 distinct names, one
+call each, US$0.02), which registrable domains the service that issues it uses; the tool then compares those domains
+with the hosts the file's request lines name (`exfil-proto/p142-domains.py`, over the replay of 2026-11-19, which
+keeps a file's first dozen credential and network lines, so an estimate). An attacker reading `STRIPE_SECRET_KEY` gets
+`stripe.com` whatever else the file says, and no host of theirs matches it.
+
+| | benign | malicious |
+|---|---:|---:|
+| chain files | 332 | 92 |
+| reads no named credential | 86 | 44 |
+| reads a named credential whose service the model knows | 94 | 33 |
+| names no host the tool can read on a request line | 288 | 48 |
+| **home by this rule** | **3** | 3 |
+| samples flagged by the chain alone, every chain file home | **2 of 223** | 1 of 56 |
+
+It is safe and it clears nothing: 288 of 332 benign files keep their destination in a variable, a parameter or
+configuration, which is the same wall the static replay of 2026-11-19 ran into. (The three malicious files are
+`skill-inject` samples whose original Hugging Face upload is what the chain cites; the injected step is elsewhere.)
+A mix of the two (the model only locates the destination line, the tool decides whose host it is from the name lookup
+or from the destination being operator configuration) is bounded by the 94 of 332 files that read a credential the
+model can place, before any other loss.
+
+**Where this leaves the proposal.** Reading the code is what clears these findings, and reading the code is where the
+answer can be bought with a host that looks right. The version that is safe clears 2 of 223. Neither meets both lines
+set on 2026-11-20 (benign 388 → at most 300; no adversarial probe cleared). The code on this branch is as trial 3 ran
+it; nothing was run on the corpus, the held-out set or the fresh sets with a model.
+
 ## Done
 
 Filled in at stage 4.
