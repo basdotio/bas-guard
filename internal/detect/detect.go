@@ -657,6 +657,14 @@ func (c *chain) egress(norm string) bool {
 	return c.literalIsEgress && urlLiteralRE.MatchString(norm)
 }
 
+// legs reports which legs of the chain a line is for this chain's file: a credential read, an
+// encode, a send. It is the one definition of each: observe records what it answers, and ChainLines
+// (chainlegs.go, P-142) lists the lines it answers for, so what the judge's destination question is
+// shown cannot be a different reading of "a leg" from the one the finding was built on.
+func (c *chain) legs(raw, norm string) (cred, enc, net bool) {
+	return credentialLine(raw, norm), encodeRE.MatchString(norm) && !decodeOnlyRE.MatchString(norm), c.egress(norm)
+}
+
 // legCap bounds how many sightings of one leg are remembered. It affects only WHICH line gets
 // cited, never whether the chain completes or what it scores, so a hostile file with ten
 // thousand `curl` lines costs a bounded slice and the finding is unchanged.
@@ -679,7 +687,8 @@ func (c *chain) observe(raw, norm string, ev func() model.Evidence) {
 			*all = append(*all, e)
 		}
 	}
-	if credentialLine(raw, norm) {
+	isCred, isEnc, isNet := c.legs(raw, norm)
+	if isCred {
 		record(&c.cred, &c.credEv, &c.credAll)
 		for _, tok := range credentialServiceTokens(raw) {
 			if c.credService == nil {
@@ -688,10 +697,10 @@ func (c *chain) observe(raw, norm string, ev func() model.Evidence) {
 			c.credService[tok] = true
 		}
 	}
-	if encodeRE.MatchString(norm) && !decodeOnlyRE.MatchString(norm) {
+	if isEnc {
 		record(&c.enc, &c.encEv, &c.encAll)
 	}
-	if c.egress(norm) {
+	if isNet {
 		record(&c.net, &c.netEv, &c.netAll)
 		// BOTH views must be purely loopback for the line to stay on-box. norm folds
 		// homoglyphs, so `lоcalhost` with a Cyrillic о reads as localhost there — while at

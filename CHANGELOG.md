@@ -24,6 +24,16 @@ and CI check both halves (`hack/changelog-check`, P-141).
   the result question (`LLM-011`) for every skill, about a third of a skill's judge calls; what goes with it is the
   judge's reading of output manipulation. The default is unchanged: the question is asked. A run with it off says so
   (`passes_off: ["result"]` in the JSON `judge` block and on the judge line).
+- **With the judge on, a finding the rules call unconfirmed is decided by the judge** (P-142, #169, @jasonqindev,
+  2026-11-20). `EXFIL-001` and `EXFIL-003` report a file that reads a credential and sends something, which is also what
+  an API client looks like. For each such finding on a skill or on an MCP server's source, `--llm` asks one more
+  question, at least three times whatever `llm.samples` says: where do the credentials in that file go? When a majority
+  answers "its own service", each quoting a line found in the file and naming one destination between them, the finding
+  carries a `ruling` in the JSON and stops counting in `score_effective`, `overall_effective` and `--fail-on-llm`. The
+  finding stays in the report at its severity, and `score`, `overall`, `--fail-on`, the load-time gate and `approve` do
+  not read the ruling. **This is the first case where the judge's answer makes a result count for less**:
+  `overall_effective` can stand above `overall`, and a pipeline gated with `--fail-on-llm` alone no longer fails on a
+  finding the judge cleared. `llm.rulings: false` turns the question off (`passes_off: ["destination"]`).
 
 ## v0.1.0
 

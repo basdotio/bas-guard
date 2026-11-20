@@ -346,3 +346,32 @@ func TestLoad_RequestOptions(t *testing.T) {
 		t.Errorf("options read as %q", got)
 	}
 }
+
+// TestLoad_RulingsAreOnUnlessTurnedOff (P-142): the destination question is asked unless the config
+// says `rulings: false` — by the defaults, by a config that never mentions it, and by an LLMConfig
+// built without it — and turning it off does not turn anything else off.
+func TestLoad_RulingsAreOnUnlessTurnedOff(t *testing.T) {
+	if !Default().LLM.AsksRulings() || !(LLMConfig{}).AsksRulings() {
+		t.Fatal("the defaults do not ask the destination question")
+	}
+	for body, want := range map[string]bool{
+		"llm:\n  enabled: true\n":                   true,
+		"llm:\n  enabled: true\n  rulings: true\n":  true,
+		"llm:\n  enabled: true\n  rulings: false\n": false,
+	} {
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := cfg.LLM.AsksRulings(); got != want {
+			t.Errorf("%q: asks the destination question = %v, want %v", body, got, want)
+		}
+		if !cfg.LLM.AsksResultPass() {
+			t.Errorf("%q: the result question was turned off with it", body)
+		}
+	}
+}

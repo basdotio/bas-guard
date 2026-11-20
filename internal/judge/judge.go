@@ -48,6 +48,9 @@ const (
 	ModeCollusion              // skills: does a capability chain span several files?
 	ModeServer                 // MCP server source: do the tools do more than their docstrings say? (P-053)
 	ModeSteering               // skills: does a required step change the result the user receives? (P-068)
+	// ModeDestination asks where the credentials in ONE file go (P-142). It yields no finding of its
+	// own: its answer is a ruling on a static finding of an unconfirmed rule (destination.go).
+	ModeDestination
 )
 
 // Request is one artifact submission. Declared and Behavior are ALREADY redacted before
@@ -202,6 +205,10 @@ func modeInfo(m Mode) modeRow {
 		return modeRow{"server", "LLM-010", dimIntent, "MCP server source does more than its tools say (LLM judge — advisory, not confirmed)"}
 	case ModeSteering:
 		return modeRow{"result", "LLM-011", dimInjection, "A required step changes the result the user receives (LLM judge — advisory, not confirmed)"}
+	case ModeDestination:
+		// No rule: the answer is written onto the static finding it is about (model.Ruling), never
+		// reported as a finding of the judge's.
+		return modeRow{"destination", "", dimCollusion, ""}
 	}
 	return modeRow{"intent", "LLM-001", dimIntent, "Intent mismatch (LLM judge — advisory, not confirmed)"}
 }
