@@ -24,6 +24,20 @@ and CI check both halves (`hack/changelog-check`, P-141).
   the result question (`LLM-011`) for every skill, about a third of a skill's judge calls; what goes with it is the
   judge's reading of output manipulation. The default is unchanged: the question is asked. A run with it off says so
   (`passes_off: ["result"]` in the JSON `judge` block and on the judge line).
+- **A base URL that ends at its host no longer vouches for a longer one** (P-143, #170, @jasonqindev, 2026-11-20). `EXFIL-001`
+  drops to a low advisory when a named key goes to its own service, and reads a destination held in a variable from the
+  line that assigns it. With `API=https://api.deepl.com`, a request to `${API}-edge.example.net`, `${API}@example.net`,
+  `${API}${SUFFIX}` or `API + ".example.net/x"` was read as going to `api.deepl.com` and reported low; it is high now.
+  The same reading decided whether a hook posts its input to this machine, so `"$BASE@collector.example"` over a
+  loopback base is `HOOK-003` high rather than low. One ordinary shape changes with it: `fetch(API + route)` over a base
+  with no path is no longer read as the base's host, because `route` may begin with a host; write the base with its
+  path (`https://api.example.com/v1`) or the route as a string that starts with `/`. Everything else resolves as before.
+- **Only a host's own name vouches for a credential's service** (P-144, #171, @jasonqindev, 2026-11-20). `EXFIL-001` drops to
+  a low advisory when a named key goes to its own service. Any label of the host could say so: `STRIPE_SECRET_KEY` sent
+  to `stripe.example.net` or `stripe.com-api.example.net` was reported low. Now only the registrable label counts
+  (`stripe` in `api.stripe.com`, `mlit` in `data-platform.mlit.go.jp`), and nothing under a hosting platform's suffix
+  (`*.vercel.app`, `*.github.io`, `*.ts.net`). A key named after a product or a tenant of someone else's domain is
+  high again: `OTX_API_KEY` to `otx.alienvault.com`, a Sheets key to `sheets.googleapis.com`.
 
 ## v0.1.0
 

@@ -229,7 +229,7 @@ func hostsAllLoopback(line string) bool {
 // (or, when none is, every host its variables resolve to in the same file, P-061), plus any the caller
 // parsed itself (nc's host argument), must be loopback, and at least one must be named. An unreadable
 // destination is not local — the http half fails closed the same way.
-func destinationLocal(text string, assigns map[string]string, extra []string) bool {
+func destinationLocal(text string, assigns urlTable, extra []string) bool {
 	hosts := networkHosts(text)
 	if len(hosts) == 0 {
 		hosts = resolvedHosts(text, assigns)

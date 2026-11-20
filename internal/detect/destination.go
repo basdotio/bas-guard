@@ -70,42 +70,47 @@ var hostedSuffix = map[string]bool{
 	"ngrok.io": true, "ngrok-free.app": true, "trycloudflare.com": true, "repl.co": true,
 }
 
-// tldLike are labels that end a domain name. A service token sitting immediately before one of
-// them anywhere but at the host's own end is a whole domain embedded in a longer host —
-// `api.openai.com.evil.net` carries `openai`, and the first version of this check let it vouch.
-var tldLike = map[string]bool{
-	"com": true, "net": true, "org": true, "io": true, "ai": true, "app": true, "dev": true, "co": true,
-	"me": true, "info": true, "biz": true, "cloud": true, "xyz": true, "tech": true, "sh": true, "ly": true,
-	"gg": true, "tv": true, "cc": true, "us": true, "uk": true, "de": true, "fr": true, "cn": true, "jp": true,
-	"ru": true, "in": true, "eu": true, "it": true, "nl": true, "se": true, "au": true, "ca": true, "br": true,
+// ccSecondLevel are the labels that stand between an organisation's own label and a two-letter
+// country code: `coles.com.au`, `mlit.go.jp`, `bbc.co.uk`. With one of them in that position the
+// organisation's label is the third from the end, not the second.
+var ccSecondLevel = map[string]bool{
+	"co": true, "com": true, "org": true, "net": true, "gov": true, "go": true, "ac": true, "edu": true,
+	"or": true, "ne": true, "mil": true, "gob": true, "gouv": true, "govt": true, "nom": true, "sch": true,
 }
 
-// hostMatchesService reports whether one of the host's labels names a known credential service
-// and is in a position that can vouch for the host. Any label may — `purdue.brightspace.com` is
-// Purdue's tenant and `otx.alienvault.com` is OTX's product, which is why the match is not
-// restricted to the registrable label — except two positions that only look like the service:
-// a label followed by a TLD-like label short of the end (an embedded domain), and, under a hosted
-// platform's suffix, any label to the right of the tenant's (the platform itself). Matching is
-// exact: a label that merely begins with the token (`openaievil.net`) is a lookalike, not the
-// service. The RAW host is used by the caller, so a homoglyph domain (`dееpl.com` with Cyrillic е)
-// does not fold into the ASCII service name and cannot buy a downgrade.
+// hostMatchesService reports whether the host is the credential service's own: its REGISTRABLE
+// label — the one directly left of the top-level domain, or of a country's second level
+// (`mlit.go.jp`) — is exactly a service token. `api.deepl.com` is deepl's; so is `deepl.com`.
+//
+// Only that label is the owner's to choose. Every label to its left is chosen by whoever holds the
+// domain, so `stripe.evil.net`, `stripe.com-api.evil.net` and `api.openai.com.evil.net` are all
+// evil.net's, however much of the service's name they spell. Until P-144 any label could vouch
+// unless it was followed by a TLD-like label, on the strength of two benign hosts where the
+// credential is named after a tenant or a product of the domain (`purdue.brightspace.com` for
+// PURDUE_PASSWORD, `otx.alienvault.com` for OTX_API_KEY): those two no longer match, and neither
+// does anybody's subdomain named after somebody else's service.
+//
+// Under a hosted platform's suffix (hostedSuffix) nothing matches: the platform's own label is not
+// the party, and the label left of it is a name the platform hands to whoever asks first —
+// `stripe.vercel.app` is not Stripe's because it says so.
+//
+// Matching is exact: a label that merely begins with the token (`openaievil.net`) is a lookalike.
+// The RAW host is used by the caller, so a homoglyph domain (`dееpl.com` with Cyrillic е) does not
+// fold into the ASCII service name and cannot buy a downgrade.
 func hostMatchesService(host string, services map[string]bool) bool {
 	labels := strings.Split(strings.ToLower(strings.TrimSpace(host)), ".")
 	n := len(labels)
-	hosted := n >= 3 && hostedSuffix[labels[n-2]+"."+labels[n-1]]
-	for i, p := range labels {
-		if !services[p] {
-			continue
-		}
-		if hosted && i > n-3 {
-			continue // the platform's own label
-		}
-		if i+1 < n-1 && tldLike[labels[i+1]] && !(i+2 == n-1 && len(labels[n-1]) == 2) {
-			continue // a whole domain embedded in a longer host (`coles.com.au` is a ccSLD, not one)
-		}
-		return true
+	if n < 2 {
+		return false
 	}
-	return false
+	if n >= 3 && hostedSuffix[labels[n-2]+"."+labels[n-1]] {
+		return false
+	}
+	registrable := n - 2
+	if n >= 3 && len(labels[n-1]) == 2 && ccSecondLevel[labels[n-2]] {
+		registrable = n - 3
+	}
+	return services[labels[registrable]]
 }
 
 // A destination written as a variable — `curl "$API/credits"`, fetch(`${BASE}/v1`), `requests.get(url)`,
@@ -113,9 +118,17 @@ func hostMatchesService(host string, services map[string]bool) bool {
 // one base URL is set at the top and used below, which is how most real scripts are written. The
 // rule now resolves ONE level inside the same file, the way SUP-006 resolves a shell variable: if
 // the file assigns the variable an http(s) literal, that literal's host is the destination. A
-// variable the file never assigns a URL (a parameter, a field of a response) stays unreadable,
-// and a reference followed by a host-extending character (`${API}.evil.net`) is not resolved,
-// because the literal would then vouch for a host that is not the one contacted (P-061).
+// variable the file never assigns a URL (a parameter, a field of a response) stays unreadable (P-061).
+//
+// The literal vouches for the host it spells, and only for that host (P-143). A base that ends at
+// its host — `API=https://api.deepl.com`, with or without a port — is continued by whatever the
+// line puts after the name, and unless that begins a path the host that is contacted is another
+// one: `${API}.evil.net`, `${API}-x.evil.net`, `${API}evil.net` (the host api.deepl.comevil.net),
+// `${API}@evil.net` (the literal becomes the userinfo of evil.net), `API + ".evil.net/x"`,
+// `API + suffix`. None of those is resolved. A base that already holds a path
+// (`https://api.deepl.com/v2`) cannot be continued into another host and resolves whatever follows.
+// Before P-143 only a `.` straight after `$NAME` or `{NAME}` was refused: every other spelling read
+// as the service's own host, and with a loopback base as a request that stays on the machine.
 
 // urlAssignRE: NAME = … https://host…, in shell (`API=${API:-https://x}`, `API="https://x"`),
 // JavaScript (`const API = process.env.X || 'https://x'`), Python (`API_BASE = os.environ.get("X", "https://x")`)
@@ -123,21 +136,32 @@ func hostMatchesService(host string, services map[string]bool) bool {
 // assignment: a line assigning two names is skipped by the non-greedy class stopping at `=`.
 var urlAssignRE = regexp.MustCompile(`(?i)(?:^|[\s;{(,])(?:export\s+|const\s+|let\s+|var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*[:=]\s*(?:\$\{[A-Za-z_][A-Za-z0-9_]*:-)?[^\n]*?(https?://[^\s"'<>(),;}` + "`" + `]+)`)
 
-// The variables a destination expression refers to. Three spellings: `$NAME` / `${NAME}` / `{NAME}`
-// (shell, JS templates, Python f-strings), the first argument of a client call (`fetch(url,`,
-// `requests.get(url)`), and a name concatenated with a string (`API_BASE + "/x"`). Group 2 of the
-// first two captures the character AFTER the reference so the caller can refuse `.`.
+// The variables a destination expression refers to, each captured with the text that follows it on
+// the line, which decides whether the reference is the whole host (continuesHost). Four spellings:
+// `$NAME`, `${NAME}` and `{NAME}` (shell, JS templates, Python f-strings), the first argument of a
+// client call (`fetch(url,`, `requests.get(url)`, `get(API + …`), and a name concatenated with a
+// string that begins a path (`API_BASE + "/x"`).
 var (
-	urlVarDollarRE = regexp.MustCompile(`\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?([^A-Za-z0-9_]|$)`)
-	urlVarBraceRE  = regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\}([^A-Za-z0-9_]|$)`)
-	urlVarArgRE    = regexp.MustCompile(`(?i)(?:fetch|get|post|put|patch|urlopen|Request|request)\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*[,)+]`)
+	urlVarDollarRE = regexp.MustCompile(`\$([A-Za-z_][A-Za-z0-9_]*)(.*)`)
+	urlVarBracedRE = regexp.MustCompile(`\$?\{([A-Za-z_][A-Za-z0-9_]*)\}(.*)`)
+	urlVarArgRE    = regexp.MustCompile(`(?i)(?:fetch|get|post|put|patch|urlopen|Request|request)\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*([,)+].*)`)
 	urlVarConcatRE = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\s*\+\s*["'` + "`" + `]/`)
 )
 
-// urlAssignments returns NAME -> host for every same-file URL assignment. Loopback hosts are
+// urlAssigned is what a file assigns one name: the host of the http(s) literal, and whether the
+// literal ends at that host (open) rather than going on into a path, a query or a fragment.
+type urlAssigned struct {
+	host string
+	open bool
+}
+
+// urlTable is a file's NAME -> assigned URL table (urlAssignments).
+type urlTable map[string]urlAssigned
+
+// urlAssignments returns what every same-file URL assignment gives its name. Loopback hosts are
 // kept (so a `BASE=http://localhost:8000` resolves on-box) and the caller screens them.
-func urlAssignments(text string) map[string]string {
-	var out map[string]string
+func urlAssignments(text string) urlTable {
+	var out urlTable
 	for _, line := range strings.Split(text, "\n") {
 		for _, m := range urlAssignRE.FindAllStringSubmatch(line, -1) {
 			h := urlHost(m[2])
@@ -145,42 +169,89 @@ func urlAssignments(text string) map[string]string {
 				continue
 			}
 			if out == nil {
-				out = map[string]string{}
+				out = urlTable{}
 			}
 			if _, dup := out[m[1]]; !dup {
-				out[m[1]] = h
+				_, after, _ := strings.Cut(m[2], "://")
+				out[m[1]] = urlAssigned{host: h, open: !strings.ContainsAny(after, "/?#")}
 			}
 		}
 	}
 	return out
 }
 
+// continuesHost reports whether the text after a reference to an OPEN base carries the host on
+// instead of ending it. The host ends at a path, query or fragment, at the end of its string or of
+// the line, and at a port. Anything else joins the name's value into a longer authority: more name
+// characters or labels, an `@` that turns everything before it into userinfo, another reference
+// whose value the file does not show, or — after the string closes — a concatenation with
+// something that does not begin a path.
+func continuesHost(after string) bool {
+	rest := strings.TrimLeft(after, "}") // `${NAME}` as urlVarDollarRE leaves it
+	end := strings.IndexAny(rest, "/?#\"'` \t)],;&|<>\\")
+	authority, tail := rest, ""
+	if end >= 0 {
+		authority, tail = rest[:end], rest[end:]
+	}
+	if authority != "" {
+		// A port is the one thing that may follow a host inside its authority.
+		port, ok := strings.CutPrefix(authority, ":")
+		if !ok || port == "" || strings.Trim(port, "0123456789") != "" {
+			return true
+		}
+	}
+	if tail == "" || !strings.ContainsRune("\"'`", rune(tail[0])) {
+		return false
+	}
+	// The string closed here. `+` after it continues the value with another operand.
+	operand, concat := strings.CutPrefix(strings.TrimSpace(tail[1:]), "+")
+	return concat && !beginsPath(operand)
+}
+
+// beginsPath reports whether a concatenated operand is a string literal that begins a path, a query
+// or a fragment: the one operand that cannot carry a host on.
+func beginsPath(operand string) bool {
+	operand = strings.TrimSpace(operand)
+	return len(operand) >= 2 && strings.ContainsRune("\"'`", rune(operand[0])) && strings.ContainsRune("/?#", rune(operand[1]))
+}
+
 // resolvedHosts returns the hosts an unreadable destination line resolves to through the file's
-// assignments, or nothing. A `$NAME`/`{NAME}` reference followed by `.` is not resolved.
-func resolvedHosts(line string, assigns map[string]string) []string {
+// assignments, or nothing. A reference to an open base that the line continues into another host is
+// not resolved (continuesHost).
+func resolvedHosts(line string, assigns urlTable) []string {
 	if len(assigns) == 0 {
 		return nil
 	}
 	var out []string
-	add := func(name, next string) {
-		if next == "." {
-			return
-		}
-		if h, ok := assigns[name]; ok {
-			out = append(out, h)
+	add := func(name string, continued bool) {
+		if a, ok := assigns[name]; ok && !(a.open && continued) {
+			out = append(out, a.host)
 		}
 	}
-	for _, m := range urlVarDollarRE.FindAllStringSubmatch(line, -1) {
-		add(m[1], m[2])
+	// Each reference is read with the rest of the line after it; the patterns are greedy to the
+	// line's end, so the search restarts inside what followed to find the next reference.
+	for _, re := range []*regexp.Regexp{urlVarDollarRE, urlVarBracedRE} {
+		for rest := line; ; {
+			m := re.FindStringSubmatch(rest)
+			if m == nil {
+				break
+			}
+			add(m[1], continuesHost(m[2]))
+			rest = m[2]
+		}
 	}
-	for _, m := range urlVarBraceRE.FindAllStringSubmatch(line, -1) {
-		add(m[1], m[2])
-	}
-	for _, m := range urlVarArgRE.FindAllStringSubmatch(line, -1) {
-		add(m[1], "")
+	for rest := line; ; {
+		m := urlVarArgRE.FindStringSubmatch(rest)
+		if m == nil {
+			break
+		}
+		// `get(NAME,` and `get(NAME)` end the value; `get(NAME + …` continues it unless a path follows.
+		operand, concat := strings.CutPrefix(m[2], "+")
+		add(m[1], concat && !beginsPath(operand))
+		rest = m[2]
 	}
 	for _, m := range urlVarConcatRE.FindAllStringSubmatch(line, -1) {
-		add(m[1], "")
+		add(m[1], false)
 	}
 	return out
 }

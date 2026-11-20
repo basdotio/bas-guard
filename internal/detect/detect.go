@@ -642,7 +642,7 @@ type chain struct {
 	destUnreadable bool
 	// assigns is the file's NAME -> host table from urlAssignments, consulted only for an off-box
 	// line that names no readable host of its own (P-061).
-	assigns map[string]string
+	assigns urlTable
 }
 
 // egress decides whether a line is the network leg for THIS chain's file. An outbound action
