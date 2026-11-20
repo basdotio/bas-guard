@@ -24,7 +24,7 @@ and CI check both halves (`hack/changelog-check`, P-141).
   the result question (`LLM-011`) for every skill, about a third of a skill's judge calls; what goes with it is the
   judge's reading of output manipulation. The default is unchanged: the question is asked. A run with it off says so
   (`passes_off: ["result"]` in the JSON `judge` block and on the judge line).
-- **A base URL that ends at its host no longer vouches for a longer one** (P-143, @jasonqindev, 2026-11-20). `EXFIL-001`
+- **A base URL that ends at its host no longer vouches for a longer one** (P-143, #170, @jasonqindev, 2026-11-20). `EXFIL-001`
   drops to a low advisory when a named key goes to its own service, and reads a destination held in a variable from the
   line that assigns it. With `API=https://api.deepl.com`, a request to `${API}-edge.example.net`, `${API}@example.net`,
   `${API}${SUFFIX}` or `API + ".example.net/x"` was read as going to `api.deepl.com` and reported low; it is high now.

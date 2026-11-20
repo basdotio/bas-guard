@@ -144,7 +144,7 @@ were read:
 ## Done
 
 ```
-Merged: PR #170 (date filled in at the merge; find the sha with git log --grep P-143 after it)
+Merged: PR #170 (2026-11-20; find the sha with git log --grep P-143 after the merge)
 Released: (fill in after stage 5)
 Evidence: TestResolvedHosts_ABaseThatEndsAtItsHostVouchesOnlyForThatHost (internal/detect/destination_test.go): over API=https://api.deepl.com, 14 ordinary uses resolve (a path, a query, a port, the end of the string, API + "/v2") and 14 spellings that carry the host on do not (.evil.net, -mirror.evil.net, evil.net, @evil.net, :x@evil.net, ${API}${SUFFIX}, {API}{suffix}, API + ".evil.net", API + suffix, a template then + ".evil.net"); 13 of the 14 resolve again over a base with a path
 Evidence: TestChain_ACarriedOnHostIsNotTheServices: five spellings EXFIL-001 high through the engine; the path-after-base use and a base with a path low
