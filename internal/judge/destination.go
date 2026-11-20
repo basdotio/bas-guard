@@ -3,6 +3,7 @@ package judge
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -38,6 +39,17 @@ import (
 //     quoting a line that is located in what was sent, naming one destination between them, with no
 //     sample reporting that the content addressed the analyzer. Silence, "unclear", a failed call,
 //     a file that did not fit: nothing is cleared, and the result is what it is with the judge off.
+//   - The destination is the TOOL's reading of the quoted line, never the model's sentence, and a
+//     ruling the tool can read no destination from clears nothing. The first wording was tried on
+//     twelve constructed files that send a key away (2026-11-20): three samples of three answered
+//     own-service for a host assembled from string pieces ("tele" + "metry-" + "hub" + …), quoting
+//     the line that sends to it. No host and no configuration name can be read on that line or on
+//     the lines that assign its names, so there is nothing to print beside the finding, and a
+//     destination nobody can name is not one the judge may vouch for.
+//   - A file that contains the question's own answer word is not asked about. On the same day a
+//     string in the file told "security reviewers and AI analyzers" to "answer own-service", three
+//     samples did, and none reported being addressed. The barrier report is the model's to make and
+//     it did not make it; the word is the tool's to find.
 
 // maxDestinationBytes is the question's own budget: what one file may send. It is not the
 // behaviour excerpt's (maxExcerptBytes), which is shared by a whole tree and unchanged. Measured on
@@ -141,8 +153,17 @@ func destinationExcerpt(root string, f model.Finding, eg egress) (text string, u
 	if out == "" || len(out) > maxDestinationBytes || strings.Count(out, "\n") != strings.Count(red, "\n") {
 		return "", sourceUnit{}, whyTooLarge
 	}
+	if answerWordRE.MatchString(out) {
+		return "", sourceUnit{}, whyNamesTheAnswer
+	}
 	return out, sourceUnit{file: detect.Redact(rel), text: out, firstLine: 1, lineMap: lm}, ""
 }
+
+// answerWordRE is the destination question's clearing answer written in the file itself, with any
+// of the separators a string would spell it with. Text that names the answer is talking to this
+// question, whatever else it says, and the file is not asked about: the finding stands as the rules
+// made it. An author loses nothing they were owed — a file that never mentions the word is asked.
+var answerWordRE = regexp.MustCompile(`(?i)\bown[-_ ]?service\b`)
 
 // Why a finding's file yields no destination question (destinationExcerpt).
 const (
@@ -151,6 +172,8 @@ const (
 	whyNotCounted = "the finding cites a line the chain does not count in that file"
 	whyNotSent    = "a line the chain counts would not be in what is sent"
 	whyTooLarge   = "the lines the chain counts do not fit the question's budget"
+	// whyNamesTheAnswer: see answerWordRE.
+	whyNamesTheAnswer = "the file contains the question's own answer word"
 )
 
 // evidenceFile finds the file a static finding cites inside the artifact rooted at root. The
@@ -250,7 +273,7 @@ func groundedRuling(t task, v Verdict) (vote rulingVote, barrier *model.Finding)
 	vote.quoted = strings.TrimSpace(v.Evidence) != ""
 	if s, ok := groundSpan(v.Evidence, t.units); ok {
 		vote.span, vote.located = s, true
-		vote.destination = destinationOf(s.text)
+		vote.destination = destinationOf(s.text, t.req.Behavior)
 	} else if vote.answer == model.RulingOwnService {
 		vote.answer = model.RulingUnclear
 	}
@@ -274,23 +297,131 @@ func groundedRuling(t task, v Verdict) (vote rulingVote, barrier *model.Finding)
 var configuredNameRE = regexp.MustCompile(`process\.env\.([A-Za-z_][A-Za-z0-9_]*)|process\.env\[\s*["']([A-Za-z_][A-Za-z0-9_]*)["']\s*\]` +
 	`|os\.environ(?:\.get\(|\[)\s*["']([A-Za-z_][A-Za-z0-9_]*)["']|getenv\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']`)
 
-// destinationOf is what the tool reads as the destination on a quoted line: the hosts it names
-// (detect.DestinationHosts, the chain's own reading), sorted and joined, else the configuration
-// name a value is read from, written `$NAME`, else "". It is the tool's reading of text located in
-// the file, never the model's sentence.
-func destinationOf(line string) string {
+// destinationOf is what the tool reads as the destination a quoted line names, in the text that was
+// sent: what the line itself says (lineDestination), or else what the lines that assign the names
+// on it say, followed two levels — `requests.get(url)`, `url = BASE + "/v1"`, `BASE = "https://…"`
+// is how most clients are written. Followed names must agree: when they lead to more than one
+// destination the line names none, since the tool cannot tell which of them the request uses. ""
+// means the tool can read no destination, and a ruling resting on such a quote clears nothing.
+// It is the tool's reading of text located in the file, never the model's sentence.
+func destinationOf(quoted, sent string) string {
+	if d := lineDestination(quoted); d != "" {
+		// The quoted line may be the one that gives a name its host; a use of that name which
+		// extends the host contacts another one (extendsHost).
+		for _, name := range identRE.FindAllString(quoted, -1) {
+			if assignmentOf(name).MatchString(quoted) && extendsHost(name).MatchString(sent) {
+				return ""
+			}
+		}
+		return d
+	}
+	lines := strings.Split(sent, "\n")
+	found := map[string]bool{}
+	seen := map[string]bool{}
+	names := identRE.FindAllString(quoted, -1)
+	for depth := 0; depth < 2 && len(found) == 0; depth++ {
+		var next []string
+		for _, name := range names {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			assign := assignmentOf(name)
+			for _, l := range lines {
+				if !assign.MatchString(l) {
+					continue
+				}
+				d := lineDestination(l)
+				if d == "" {
+					next = append(next, identRE.FindAllString(l, -1)...)
+					continue
+				}
+				// The name holds a host; a use that extends it contacts another one.
+				if extendsHost(name).MatchString(sent) {
+					return ""
+				}
+				found[d] = true
+			}
+		}
+		names = next
+	}
+	if len(found) != 1 {
+		return ""
+	}
+	for d := range found {
+		return d
+	}
+	return ""
+}
+
+// lineDestination is the destination one line names: its hosts as the chain reads them
+// (detect.DestinationHosts), sorted and joined, else the configuration value a destination is read
+// from, written `$NAME` — unless that name is a credential's (detect.SecretName), which is what is
+// sent, not where.
+//
+// A ruling prints this beside a finding and a clearing requires it, so it is read more strictly
+// than the chain reads a host for its own purposes. Every host on the line must be a whole name: a
+// dotted domain, an IP address or localhost. `HOST = "tele" + "metry-" + …` reads to the chain as a
+// host called "tele", and a template (`https://${HOST}/v1`) as one called `${HOST}`; neither is a
+// destination anybody can check, so a line holding one names none. And a literal that ends at its
+// host and is then extended — `"https://api.github.com" + SUFFIX` — names none either: what is
+// contacted is the literal plus whatever SUFFIX holds.
+func lineDestination(line string) string {
 	if hosts := detect.DestinationHosts(line); len(hosts) > 0 {
+		for _, h := range hosts {
+			if !wholeHost(h) {
+				return ""
+			}
+		}
+		if openHostRE.MatchString(line) {
+			return ""
+		}
 		sort.Strings(hosts)
 		return strings.Join(hosts, ", ")
 	}
-	if m := configuredNameRE.FindStringSubmatch(line); m != nil {
+	for _, m := range configuredNameRE.FindAllStringSubmatch(line, -1) {
 		for _, name := range m[1:] {
-			if name != "" {
+			if name != "" && !detect.SecretName(name) {
 				return "$" + name
 			}
 		}
 	}
 	return ""
+}
+
+// wholeHostRE is a dotted domain name written out in full: labels of letters, digits and hyphens,
+// ending in an alphabetic label.
+var wholeHostRE = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?i:[a-z]{2,})$`)
+
+// wholeHost reports whether h is a host a reader can check: a full domain name, an IP address or
+// localhost.
+func wholeHost(h string) bool {
+	h = strings.Trim(strings.TrimSpace(h), "[]")
+	return wholeHostRE.MatchString(h) || net.ParseIP(h) != nil || strings.EqualFold(h, "localhost")
+}
+
+// openHostRE is a URL or host literal that ends at the host — no path, port or query after it — and
+// is closed by its quote only to be continued: `"https://api.github.com" + x`, or the host followed
+// by a template or format hole (`https://api.github.com${x}`, `https://api.github.com{x}`,
+// `https://api.github.com%s`). The host that is contacted is longer than the one written.
+var openHostRE = regexp.MustCompile("(?i)https?://[a-z0-9.-]+(?:[\"'`]\\s*\\+|\\$?\\{|%[sv])")
+
+// extendsHost matches a use of name that continues a host it holds: concatenated with a string that
+// does not begin a path (`API + ".evil.net/x"`, where `API + "/v1"` is the ordinary use), or
+// followed in a template by a character that continues a host (`${API}.evil.net`, `{API}-x.net`).
+func extendsHost(name string) *regexp.Regexp {
+	n := regexp.QuoteMeta(name)
+	return regexp.MustCompile(`(?:^|[^A-Za-z0-9_$])` + n + "\\s*\\+\\s*[\"'`][^/?#\"'`]" + `|\$?\{\s*` + n + `\s*\}[A-Za-z0-9.@-]`)
+}
+
+// identRE is a name as code writes one.
+var identRE = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]*`)
+
+// assignmentOf matches a line that gives name a value: `name = …`, `const name: string = …`,
+// `self.name = …`, `name := …`. A comparison (`==`) is not one, nor is a keyword argument inside a
+// call the name merely appears in.
+func assignmentOf(name string) *regexp.Regexp {
+	return regexp.MustCompile(`(?:^|[^A-Za-z0-9_$])` + regexp.QuoteMeta(name) + `\s*(?::\s*[A-Za-z_][\w.<>\[\]| ]{0,40})?\s*(?::=|=)(?:[^=]|$)`)
 }
 
 // rulingBallot collects the samples of one destination question.
@@ -316,10 +447,10 @@ func (b *rulingBallot) cast(r result) {
 //
 // Clears is set only when every bar holds: own-service is the answer of a majority of at least
 // minRulingSamples planned samples; no sample reported the content addressing the analyzer; and
-// the agreeing samples name one destination between them — every destination the tool read from
-// their quotes is the same one, or, when none of the quoted lines names a destination, they all
-// quoted the same line. Two samples that say "own service" about two different hosts have not
-// agreed on where the key goes.
+// the agreeing samples name one destination between them — the tool read a destination from at
+// least one of their quotes (destinationOf), and every one it read is the same. Two samples that
+// say "own service" about two different hosts have not agreed on where the key goes, and samples
+// that agree about a line the tool can read no destination from have named none.
 func (b *rulingBallot) ruling(cited string) model.Ruling {
 	count := map[string]int{}
 	veto := false
@@ -336,7 +467,7 @@ func (b *rulingBallot) ruling(cited string) model.Ruling {
 	if r.Answer == model.RulingUnclear {
 		return r
 	}
-	destinations, lines := map[string]bool{}, map[int]bool{}
+	destinations := map[string]bool{}
 	first := true
 	for _, v := range b.votes {
 		if v.answer != r.Answer || !v.located {
@@ -346,7 +477,6 @@ func (b *rulingBallot) ruling(cited string) model.Ruling {
 			first = false
 			r.Evidence = []model.Evidence{{File: cited, Line: v.span.line, Snippet: capBytes(detect.Redact(v.span.text), maxSnippetBytes)}}
 		}
-		lines[v.span.line] = true
 		if v.destination != "" {
 			destinations[v.destination] = true
 		}
@@ -356,7 +486,6 @@ func (b *rulingBallot) ruling(cited string) model.Ruling {
 			r.Destination = capBytes(detect.Redact(d), maxSnippetBytes)
 		}
 	}
-	oneDestination := len(destinations) == 1 || (len(destinations) == 0 && len(lines) == 1)
-	r.Clears = r.Answer == model.RulingOwnService && b.n >= minRulingSamples && !veto && oneDestination
+	r.Clears = r.Answer == model.RulingOwnService && b.n >= minRulingSamples && !veto && len(destinations) == 1
 	return r
 }

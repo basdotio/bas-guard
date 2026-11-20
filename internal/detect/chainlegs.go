@@ -87,6 +87,11 @@ const maxAssignsPerName = 4
 // (`baseURL: `, `base_url=`). The value is not read — the judge reads it.
 var assignedNameRE = regexp.MustCompile(`(?:^|[^A-Za-z0-9_$])([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[A-Za-z_][\w.<>\[\]| ]{0,40})?\s*(?::=|=|:)(?:[^=]|$)`)
 
+// SecretName reports whether a name reads as a credential's (secretNamePat, the credential leg's own
+// list): GITHUB_TOKEN does, GITEA_URL does not. The judge uses it so that a ruling never names the
+// credential's own variable as the place the credential is sent (P-142).
+func SecretName(name string) bool { return secretNameRE.MatchString(name) }
+
 // DestinationHosts returns the hosts a line names as a destination, as the chain reads them
 // (networkHosts): the host of each http(s) URL, a /dev/tcp host, a quoted host or hostname value.
 // A host the chain cannot read is left out, so an empty result means the line names none it can
