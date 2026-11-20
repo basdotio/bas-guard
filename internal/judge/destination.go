@@ -137,6 +137,15 @@ func destinationExcerpt(root string, f model.Finding, eg egress) (text string, u
 	// or removes one, so the chain's line numbers, taken from the file as it is on disk, still name
 	// the same lines.
 	red, lm := condense(path, eg.redact(string(raw)), true)
+	if answerWordRE.MatchString(red) {
+		return "", sourceUnit{}, whyNamesTheAnswer
+	}
+	// Code, not prose (codeonly.go): sentences in strings, docstrings and document text are taken out,
+	// line for line, except on the lines the chain counted, whose code is what the question is about.
+	lines := strings.Split(red, "\n")
+	if len(lines) == len(lm) {
+		red = strings.Join(codeOnly(path, lines, func(i int) bool { return counted[lm[i]] }), "\n")
+	}
 	if len(red) > maxDestinationBytes {
 		red, lm = aroundLines(red, lm, counted, destinationContext)
 	}
@@ -153,17 +162,16 @@ func destinationExcerpt(root string, f model.Finding, eg egress) (text string, u
 	if out == "" || len(out) > maxDestinationBytes || strings.Count(out, "\n") != strings.Count(red, "\n") {
 		return "", sourceUnit{}, whyTooLarge
 	}
-	if answerWordRE.MatchString(out) {
-		return "", sourceUnit{}, whyNamesTheAnswer
-	}
 	return out, sourceUnit{file: detect.Redact(rel), text: out, firstLine: 1, lineMap: lm}, ""
 }
 
-// answerWordRE is the destination question's clearing answer written in the file itself, with any
-// of the separators a string would spell it with. Text that names the answer is talking to this
-// question, whatever else it says, and the file is not asked about: the finding stands as the rules
-// made it. An author loses nothing they were owed — a file that never mentions the word is asked.
-var answerWordRE = regexp.MustCompile(`(?i)\bown[-_ ]?service\b`)
+// answerWordRE is the destination question's clearing answer written in the file itself as the one
+// token the reply format uses (`own-service`, or with an underscore, as a name would spell it).
+// Text that names the answer is talking to this question, whatever else it says, and the file is
+// not asked about: the finding stands as the rules made it. The two words with a space between
+// them are ordinary English ("each tenant has its own service account") and are not it; a sentence
+// that uses them is taken out with every other sentence (codeonly.go).
+var answerWordRE = regexp.MustCompile(`(?i)\bown[-_]service\b`)
 
 // Why a finding's file yields no destination question (destinationExcerpt).
 const (
