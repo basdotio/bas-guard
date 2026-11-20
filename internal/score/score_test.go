@@ -199,3 +199,125 @@ func TestApply_UnqualifiedLLMFindingCarriesNoWeight(t *testing.T) {
 			mixed.Artifacts[0].ScoreEffective)
 	}
 }
+
+// exfil builds the high finding of an unconfirmed rule, as the static chain reports it.
+func exfil(rule string) model.Finding {
+	return model.Finding{RuleID: rule, Dimension: 3, Severity: model.SevHigh, Source: model.SrcStatic}
+}
+
+// ruled is f carrying a ruling that met every bar.
+func ruled(f model.Finding) model.Finding {
+	f.Ruling = &model.Ruling{Answer: model.RulingOwnService, K: 3, N: 3, Destination: "api.example.com", Clears: true}
+	return f
+}
+
+// TestCleared_OnlyAnUnconfirmedFindingWithAClearingRuling pins who a ruling can clear (P-142): a
+// deterministic high finding of a rule in the closed set, and nothing else. The predicate checks the
+// rule itself, so a ruling that reached any other finding — by a bug in the judge, or by a report
+// someone edited — changes no number and no gate.
+func TestCleared_OnlyAnUnconfirmedFindingWithAClearingRuling(t *testing.T) {
+	with := func(f model.Finding, r model.Ruling) model.Finding { f.Ruling = &r; return f }
+	clears := model.Ruling{Answer: model.RulingOwnService, K: 2, N: 3, Clears: true}
+	for _, tc := range []struct {
+		name string
+		f    model.Finding
+		want bool
+	}{
+		{"EXFIL-001 high, cleared", with(exfil("EXFIL-001"), clears), true},
+		{"EXFIL-003 high, cleared", with(exfil("EXFIL-003"), clears), true},
+		{"no ruling", exfil("EXFIL-001"), false},
+		{"a ruling that did not meet the bar", with(exfil("EXFIL-001"), model.Ruling{Answer: model.RulingOwnService, K: 1, N: 3}), false},
+		{"elsewhere never clears, whatever the flag says", with(exfil("EXFIL-001"), model.Ruling{Answer: model.RulingElsewhere, K: 3, N: 3, Clears: true}), false},
+		{"unclear never clears", with(exfil("EXFIL-001"), model.Ruling{Answer: model.RulingUnclear, K: 3, N: 3, Clears: true}), false},
+		{"an answer outside the list", with(exfil("EXFIL-001"), model.Ruling{Answer: "safe", K: 3, N: 3, Clears: true}), false},
+		{"a rule outside the set", with(model.Finding{RuleID: "EXEC-001", Dimension: 2, Severity: model.SevHigh, Source: model.SrcStatic}, clears), false},
+		{"the cross-file sibling, EXFIL-002", with(model.Finding{RuleID: "EXFIL-002", Dimension: 3, Severity: model.SevHigh, Source: model.SrcStatic}, clears), false},
+		{"the same rule at critical", with(model.Finding{RuleID: "EXFIL-001", Dimension: 3, Severity: model.SevCritical, Source: model.SrcStatic}, clears), false},
+		{"the same rule at low (already an advisory)", with(model.Finding{RuleID: "EXFIL-001", Dimension: 3, Severity: model.SevLow, Source: model.SrcStatic}, clears), false},
+		{"an LLM finding that borrowed the rule's name", with(model.Finding{RuleID: "EXFIL-001", Dimension: 3, Severity: model.SevHigh, Source: model.SrcLLM, Escalates: true}, clears), false},
+		{"a dimension-0 note", with(model.Finding{RuleID: "EXFIL-001", Dimension: 0, Severity: model.SevHigh, Source: model.SrcStatic}, clears), false},
+	} {
+		if got := Cleared(tc.f); got != tc.want {
+			t.Errorf("%s: Cleared = %v, want %v", tc.name, got, tc.want)
+		}
+		if Judged(tc.f) != (Escalating(tc.f) && !tc.want) {
+			t.Errorf("%s: Judged disagrees with Escalating less Cleared", tc.name)
+		}
+		if Unconfirmed(tc.f) && tc.f.Source == model.SrcLLM {
+			t.Errorf("%s: an LLM finding is never Unconfirmed", tc.name)
+		}
+	}
+}
+
+// TestApply_ARulingMovesOnlyTheEffectiveNumber is P-142's half of the invariant, as a property over
+// every combination: with a cleared finding beside any other static finding and any LLM finding,
+//
+//   - Score and Overall are exactly what they are with the ruling taken off (nothing a model wrote
+//     reaches the deterministic number, --fail-on or an attestation);
+//   - the effective numbers are exactly what they are with the cleared finding absent: the ruling
+//     lifts them by that finding and by nothing more, and everything else still only lowers them.
+func TestApply_ARulingMovesOnlyTheEffectiveNumber(t *testing.T) {
+	sevs := []model.Severity{model.SevLow, model.SevMedium, model.SevHigh, model.SevCritical}
+	dims := []int{0, 1, 3, 4, 9, 10}
+	for _, rule := range []string{"EXFIL-001", "EXFIL-003"} {
+		for _, ds := range sevs {
+			for _, dd := range dims {
+				for _, ls := range sevs {
+					for _, ld := range dims {
+						build := func(x ...model.Finding) model.ScanResult {
+							return model.ScanResult{Artifacts: []model.ArtifactReport{
+								art(append(x, f(dd, ds), llmF(ld, ls))...),
+								art(llmF(ld, ls)),
+								art(append(x, f(dd, ds))...),
+								art(x...),
+							}}
+						}
+						withRuling, stripped, absent := build(ruled(exfil(rule))), build(exfil(rule)), build()
+						Apply(&withRuling)
+						Apply(&stripped)
+						Apply(&absent)
+						if withRuling.Overall != stripped.Overall {
+							t.Fatalf("%s: a ruling moved overall: %d, without it %d", rule, withRuling.Overall, stripped.Overall)
+						}
+						if withRuling.OverallEffective != absent.OverallEffective {
+							t.Fatalf("%s: effective %d with the finding cleared, %d with it absent (static dim%d/%s, llm dim%d/%s)",
+								rule, withRuling.OverallEffective, absent.OverallEffective, dd, ds, ld, ls)
+						}
+						if stripped.OverallEffective > stripped.Overall {
+							t.Fatalf("%s: without a ruling effective %d > overall %d", rule, stripped.OverallEffective, stripped.Overall)
+						}
+						for i := range withRuling.Artifacts {
+							if withRuling.Artifacts[i].Score != stripped.Artifacts[i].Score {
+								t.Fatalf("%s: artifact %d: a ruling moved score", rule, i)
+							}
+							if withRuling.Artifacts[i].ScoreEffective != absent.Artifacts[i].ScoreEffective {
+								t.Fatalf("%s: artifact %d: effective %d cleared, %d absent", rule, i,
+									withRuling.Artifacts[i].ScoreEffective, absent.Artifacts[i].ScoreEffective)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestApply_AClearedHighLiftsTheCeiling is the property above as one example a reader can check by
+// hand: one artifact whose only finding is EXFIL-001 high scores 75, capped at 69 for the
+// environment; cleared, the effective numbers are 100 and the deterministic ones do not move.
+func TestApply_AClearedHighLiftsTheCeiling(t *testing.T) {
+	r := model.ScanResult{Artifacts: []model.ArtifactReport{art(ruled(exfil("EXFIL-001")))}}
+	Apply(&r)
+	if r.Artifacts[0].Score != 75 || r.Overall != 69 {
+		t.Errorf("deterministic: score %d overall %d, want 75 and 69", r.Artifacts[0].Score, r.Overall)
+	}
+	if r.Artifacts[0].ScoreEffective != 100 || r.OverallEffective != 100 {
+		t.Errorf("effective: score %d overall %d, want 100 and 100", r.Artifacts[0].ScoreEffective, r.OverallEffective)
+	}
+	// An escalating LLM finding beside it still lowers the effective number, from the lifted ceiling.
+	r = model.ScanResult{Artifacts: []model.ArtifactReport{art(ruled(exfil("EXFIL-001")), llmF(1, model.SevMedium))}}
+	Apply(&r)
+	if r.Artifacts[0].ScoreEffective != 88 || r.Artifacts[0].Score != 75 {
+		t.Errorf("with an LLM medium: effective %d score %d, want 88 and 75", r.Artifacts[0].ScoreEffective, r.Artifacts[0].Score)
+	}
+}

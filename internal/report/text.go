@@ -634,7 +634,7 @@ func HasAtLeast(r model.ScanResult, sev model.Severity) bool {
 // deterministic ones plus LLM findings that cleared every precondition. It drives the separate,
 // default-off --fail-on-llm gate (spec §3), never --fail-on.
 func HasAtLeastEffective(r model.ScanResult, sev model.Severity) bool {
-	return hasAtLeast(r, sev, score.Escalating)
+	return hasAtLeast(r, sev, score.Judged)
 }
 
 // hasAtLeast walks the findings with the SAME predicate the scorer uses. The predicates live
