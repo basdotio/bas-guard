@@ -77,22 +77,28 @@ Code:
   them
 - [x] One pinned row changes and says so: `openai.com.cn` vouched for `openai` and no longer does; an unlisted name
   takes its place as the country-suffix example
-- [ ] Reverse assertions, green without a character changed in what they assert: every other row of
+- [x] Reverse assertions, green without a character changed in what they assert: every other row of
   `TestHostMatchesService` and `TestChain_DestinationResolvesSameFileBaseURL`, `TestChain_DestinationConsistency`, the
   judge's own-service rows
-- [ ] `rulesEpoch` 29, `make docs`, `.claude/rules/detect.md`, `CHANGELOG.md`
-- [ ] `make verify` green, read from its own exit code
+- [x] `rulesEpoch` 29, `make docs`, `.claude/rules/detect.md`, `CHANGELOG.md`
+- [x] `make verify` green, read from its own exit code
 
-Measurement (static, free), `main` at `0894372` (the runs of 2026-11-20 on the same content) against the branch.
-Lines written on 2026-11-20 before the branch runs were read:
+Measurement (static, free), `main` at `0894372` (the runs of 2026-11-20 on the same content) against the branch
+(`agent-guard-work/runs/2026-11-20-p145-v1-*`). Lines written on 2026-11-20 before the branch runs were read:
 
-- [ ] **Malicious, corpus (719)**: no sample loses a finding at high. Flagged 243 → at least 243.
-- [ ] **Benign, corpus (4,534)**: at most **3** samples gain a high. Each is listed with its key and host; a listed
-  service found on a domain of its own that the table lacks is added, with the reason, before the line is read again.
-- [ ] **Fresh real skills (412)**: at most **1** tree gains a high.
-- [ ] **Held-out, totals only**: malicious flagged not lower than 134 of 243; benign flagged at most 7 of 216 (6 today).
-- [ ] **No finding is lowered anywhere**: on every set, no sample has a finding at a lower severity than on `main`.
-- [ ] The eleven low rows of the Problem table read high; `api.stripe.com` and four other keys that go home stay low.
+- [x] **Malicious, corpus (719)**: no sample loses a finding at high. Flagged 243 → at least 243. *243 → 243.*
+- [x] **Benign, corpus (4,534)**: at most **3** samples gain a high. *341 → 341: none.*
+- [x] **Fresh real skills (412)**: at most **1** tree gains a high. *None: 24 of 200 and 9 of 212, as before.*
+- [x] **Held-out, totals only**: malicious flagged not lower than 134 of 243; benign flagged at most 7 of 216.
+  *134 and 6, as before.*
+- [x] **No finding is lowered anywhere.** *No finding of any sample differs on any of the four sets: 5,272 corpus
+  samples, 412 fresh skills, and the held-out set compared sample by sample for a difference and read as a count.*
+- [x] The eleven low rows of the Problem table read high; `api.stripe.com` and four other keys that go home stay low.
+  *Sixteen one-skill fixtures, both binaries: the eleven 95/100 → 69/100; `api.stripe.com`, `api.notion.so`,
+  `myres.openai.azure.com`, and two services outside the table (`api.mengram.io`, `mesh.heurist.xyz`) 95/100 on both.*
+
+Nothing in any set uses a listed service's name under another suffix, or leans on a descriptive word: the change
+costs no sample and catches none. What it closes is in the table of rows.
 
 ## Out of scope
 
