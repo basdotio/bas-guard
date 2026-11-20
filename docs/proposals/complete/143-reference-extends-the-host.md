@@ -81,7 +81,7 @@ Code:
   high (Initial direction); a twin with a path in the base is added and is low
 - [x] `rulesEpoch` 27, `make docs` (no rule text changes; the rules version moves), `.claude/rules/detect.md`,
   `CHANGELOG.md`
-- [ ] `make verify` green, read from its own exit code
+- [x] `make verify` green, read from its own exit code
 
 Measurement (static, free), `main` at `57ae417` (the 2026-11-19 runs; rules `64f57c6f747c`, as `c96baf7`) against
 the branch (`agent-guard-work/runs/2026-11-20-p143-strict-*`). Lines written on 2026-11-20 before the branch runs
@@ -135,11 +135,22 @@ were read:
    same-file case and leaves a suffix passed as an argument. The measurement decides: if the benign line holds with
    the strict reading, it stays.
    **Proceeded under the recommendation (2026-11-20)**: the line holds, at one benign skill of 4,534 and none of
-   412 fresh ones. A different answer before merge changes one branch of `resolvedHosts`.
+   412 fresh ones.
+   **Decided (2026-11-20)**: as recommended ("按你建议的来").
 2. **A base that holds a path resolves whatever follows.** Recommended: **yes.** `https://api.github.com/v3` followed
    by anything is a longer path on the same host.
-   **Proceeded under the recommendation (2026-11-20).**
+   **Decided (2026-11-20)**: as recommended.
 
 ## Done
 
-Filled in at stage 4.
+```
+Merged: PR #170 (date filled in at the merge; find the sha with git log --grep P-143 after it)
+Released: (fill in after stage 5)
+Evidence: TestResolvedHosts_ABaseThatEndsAtItsHostVouchesOnlyForThatHost (internal/detect/destination_test.go): over API=https://api.deepl.com, 14 ordinary uses resolve (a path, a query, a port, the end of the string, API + "/v2") and 14 spellings that carry the host on do not (.evil.net, -mirror.evil.net, evil.net, @evil.net, :x@evil.net, ${API}${SUFFIX}, {API}{suffix}, API + ".evil.net", API + suffix, a template then + ".evil.net"); 13 of the 14 resolve again over a base with a path
+Evidence: TestChain_ACarriedOnHostIsNotTheServices: five spellings EXFIL-001 high through the engine; the path-after-base use and a base with a path low
+Evidence: TestHookPayloadEgress_Destination, three rows added: a loopback base turned into userinfo and one carried on with a hyphen are HOOK-003 high (both low on main, run against main's resolver); a loopback base with a path low
+Evidence: the Problem table as eleven one-skill fixtures, main 57ae417 against the branch: the eight low rows 95/100 → 69/100 (EXFIL-001 low → high); "${API}/v2/translate" and API + "/repos/x/issues" low on both; the dot row high on both
+Evidence: static, main 57ae417 → branch: corpus malicious 243 → 243 of 719 with no finding of any malicious sample changed; benign 337 → 338 of 4,534 (one skill, fetch(API + route) over 'https://api.typesafe.ai'; one already-flagged server gains a high on a test file, `${proxyUrl}${path}` over a loopback base); hard negatives 4 → 4; fresh skills 24 of 200 and 9 of 212, no finding changed; held-out, totals only, malicious 134 of 243 and benign 6 of 216, unchanged
+Evidence: reverse assertions green: every other row of TestChain_DestinationResolvesSameFileBaseURL, TestHostMatchesService, TestHookPayloadEgress_*; the one pinned row that changes (a base that ends at its host, concatenated with a name: low → high) says so, and its twin with a path in the base is low
+Evidence: rulesEpoch 27; docs/rules.md regenerated (the rules version only); make verify: all gates passed; CI build-test and changelog pass on the PR
+```
