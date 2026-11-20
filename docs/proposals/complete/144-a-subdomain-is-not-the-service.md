@@ -47,7 +47,7 @@ This takes back two of P-061's three benign hosts, the tenant and the product; t
 country second level properly. A machine named after a service on someone's tailnet (`reelql.tail6c0e2d.ts.net`,
 P-061's own example) no longer vouches either. The measurement below says how many benign samples that is today.
 
-`rulesEpoch` 26 → 27 (28 if P-143 lands first). No rule is added and no rule's text changes.
+`rulesEpoch` 27 → 28 (27 is P-143's, which merged first). No rule is added and no rule's text changes.
 
 ## Done criteria
 
@@ -62,8 +62,8 @@ Code:
   `stripe.com-api.example.net`, is `EXFIL-001` high; the tailnet row is high and says why it changed
 - [x] Reverse assertions, green without a character changed in what they assert: every other row of that table (the
   own-service shapes that must keep downgrading), `TestChain_*`, the judge's `TestRun_*GoesHome*` rows
-- [x] `rulesEpoch` 27, `make docs`, `.claude/rules/detect.md`, `CHANGELOG.md`
-- [ ] `make verify` green, read from its own exit code
+- [x] `rulesEpoch` 28, `make docs`, `.claude/rules/detect.md`, `CHANGELOG.md`
+- [x] `make verify` green, read from its own exit code
 
 Measurement (static, free), `main` at `57ae417` (the 2026-11-19 runs; rules `64f57c6f747c`, as `c96baf7`) against
 the branch (`agent-guard-work/runs/2026-11-20-p144-strict-*`). Lines written on 2026-11-20 before the branch runs
@@ -122,16 +122,26 @@ were read:
 1. **Give up the tenant and the product subdomain?** Recommended: **yes.** P-061 kept them for two benign servers
    and the same sentence of the rule is what lets `stripe.evil.net` through; nothing in a host name separates the two.
    The benign line above is the bound on what that may cost.
-   **Built under the recommendation (2026-11-20), not yet answered**: it costs the three benign samples in the table
-   above, two of them through a product subdomain. This is the question the maintainer decides before it ships.
+   **Decided (2026-11-20)**: as recommended ("按你建议的来"), with the three benign samples in the table above in
+   front of the maintainer: two through a product subdomain, one a tailnet machine name.
 2. **A tailnet machine name.** Recommended: **does not vouch.** A tailnet's machine names are its owner's to choose,
    and a tailnet can be published.
-   **Built under the recommendation (2026-11-20), not yet answered**: one of the three.
+   **Decided (2026-11-20)**: as recommended; one of the three.
 3. **The list of country second-level labels.** Recommended: **the sixteen in the code** (`co`, `com`, `org`, `net`,
    `gov`, `go`, `ac`, `edu`, `or`, `ne`, `mil`, `gob`, `gouv`, `govt`, `nom`, `sch`), applied only before a two-letter
    top-level domain. A label missing from it makes a real organisation's host read as not its own, which fails toward
    high.
+   **Decided (2026-11-20)**: as recommended.
 
 ## Done
 
-Filled in at stage 4.
+```
+Merged: PR #171 (2026-11-20; find the sha with git log --grep P-144 after the merge)
+Released: (fill in after stage 5)
+Evidence: TestHostMatchesService (internal/detect/destination_test.go): the registrable label vouches (api.deepl.com, deepl.com, data-platform.mlit.go.jp, www.coles.com.au, openai.com.cn, bbc.co.uk); a label left of it does not (stripe.evil.net, stripe.com-api.evil.net, api.stripe.payments.evil.net, the embedded-domain rows, purdue.brightspace.com, otx.alienvault.com), nor any label under a hosted suffix (evil.github.io, stripe.vercel.app, stripe.pages.dev, reelql.tail6c0e2d.ts.net), nor a lookalike, a homoglyph or a single label. Red on main: stripe.evil.net, stripe.com-api.evil.net, api.stripe.payments.evil.net, stripe.vercel.app, stripe.pages.dev
+Evidence: TestChain_DestinationResolvesSameFileBaseURL: STRIPE_SECRET_KEY to stripe.com-api.example.net is EXFIL-001 high (new row); the tailnet row is high and says why; every other row unchanged
+Evidence: the Problem table as eight one-skill fixtures, main 57ae417 against the branch: the five hosts of the four low rows 95/100 → 69/100; api.stripe.com 95/100 on both; api.stripe.com.evil.net 69/100 on both; stripe.xyz 95/100 on both (Out of scope)
+Evidence: static, main 57ae417 → branch: corpus malicious 243 → 243 of 719 (one malicious skill's original PubMed client goes low → high, NCBI_API_KEY to eutils.ncbi.nlm.nih.gov; no malicious finding lowered); benign 337 → 340 of 4,534 (OTX_API_KEY to otx.alienvault.com, a Sheets token to sheets.googleapis.com, REELQL_API_KEY to a tailnet machine; no other benign finding changed); hard negatives 4 → 4; fresh skills 24 of 200 and 9 of 212, no finding changed; held-out, totals only, malicious 134 of 243 and benign 6 of 216, unchanged
+Evidence: Out of scope — no judge run was made; the same name under another top-level domain still vouches (the stripe.xyz fixture above)
+Evidence: rulesEpoch 28 (the branch was measured at 27, before P-143 merged, and re-applied onto main after it; the re-run is the line below); docs/rules.md regenerated (the rules version only); make verify: all gates passed; CI build-test and changelog pass on the PR
+```
