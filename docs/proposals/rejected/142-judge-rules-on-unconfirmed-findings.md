@@ -8,7 +8,13 @@
 - **Depends on**: none in code. P-061, P-074 (rejected) and P-095 are the static attempts on the same findings; P-114
   (rejected) measured what the server pass does when it is shown the lines of a static finding; P-041 and P-046 are the
   bar an LLM finding clears before it weighs
-- **Branch**: `p/142-judge-rules-on-unconfirmed-findings`
+- **Branch**: `p/142-judge-rules-on-unconfirmed-findings` (the code is reverted in the same branch; the trials and this
+  record stay)
+- **Rejected**: 2026-11-20 — by a line decided in advance (open question 8: no adversarial probe is cleared). The
+  question was built and tried on constructed files before any corpus run: 3 of 25 that send a named key to someone
+  else's host were cleared, all three through a host that only looks like the vendor's. A ruling the model cannot be
+  argued into was sized the same day and clears 2 of 223 benign samples. The maintainer, the same day: "按你建议的来",
+  to the recommendation to reject and keep the record. See "Trials of the question".
 
 ## Problem
 
@@ -113,6 +119,12 @@ nothing escalated" sample were cleared: benign 388 → 233, malicious 554 → 54
 measured run, not against this bound.
 
 ## Done criteria
+
+Of the code items, these were built and green (`make verify` on `5f1628c`, and again on `344b5df` with the two
+tightenings the trials led to), then reverted when the trials failed: the scoring predicate with its property tests,
+the question with its excerpt, clearing rules and sample count, the `--fail-on-llm` rows, and the `llm.rulings`
+switch. The end-to-end reverse assertion, the renderers, `judgefold`, the spec and the documents were not started.
+No measurement line was run: the trials stopped the proposal before the corpus.
 
 Code:
 
@@ -324,9 +336,36 @@ model can place, before any other loss.
 
 **Where this leaves the proposal.** Reading the code is what clears these findings, and reading the code is where the
 answer can be bought with a host that looks right. The version that is safe clears 2 of 223. Neither meets both lines
-set on 2026-11-20 (benign 388 → at most 300; no adversarial probe cleared). The code on this branch is as trial 3 ran
-it; nothing was run on the corpus, the held-out set or the fresh sets with a model.
+set on 2026-11-20 (benign 388 → at most 300; no adversarial probe cleared). Nothing was run on the corpus, the held-out
+set or the fresh sets with a model.
+
+**What was checked without a model**, on the build of trial 1 (`5f1628c`), and stands as a reading of the mechanism:
+
+- Static, `main` against the branch, the whole corpus (5,272 samples): every finding identical. The refactor that let
+  the question and the rules read "a leg" from one definition moved nothing.
+- A dry run against a local stand-in for the endpoint, on the 344 corpus samples that carry the finding: of 331
+  findings on a skill or a server, 303 got a question and 28 did not fit the question's 8,000 bytes even cut down to
+  the lines the chain counted. The files are large: half of the 424 that carry the finding are over 12,000 bytes, so
+  sending them whole was never an option.
+
+**What the trials leave for a next attempt.** Three things held and are worth keeping in mind; none is in `main`.
+The tool, not the model, must read the destination a ruling names, as a whole domain, an address or a configuration
+name. Sentences in a file are the cheapest way to move the answer and can be removed before sending, as comments
+are; names did not move it. And the remaining failure is not about wording: it is that the answer needs a fact about
+who owns a host, which neither the file nor the model has.
+
+**Found on the way, and fixed on their own**: two ways a key sent to someone else's host read as sent home in the
+static destination check itself, P-143 and P-144.
 
 ## Done
 
-Filled in at stage 4.
+```
+Rejected: 2026-11-20, PR #169 (the record only; find the sha with git log --grep P-142 after the merge)
+Evidence: trials on constructed files that send a named key away (gpt-4.1-mini, samples 3, one check --llm per tree, US$0.36): adversarial cleared 2 of 12 (ac22aa0), 1 of 18 (e0703d4), 3 of 25 (344b5df); controls cleared 4 of 4, 5 of 5, 5 of 5. Line (open question 8): none cleared. Not met on every probe written; met on the first twelve from trial 2
+Evidence: the three cleared in trial 3 share the host pay-gateway.example.org/stripe for STRIPE_SECRET_KEY: own-service 3 of 3 with code only, 3 of 3 with two-word strings, 2 of 3 with names; stripe-payments.example.net and stripe-relay.example.net refused
+Evidence: a ruling from credential names alone (277 names, one call each, US$0.02; the tool compares domains with the hosts on request lines): home on 3 of 332 benign chain files, 2 of 223 benign samples flagged by the chain alone; 288 of 332 benign files name no host the tool can read on a request line
+Evidence: without a model, on 5f1628c: static corpus 5,272 samples, every finding identical to main; a dry run on the 344 samples carrying the finding asked 303 of 331 findings, 28 did not fit
+Evidence: code reverted in the branch (commit "Revert the destination question and the judged score"): git diff main -- . ':(exclude)docs/proposals' is empty. What was built is in d00a260, 5f1628c, ac22aa0, e0703d4, 344b5df
+Evidence: the probes, their generator and the per-tree outputs are kept with the maintainer (agent-guard-work/p142-probes, exfil-proto/p142-make-probes.py, runs/2026-11-20-p142-probes-s3-w1..w3), not committed: the outputs carry local paths
+Evidence: no measurement line of Done criteria was run; no corpus, held-out or fresh sample was sent to a model for this proposal
+```
