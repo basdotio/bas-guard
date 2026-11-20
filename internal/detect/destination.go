@@ -3,6 +3,7 @@ package detect
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/basdotio/bas-guard/internal/model"
@@ -30,6 +31,17 @@ var genericToken = map[string]bool{
 	"passwd": true, "apikey": true, "credential": true, "credentials": true, "bearer": true,
 	"oauth": true, "auth": true, "access": true, "private": true, "my": true, "the": true,
 	"get": true, "id": true, "url": true, "base": true, "default": true, "pro": true, "env": true,
+	// Words that say what KIND of credential it is, who holds it or where it is used, never whose
+	// service it is for (P-145). Each was a host an attacker could register or already owns:
+	// WEBHOOK_SECRET sent to webhook.site, SLACK_BOT_TOKEN to bot.xyz and
+	// GITHUB_PERSONAL_ACCESS_TOKEN to personal.dev all read as a key sent home.
+	"bot": true, "user": true, "client": true, "service": true, "account": true, "personal": true,
+	"admin": true, "master": true, "root": true, "webhook": true, "hook": true, "signing": true,
+	"refresh": true, "session": true, "login": true, "application": true, "project": true,
+	"team": true, "workspace": true, "prod": true, "production": true, "staging": true, "test": true,
+	"live": true, "sandbox": true, "public": true, "internal": true, "server": true, "cli": true,
+	"sdk": true, "mcp": true, "agent": true, "database": true, "smtp": true, "mail": true,
+	"email": true, "web": true, "site": true, "host": true, "registry": true,
 }
 
 // serviceTokens splits a name on _ - . into lowercase parts, keeping the ones longer than two
@@ -53,10 +65,28 @@ func credentialServiceTokens(line string) []string {
 	var out []string
 	for _, name := range secretIdentRE.FindAllString(line, -1) {
 		if secretNameRE.MatchString(name) {
-			out = append(out, serviceTokens(name)...)
+			out = append(out, ownerTokens(serviceTokens(name))...)
 		}
 	}
 	return out
+}
+
+// ownerTokens returns the tokens of ONE credential's name that may name its service. When the name
+// carries a service the table knows (serviceDomains, P-145), the credential is that service's and
+// the rest of its name describes it: GITHUB_ENTERPRISE_TOKEN is a GitHub token, and a host called
+// `enterprise.<anything>` has no claim to it. A name with two known services keeps both
+// (AZURE_OPENAI_API_KEY). A name the table knows nothing in keeps every token, as before.
+func ownerTokens(tokens []string) []string {
+	var known []string
+	for _, t := range tokens {
+		if _, ok := serviceDomains[t]; ok {
+			known = append(known, t)
+		}
+	}
+	if len(known) > 0 {
+		return known
+	}
+	return tokens
 }
 
 // hostedSuffix are second-level domains that hand out names to anyone — a Tailscale tailnet, a
@@ -94,6 +124,9 @@ var ccSecondLevel = map[string]bool{
 // the party, and the label left of it is a name the platform hands to whoever asks first —
 // `stripe.vercel.app` is not Stripe's because it says so.
 //
+// For a service the table of known services lists (serviceDomains, P-145) the label is not enough:
+// the registrable DOMAIN must be one of the service's, so `stripe.xyz` is not Stripe's.
+//
 // Matching is exact: a label that merely begins with the token (`openaievil.net`) is a lookalike.
 // The RAW host is used by the caller, so a homoglyph domain (`dееpl.com` with Cyrillic е) does not
 // fold into the ASCII service name and cannot buy a downgrade.
@@ -110,7 +143,17 @@ func hostMatchesService(host string, services map[string]bool) bool {
 	if n >= 3 && len(labels[n-1]) == 2 && ccSecondLevel[labels[n-2]] {
 		registrable = n - 3
 	}
-	return services[labels[registrable]]
+	label := labels[registrable]
+	if !services[label] {
+		return false
+	}
+	// A service the table knows vouches only under its own domains: `stripe.com`, not the same
+	// name under a suffix anyone may register (P-145, serviceDomains). A service it does not know
+	// is matched by its name alone, as before.
+	if domains, known := serviceDomains[label]; known {
+		return slices.Contains(domains, strings.Join(labels[registrable:], "."))
+	}
+	return true
 }
 
 // A destination written as a variable — `curl "$API/credits"`, fetch(`${BASE}/v1`), `requests.get(url)`,
