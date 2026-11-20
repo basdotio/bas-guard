@@ -70,42 +70,47 @@ var hostedSuffix = map[string]bool{
 	"ngrok.io": true, "ngrok-free.app": true, "trycloudflare.com": true, "repl.co": true,
 }
 
-// tldLike are labels that end a domain name. A service token sitting immediately before one of
-// them anywhere but at the host's own end is a whole domain embedded in a longer host —
-// `api.openai.com.evil.net` carries `openai`, and the first version of this check let it vouch.
-var tldLike = map[string]bool{
-	"com": true, "net": true, "org": true, "io": true, "ai": true, "app": true, "dev": true, "co": true,
-	"me": true, "info": true, "biz": true, "cloud": true, "xyz": true, "tech": true, "sh": true, "ly": true,
-	"gg": true, "tv": true, "cc": true, "us": true, "uk": true, "de": true, "fr": true, "cn": true, "jp": true,
-	"ru": true, "in": true, "eu": true, "it": true, "nl": true, "se": true, "au": true, "ca": true, "br": true,
+// ccSecondLevel are the labels that stand between an organisation's own label and a two-letter
+// country code: `coles.com.au`, `mlit.go.jp`, `bbc.co.uk`. With one of them in that position the
+// organisation's label is the third from the end, not the second.
+var ccSecondLevel = map[string]bool{
+	"co": true, "com": true, "org": true, "net": true, "gov": true, "go": true, "ac": true, "edu": true,
+	"or": true, "ne": true, "mil": true, "gob": true, "gouv": true, "govt": true, "nom": true, "sch": true,
 }
 
-// hostMatchesService reports whether one of the host's labels names a known credential service
-// and is in a position that can vouch for the host. Any label may — `purdue.brightspace.com` is
-// Purdue's tenant and `otx.alienvault.com` is OTX's product, which is why the match is not
-// restricted to the registrable label — except two positions that only look like the service:
-// a label followed by a TLD-like label short of the end (an embedded domain), and, under a hosted
-// platform's suffix, any label to the right of the tenant's (the platform itself). Matching is
-// exact: a label that merely begins with the token (`openaievil.net`) is a lookalike, not the
-// service. The RAW host is used by the caller, so a homoglyph domain (`dееpl.com` with Cyrillic е)
-// does not fold into the ASCII service name and cannot buy a downgrade.
+// hostMatchesService reports whether the host is the credential service's own: its REGISTRABLE
+// label — the one directly left of the top-level domain, or of a country's second level
+// (`mlit.go.jp`) — is exactly a service token. `api.deepl.com` is deepl's; so is `deepl.com`.
+//
+// Only that label is the owner's to choose. Every label to its left is chosen by whoever holds the
+// domain, so `stripe.evil.net`, `stripe.com-api.evil.net` and `api.openai.com.evil.net` are all
+// evil.net's, however much of the service's name they spell. Until P-144 any label could vouch
+// unless it was followed by a TLD-like label, on the strength of two benign hosts where the
+// credential is named after a tenant or a product of the domain (`purdue.brightspace.com` for
+// PURDUE_PASSWORD, `otx.alienvault.com` for OTX_API_KEY): those two no longer match, and neither
+// does anybody's subdomain named after somebody else's service.
+//
+// Under a hosted platform's suffix (hostedSuffix) nothing matches: the platform's own label is not
+// the party, and the label left of it is a name the platform hands to whoever asks first —
+// `stripe.vercel.app` is not Stripe's because it says so.
+//
+// Matching is exact: a label that merely begins with the token (`openaievil.net`) is a lookalike.
+// The RAW host is used by the caller, so a homoglyph domain (`dееpl.com` with Cyrillic е) does not
+// fold into the ASCII service name and cannot buy a downgrade.
 func hostMatchesService(host string, services map[string]bool) bool {
 	labels := strings.Split(strings.ToLower(strings.TrimSpace(host)), ".")
 	n := len(labels)
-	hosted := n >= 3 && hostedSuffix[labels[n-2]+"."+labels[n-1]]
-	for i, p := range labels {
-		if !services[p] {
-			continue
-		}
-		if hosted && i > n-3 {
-			continue // the platform's own label
-		}
-		if i+1 < n-1 && tldLike[labels[i+1]] && !(i+2 == n-1 && len(labels[n-1]) == 2) {
-			continue // a whole domain embedded in a longer host (`coles.com.au` is a ccSLD, not one)
-		}
-		return true
+	if n < 2 {
+		return false
 	}
-	return false
+	if n >= 3 && hostedSuffix[labels[n-2]+"."+labels[n-1]] {
+		return false
+	}
+	registrable := n - 2
+	if n >= 3 && len(labels[n-1]) == 2 && ccSecondLevel[labels[n-2]] {
+		registrable = n - 3
+	}
+	return services[labels[registrable]]
 }
 
 // A destination written as a variable — `curl "$API/credits"`, fetch(`${BASE}/v1`), `requests.get(url)`,

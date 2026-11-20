@@ -32,6 +32,12 @@ and CI check both halves (`hack/changelog-check`, P-141).
   loopback base is `HOOK-003` high rather than low. One ordinary shape changes with it: `fetch(API + route)` over a base
   with no path is no longer read as the base's host, because `route` may begin with a host; write the base with its
   path (`https://api.example.com/v1`) or the route as a string that starts with `/`. Everything else resolves as before.
+- **Only a host's own name vouches for a credential's service** (P-144, #171, @jasonqindev, 2026-11-20). `EXFIL-001` drops to
+  a low advisory when a named key goes to its own service. Any label of the host could say so: `STRIPE_SECRET_KEY` sent
+  to `stripe.example.net` or `stripe.com-api.example.net` was reported low. Now only the registrable label counts
+  (`stripe` in `api.stripe.com`, `mlit` in `data-platform.mlit.go.jp`), and nothing under a hosting platform's suffix
+  (`*.vercel.app`, `*.github.io`, `*.ts.net`). A key named after a product or a tenant of someone else's domain is
+  high again: `OTX_API_KEY` to `otx.alienvault.com`, a Sheets key to `sheets.googleapis.com`.
 
 ## v0.1.0
 

