@@ -55,7 +55,7 @@ var (
 type codeEval struct {
 	lang    codeLang
 	unit    int
-	assigns map[string]string
+	assigns urlTable
 	vars    map[string]taint
 	reqs    map[string][]string // request objects (https.request, Request(…)) -> the hosts their constructor names
 	sends   []hookSend
