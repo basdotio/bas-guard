@@ -362,11 +362,8 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 				findings = append(findings, f)
 			}
 		}
-		// A URL literal is egress only in a real script that can send (P-095): see networkCapableRE.
-		fileChain := chain{literalIsEgress: u.role == roleScript && !u.synthetic && networkCapable(u, commentLines)}
-		if u.role != roleDoc && u.role != roleToolDesc && u.role != roleNamedDoc {
-			fileChain.assigns = urlAssignments(u.text)
-		}
+		// The rules' reading of the chain, and whether a unit of this role is read for one (chainreadings.go).
+		fileChain, chainReads := rulesChain(u, commentLines)
 		// File-level half of PERM-007: a line that names a Claude settings file and writes it in code (P-124),
 		// or a line that assigns its path to a name and a later line that writes through that name (P-134,
 		// permfile.go). Only real scripts and hook commands — an instruction file naming settings.json is
@@ -507,7 +504,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 			// Comment-only lines don't count toward the recon→exfil chain (dim 3 is droppable).
 			// The chain reads the normalized view for the same reason the rules do: a leg split
 			// by a continuation is still a leg.
-			if u.role != roleDoc && u.role != roleToolDesc && u.role != roleNamedDoc && !ll.comment {
+			if chainReads && !ll.comment {
 				fileChain.observe(ll.raw, ll.norm, func() model.Evidence {
 					return model.Evidence{File: rel, Line: lineNo, Snippet: u.evidence(ll.raw)}
 				})
