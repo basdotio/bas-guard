@@ -137,7 +137,7 @@ were read:
 
 ```
 Merged: PR #171 (2026-11-20; find the sha with git log --grep P-144 after the merge)
-Released: (fill in after stage 5)
+Released: v0.39.0
 Evidence: TestHostMatchesService (internal/detect/destination_test.go): the registrable label vouches (api.deepl.com, deepl.com, data-platform.mlit.go.jp, www.coles.com.au, openai.com.cn, bbc.co.uk); a label left of it does not (stripe.evil.net, stripe.com-api.evil.net, api.stripe.payments.evil.net, the embedded-domain rows, purdue.brightspace.com, otx.alienvault.com), nor any label under a hosted suffix (evil.github.io, stripe.vercel.app, stripe.pages.dev, reelql.tail6c0e2d.ts.net), nor a lookalike, a homoglyph or a single label. Red on main: stripe.evil.net, stripe.com-api.evil.net, api.stripe.payments.evil.net, stripe.vercel.app, stripe.pages.dev
 Evidence: TestChain_DestinationResolvesSameFileBaseURL: STRIPE_SECRET_KEY to stripe.com-api.example.net is EXFIL-001 high (new row); the tailnet row is high and says why; every other row unchanged
 Evidence: the Problem table as eight one-skill fixtures, main 57ae417 against the branch: the five hosts of the four low rows 95/100 → 69/100; api.stripe.com 95/100 on both; api.stripe.com.evil.net 69/100 on both; stripe.xyz 95/100 on both (Out of scope)

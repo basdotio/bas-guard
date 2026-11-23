@@ -157,7 +157,7 @@ shown the result on 2026-11-20, said to merge it as built ("合").
 
 ```
 Merged: PR #172 (2026-11-20; find the sha with git log --grep P-145 after the merge)
-Released: (fill in after stage 5)
+Released: v0.39.0
 Evidence: TestServiceDomains_OnlyNarrow (internal/detect/destination_test.go): 77 entries, 84 domains; each domain carries its token as the registrable label and is under no hosted suffix; the service's own hosts vouch; the same name under .xyz, .io, .net, .dev, .top and .co.uk does not unless the service uses that suffix; six entries are empty (aws, gcp, npm, datadog, jira, xai)
 Evidence: TestHostMatchesService_AKnownServiceUnderItsOwnDomains: 18 rows (stripe.com yes, stripe.xyz and api.stripe.io no; notion.com and notion.so yes; together.xyz yes, together.io no; aws.xyz and aws.com no; two services outside the table by name, one of them on .xyz)
 Evidence: TestCredentialServiceTokens_WordsThatNameNoService: SLACK_BOT_TOKEN → slack; GITHUB_PERSONAL_ACCESS_TOKEN and GITHUB_ENTERPRISE_TOKEN → github; GCP_SERVICE_ACCOUNT_KEY → gcp; AZURE_OPENAI_API_KEY → azure, openai; WEBHOOK_SECRET and BOT_TOKEN → nothing; ACME_BOT_TOKEN → acme; ACME_WIDGET_TOKEN → acme, widget

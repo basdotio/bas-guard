@@ -130,8 +130,8 @@ benchmark fold) counts it as a gap.
 ## Done
 
 ```
-Merged: PR #128 (find the sha with git log --grep P-103 after the merge)
-Released: (fill in after the release)
+Merged: PR #128 (2026-11-19; find the sha with git log --grep P-103)
+Released: v0.39.0
 Evidence: TestSettle_OutcomeEqualsAskingAll (internal/judge/settle_test.go): samples 1–5, all 6^n answer sequences (9,330 in all), each driven through the real dispatch queue one call at a time and all at once; every question asked in full ends exactly as asking all n, every settled one sent only n−majority(n)+1 clean samples and asking all n escalates nothing. Mutations: stopping after one clean sample, and a clean() that ignores barrier and ungrounded answers, each fail it
 Evidence: TestSchedule_DispatchQueue, 16 cases (6 kept from P-080, the one where free workers took every sample now takes the needed ones): settle at samples 2/3/5, a needed sample that is not clean releases the rest, idle workers never take a conditional sample, a group the budget cut short settles nothing, questions settle independently. Mutation (every sample needed): it fails, with TestRun_FewQuestionsAreNotSerialized, TestPlan_BudgetAndSamplesMatchRun and TestRun_SettledCallsAreCounted
 Evidence: TestRun_SettledCallsAreCounted (real NewHTTP over httptest): clean replies → calls 2/3 of the plan, settled 1/3, skipped/failed 0, no LLM-000, progress ends at its total; replies that flag → every planned call, settled 0. TestE2E_SettledCallsAreNotAGap: samples 3 → settled > 0, judgeGap empty, the usage line carries it; samples 1 → no settled key

@@ -87,8 +87,8 @@ the branch must reproduce it.
 ## Done
 
 ```
-Merged: PR #174 (find the date and the sha with git log --grep P-147 after the merge)
-Released: (fill in after stage 5)
+Merged: PR #174 (2026-11-24; find the sha with git log --grep P-147)
+Released: v0.39.0
 Evidence: internal/detect/rules_data.go: the Python import alternative of networkCapableRE reads any number of "name" or "name as alias" followed by a comma before a listed client, whole names only; no client added to any list
 Evidence: TestNetworkCapable_ReadsEveryNameOnAnImportLine (internal/detect/importline_test.go): 18 lines; the client first, later, with aliases, with no space, dotted; no client; httpx_mock, myhttpx, socketserver, requests_toolbelt and a client named only in a trailing comment are not read
 Evidence: TestChain_AClientImportedAfterAnotherName: httpx and aiohttp imported second, a key posted to another host, EXFIL-001 high; httpx second and the key to its own service, low; imports with no client and a link in a message, nothing. Run without the change: the first three report nothing
