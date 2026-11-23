@@ -116,8 +116,8 @@ without the difference being visible.
 ## Done
 
 ```
-Merged: PR #130 (find the sha with git log --grep P-106 after the merge)
-Released: (fill in after the release)
+Merged: PR #130 (2026-11-19; find the sha with git log --grep P-106)
+Released: v0.39.0
 Evidence: TestPlan_ResultPassCanBeTurnedOff (internal/judge/result_pass_test.go): default options plan planFor's full menu; SkipResult plans it without the result question, payload for payload. TestLoad_ResultPassIsOnUnlessTurnedOff: Default(), LLMConfig{}, no key and `result_pass: true` ask it, `result_pass: false` does not. TestE2E_ResultPassOffIsInTheBlock: `result_pass: false` → passes_off ["result"] in the block and the usage line and fewer calls; default → no key; a judge not configured names no pass. TestJudgeIdentityLine_NamesAPassOff; TestJudgeUsage_PassesOffReachTheRow (ledger row). Mutations: AsksResultPass true only when set, and schedule not filtering, each fail their test
 Evidence: reverse — every internal/judge test but result_pass_test.go, TestJudgefold_Golden and TestE2E_UncachedEndpointBlockUnchanged are byte-identical to main's and green; judge-prompt=b851dfd5412b and judge-excerpt=9 on main and here (excerpt_version_test.go unchanged)
 Evidence: counterfactual on the committed runs on this judge prompt (the table under Problem): SkillHarm 81 → 69 of 120, p089-main 174 → 155 of 240, p089-branch 171 → 156 of 239, held-out malicious 68 → 68 of 122, held-out benign 8 → 6 of 215, fresh held-out benign 11 → 11, no verdict change in the 2,630 samples of every other run

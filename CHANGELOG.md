@@ -14,6 +14,30 @@ and CI check both halves (`hack/changelog-check`, P-141).
 
 ## Unreleased
 
+## v0.1.0
+
+- `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
+- 10 detection dimensions. Rules are grouped by dimension and derived from the public OWASP
+  Agentic / MITRE ATLAS taxonomies (deliberately re-derived, not ported from another scanner).
+  Counts are deliberately NOT written down here: a number in a roadmap goes stale on the next
+  rule and nobody notices. `aguard scan --json` is the answer that cannot rot.
+- Deterministic 0–100 risk score (max-per-dimension, additive, bucket-capped, LLM-excluded, reproducible).
+- Junk cleanup: context bloat, duplicates, stale refs (markdown-link + multi-root resolution), zombie (opt-in `--zombie`).
+- Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
+- Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
+
+## v0.2.0 – v0.39.0
+
+**v0.39.0 (2026-11-24) — a key sent to a host that only looks like its service's is reported high again, a Python client
+imported after another name counts as a way to send, and the judge stops asking a question whose outcome is settled and
+can leave the result question out.**
+
+No flag, exit code or JSON field changed meaning, and no rule is new (98 rule IDs). The same input can now produce
+findings it did not: `EXFIL-001` is high in places where it was a low advisory or absent, so a gate can go red on upgrade
+(see "Upgrading a CI gate" below). One config key is new (`llm.result_pass`) and the judge block can carry two more fields
+(`settled`, when a question was settled early; `passes_off`, only when a question is turned off). `rules`
+`64f57c6f747c` → `6ed8b90f6b4f`; `judge-prompt` (`9cd57da1a4bd`) and `judge-excerpt` (10) unchanged.
+
 - **A judge question stops when its remaining samples cannot change the outcome** (P-103, #128, @stopWarByWar,
   2026-10-26). At `llm.samples: 3` a question whose first two answers are clean is not asked a third time: no third
   answer can reach the majority a finding needs. A sample that comes back flagged, blocked or failed releases the rest,
@@ -52,20 +76,15 @@ and CI check both halves (`hack/changelog-check`, P-141).
   URL was not reported at all (100/100). The line is now read to its last name. A script written this way that posts a
   key gains `EXFIL-001`: high, or the low advisory when the key goes to its own service. No client is added to the
   list, and nothing that was reported changes.
-
-## v0.1.0
-
-- `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
-- 10 detection dimensions. Rules are grouped by dimension and derived from the public OWASP
-  Agentic / MITRE ATLAS taxonomies (deliberately re-derived, not ported from another scanner).
-  Counts are deliberately NOT written down here: a number in a roadmap goes stale on the next
-  rule and nobody notices. `aguard scan --json` is the answer that cannot rot.
-- Deterministic 0–100 risk score (max-per-dimension, additive, bucket-capped, LLM-excluded, reproducible).
-- Junk cleanup: context bloat, duplicates, stale refs (markdown-link + multi-root resolution), zombie (opt-in `--zombie`).
-- Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
-- Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
-
-## v0.2.0 – v0.38.0
+- **Upgrading a CI gate:** no rule is new, but `EXFIL-001` is high where it was a low advisory (P-143, P-144, P-145) or
+  was not reported (P-147), and `HOOK-003` in one shape (P-143). A gate that passed can fail with `1` on a script that
+  sends a named key to a host the old reading took for the key's own service; a key sent to its service's own domain is
+  still the low advisory. Reports carry the new `rules_version`. The judge makes fewer calls for the same findings:
+  `calls` in the judge block is lower and `settled` counts the difference.
+- Also, with nothing a user runs changed: letting the judge rule on the findings the rules call unconfirmed was built,
+  tried and rejected (P-142, #169, @jasonqindev, 2026-11-20, docs only); a change now writes its own entry here, with
+  its author and day (P-141, #168, @stopWarByWar, 2026-11-19); the three readings of the exfiltration chain sit in one
+  file (P-146, #173, @jasonqindev, 2026-11-20, a refactor).
 
 **v0.38.0 (2026-11-19) — characters that draw nothing no longer hide a sentence, data hidden in variation selectors and
 obfuscated scripts are reported, an HTML comment written for the model is `INJ-007`, and `SUP-010` reads "install the

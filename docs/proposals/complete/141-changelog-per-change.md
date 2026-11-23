@@ -84,8 +84,8 @@ fails when the entry is missing.
 ## Done
 
 ```
-Merged: PR #168 (find the sha with git log --grep P-141 after the merge)
-Released: (fill in after the release)
+Merged: PR #168 (2026-11-19; find the sha with git log --grep P-141)
+Released: v0.39.0
 Evidence: TestCheck (hack/changelog-check/check_test.go), 21 rows; TestUnreleased_EntriesAreWholeBullets, TestUnreleased_StopsAtTheNextSection, TestShipped. Written first: the package did not build without Input and Check
 Evidence: mutations, each run and reverted — any unreleased entry counts as new: "shipped code on top of somebody else's unreleased entry" fails; an opt-out without a reason counts: "opted out without a reason" fails; the section does not end at the next heading: TestCheck fails from its first row
 Evidence: end to end on this branch, base HEAD — one line appended to cmd/bas-guard/main.go: exit 1, naming the file; the same line appended to cmd/bas-guard/main_test.go: exit 0; -base origin/nope: exit 2, naming the ref
