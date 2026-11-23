@@ -45,19 +45,19 @@ The lines below were written before the branch was run. A prototype of the same 
 four sets on 2026-11-20, before this proposal was written, and read no change on any; the lines are that reading and
 the branch must reproduce it.
 
-- [ ] `TestNetworkCapable_ReadsEveryNameOnAnImportLine` (`internal/detect/importline_test.go`): 18 lines; the client
+- [x] `TestNetworkCapable_ReadsEveryNameOnAnImportLine` (`internal/detect/importline_test.go`): 18 lines; the client
   first, later, with aliases, with no space; no client; whole names only
-- [ ] `TestChain_AClientImportedAfterAnotherName`: two scripts that post a key through a client imported second,
+- [x] `TestChain_AClientImportedAfterAnotherName`: two scripts that post a key through a client imported second,
   `EXFIL-001` high; the same to the key's own service, low; reverse: imports with no client and a link in a message,
   nothing. The first three fail on `main`
-- [ ] The two rows P-146 held back, in `TestChainReadings_SideBySide` and `TestNetworkClients_WhichListKnowsWhich`
-- [ ] The table above as a one-skill fixture: 100/100 → 69/100 with `EXFIL-001` high
-- [ ] Static, corpus: malicious flagged at least 243 of 719 and none loses a high; no benign sample gains a high (341 of
+- [x] The two rows P-146 held back, in `TestChainReadings_SideBySide` and `TestNetworkClients_WhichListKnowsWhich`
+- [x] The table above as a one-skill fixture: 100/100 → 69/100 with `EXFIL-001` high
+- [x] Static, corpus: malicious flagged at least 243 of 719 and none loses a high; no benign sample gains a high (341 of
   4,534); hard negatives 4
-- [ ] Static, fresh skills: 33 of 412, none gains a high
-- [ ] Static, held-out, totals only: malicious at least 134 of 243; benign at most 6 of 216
-- [ ] Reverse assertion: no finding is lowered on any set
-- [ ] `rulesEpoch` 30, `docs/rules.md` regenerated, `make verify` green from its own exit code
+- [x] Static, fresh skills: 33 of 412, none gains a high
+- [x] Static, held-out, totals only: malicious at least 134 of 243; benign at most 6 of 216
+- [x] Reverse assertion: no finding is lowered on any set
+- [x] `rulesEpoch` 30, `docs/rules.md` regenerated, `make verify` green from its own exit code
 
 ## Out of scope
 
@@ -86,4 +86,16 @@ the branch must reproduce it.
 
 ## Done
 
-Filled in at stage 4.
+```
+Merged: PR #174 (find the date and the sha with git log --grep P-147 after the merge)
+Released: (fill in after stage 5)
+Evidence: internal/detect/rules_data.go: the Python import alternative of networkCapableRE reads any number of "name" or "name as alias" followed by a comma before a listed client, whole names only; no client added to any list
+Evidence: TestNetworkCapable_ReadsEveryNameOnAnImportLine (internal/detect/importline_test.go): 18 lines; the client first, later, with aliases, with no space, dotted; no client; httpx_mock, myhttpx, socketserver, requests_toolbelt and a client named only in a trailing comment are not read
+Evidence: TestChain_AClientImportedAfterAnotherName: httpx and aiohttp imported second, a key posted to another host, EXFIL-001 high; httpx second and the key to its own service, low; imports with no client and a link in a message, nothing. Run without the change: the first three report nothing
+Evidence: the two rows P-146 held back: TestChainReadings_SideBySide "a key posted through httpx, imported second on its line" EXFIL-001 high, home false, elsewhere true; TestNetworkClients_WhichListKnowsWhich "import os, httpx" capable
+Evidence: the Problem table as a one-skill fixture: main 100/100, no finding, exit 0; branch 69/100, EXFIL-001 high, exit 1
+Evidence: the survey: 8,162 code files, 23 import a listed client after another name (benign 18 files in 16 samples, malicious 5 in 5); 4 files, all benign, gain a way to send; none gains a finding
+Evidence: static, main against the branch: corpus malicious 243 -> 243 of 719, benign 341 -> 341 of 4,534, hard negatives 4 -> 4; fresh skills 24 of 200 and 9 of 212; held-out, totals only, malicious 134 of 243 and benign 6 of 216. No finding of any sample differs on any set, so none is lowered
+Evidence: Out of scope: a request whose destination is not written in the file is still read only by the judge's request list (P-117); no judge run was made
+Evidence: rulesEpoch 30; docs/rules.md regenerated (the rules version only); make verify: all gates passed
+```
