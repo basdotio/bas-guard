@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/basdotio/bas-guard/internal/model"
 )
 
 // Destination consistency. A file that reads DEEPL_API_KEY and sends it to api.deepl.com
@@ -305,18 +303,12 @@ func resolvedHosts(line string, assigns urlTable) []string {
 // loopback. It is the judge's question on the server pass (P-062): a tool that reads
 // WEATHER_API_KEY to call api.weather.com has not read a credential in the sense `credential-read`
 // means, and the model cannot tell that from the excerpt it is shown. The answer is computed over
-// the FULL file, by the same chain EXFIL-001 runs, so the two passes cannot disagree about where a
-// key went. A file that reads no named credential, or names no destination, answers false — the
+// the FULL file, by the chain EXFIL-001 runs in its judge-side reading (homeChain, chainreadings.go:
+// every URL literal is a destination, where the rules count one only in a script that can send),
+// so a foreign URL anywhere in the file refuses the downgrade. A file that reads no named credential, or names no destination, answers false — the
 // absence of a chain is not a verdict about one.
 func CredentialGoesHome(path, text string) bool {
-	comments := commentOnlyLines(langForFile(path), text)
-	c := chain{literalIsEgress: true, assigns: urlAssignments(text)}
-	for _, ll := range logicalLines(langForFile(path), text, comments) {
-		if ll.comment {
-			continue
-		}
-		c.observe(ll.raw, ll.norm, func() model.Evidence { return model.Evidence{} })
-	}
+	c := replay(homeChain(text), path, text)
 	if !c.cred || !c.net || len(c.credService) == 0 {
 		return false
 	}
@@ -390,14 +382,7 @@ var requestLineRE = regexp.MustCompile(`(?i)\b(?:requests|httpx|aiohttp|session|
 // service to match, so any spelled-out off-box host counts as elsewhere. A destination built at run
 // time is not elsewhere here: unreadable is P-074's ground, and P-098 does not reopen it.
 func CredentialSentElsewhere(path, text string) bool {
-	comments := commentOnlyLines(langForFile(path), text)
-	c := chain{assigns: urlAssignments(text), requestLine: requestLineRE}
-	for _, ll := range logicalLines(langForFile(path), text, comments) {
-		if ll.comment {
-			continue
-		}
-		c.observe(ll.raw, ll.norm, func() model.Evidence { return model.Evidence{} })
-	}
+	c := replay(elsewhereChain(text), path, text)
 	if !(c.cred || credNameRE.MatchString(text)) || !c.net {
 		return false
 	}
@@ -423,14 +408,7 @@ func CredentialGoesHomeAcross(files []FileText) bool {
 	var hosts []string
 	cred, net, offBox, unreadable := false, false, false, false
 	for _, f := range files {
-		comments := commentOnlyLines(langForFile(f.Path), f.Text)
-		c := chain{literalIsEgress: true, assigns: urlAssignments(f.Text)}
-		for _, ll := range logicalLines(langForFile(f.Path), f.Text, comments) {
-			if ll.comment {
-				continue
-			}
-			c.observe(ll.raw, ll.norm, func() model.Evidence { return model.Evidence{} })
-		}
+		c := replay(homeChain(f.Text), f.Path, f.Text)
 		cred, net = cred || c.cred, net || c.net
 		offBox, unreadable = offBox || c.netOffBox, unreadable || c.destUnreadable
 		for k := range c.credService {
