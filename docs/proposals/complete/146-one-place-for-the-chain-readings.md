@@ -100,7 +100,7 @@ No `rulesEpoch`, no `ExcerptVersion`, no changelog entry: nothing a user runs or
 ## Done
 
 ```
-Merged: PR #173 (2026-11-20; find the sha with git log --grep P-146 after the merge)
+Merged: PR #173 (2026-11-24; find the sha with git log --grep P-146 after the merge)
 Released: (no changelog entry: nothing a user runs or reads changes; it rides whichever release follows)
 Evidence: internal/detect/chainreadings.go: rulesChain, homeChain, elsewhereChain and one replay loop, under a table of how the three differ and which proposal set each difference; the scan loop and CredentialGoesHome, CredentialGoesHomeAcross, CredentialSentElsewhere use them; the sentence that called the judge's reading "the same chain EXFIL-001 runs" is corrected
 Evidence: TestChainReadings_SideBySide: seven files, the rules' finding and both judge answers on each
