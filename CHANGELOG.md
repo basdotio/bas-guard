@@ -46,6 +46,12 @@ and CI check both halves (`hack/changelog-check`, P-141).
   be under the service's own domain; a key named for one of them belongs to it alone; and words such as `bot`,
   `webhook`, `service`, `personal`, `prod` no longer count as a service. Nothing that was high becomes low. A service
   outside the list is matched by its name as before.
+- **A network client imported after another name on its line counts as a way to send** (P-147, #174, @jasonqindev,
+  2026-11-24). `EXFIL-001` reads a URL in a script as a destination only when the script can send, and it learned that
+  from the first name of a Python `import` line. A script that began `import os, httpx`, read a key and posted it to a
+  URL was not reported at all (100/100). The line is now read to its last name. A script written this way that posts a
+  key gains `EXFIL-001`: high, or the low advisory when the key goes to its own service. No client is added to the
+  list, and nothing that was reported changes.
 
 ## v0.1.0
 

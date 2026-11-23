@@ -521,12 +521,17 @@ var (
 	// message. Of 522 benign high EXFIL-001/003 findings in the corpus, 217 sat in such files. The list
 	// is wider than networkActionRE on purpose — Node's `https.request`, `httpx`, a raw socket — because
 	// a client the action list does not know is exactly what the literal rule exists for.
+	//
+	// A Python `import` line is read to its last name (P-147): `import os, httpx`, `import json, ssl,
+	// socket as s`. The list used to know a client only as the first name after `import`, so the same
+	// module written second on its line left the file with no way to send, its URL literal was text,
+	// and a key posted through that client was no chain at all.
 	networkCapableRE = regexp.MustCompile(networkActionRE.String() + // its leading (?i) covers the whole alternation
 
 		`|\brequire\(\s*["'](?:node:)?(?:https?|http2|net|tls|dgram|axios|node-fetch|got|undici|superagent|request|ky|ws)["']` +
 		`|\bfrom\s+["'](?:node:)?(?:https?|http2|net|tls|dgram|axios|node-fetch|got|undici|superagent|ky|ws)["']` +
 		`|\bimport\s*\(\s*["'](?:node:)?(?:https?|http2|net|tls|axios|node-fetch|got|undici)["']` +
-		`|\bimport\s+(?:requests|httpx|aiohttp|urllib3?|httplib2|grequests|http\.client|socket|websockets?|pycurl|smtplib|ftplib|telnetlib|paramiko)\b` +
+		`|\bimport\s+(?:[\w.]+(?:\s+as\s+\w+)?\s*,\s*)*(?:requests|httpx|aiohttp|urllib3?|httplib2|grequests|http\.client|socket|websockets?|pycurl|smtplib|ftplib|telnetlib|paramiko)\b` +
 		`|\bfrom\s+(?:requests|httpx|aiohttp|urllib3?|httplib2|http|socket|websockets?|smtplib|ftplib|paramiko)[\w.]*\s+import\b` +
 		`|\b(?:https?|http2)\.(?:request|get)\(|\bXMLHttpRequest\b|\bnew\s+WebSocket\(|\bsendBeacon\(|\bnet\.(?:connect|createConnection|Dial)\(` +
 		`|\bsocket\.(?:socket|create_connection)\(|\bNet::HTTP\b|\bopen-uri\b|\bInvoke-(?:WebRequest|RestMethod)\b|\bNet\.WebClient\b|(?:^|[\s;|&(])(?:iwr|irm)\s`)
