@@ -22,7 +22,7 @@ read the evidence before acting.
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `66aafcf6ddab`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `6ed8b90f6b4f`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
