@@ -150,7 +150,7 @@ out was not judged; the static findings are unaffected.`
 ## Done
 
 ```
-Merged: pending — the branch is local, no pull request yet (2026-11-24)
+Merged: PR #176 (find the date and the sha with git log --grep P-149 after the merge)
 Released: pending
 Evidence: internal/judge/excerpt.go: behaviorExcerptSkipping goes on after the first file with no room and counts the script and config files it reaches, unopened; shortened "N of M script or config file(s) past the 6000-byte excerpt not sent"; planFor sets it on the intent and server calls; fitsByUnits gains both modes, so boundedNote writes the LLM-000
 Evidence: TestBehaviorExcerpt_SaysHowManyFilesItLeftOut: eleven rows; five and nine scripts "2 of 5" and "6 of 9", a config file "1 of 4"; three that fill the excerpt, three small, one of 50 KB, a third cut to the room left, a document, node_modules, .github under the server pass: no note

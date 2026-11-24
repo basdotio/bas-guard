@@ -14,7 +14,7 @@ and CI check both halves (`hack/changelog-check`, P-141).
 
 ## Unreleased
 
-- **The judge says how many of a tree's script files it was not shown** (P-149, @jasonqindev, 2026-11-24). The intent
+- **The judge says how many of a tree's script files it was not shown** (P-149, #176, @jasonqindev, 2026-11-24). The intent
   pass (skills) and the server-source pass take a tree's script and config files by name, each cut to 2,000 bytes, until
   the 6,000-byte excerpt is spent. The files after that were never sent, and no report said so: a skill of nine scripts
   could have three in front of the judge and read as judged. A `--llm` report now counts them in its `LLM-000` note —
