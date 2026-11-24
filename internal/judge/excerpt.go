@@ -512,7 +512,12 @@ func boundedRedact(s string, max int, eg egress) string {
 // the whole point: grounding (ground.go) checks a verdict's quote against what the model was
 // actually shown, so a unit holding text that never got sent would ground a claim about
 // something the model could not have seen.
-func behaviorExcerpt(dir string, eg egress) (string, []sourceUnit) {
+//
+// shortened says how many files were left out whole, empty when none was (P-149): the caller
+// discloses it (boundedNote, invariant #5). Files go in by name, and a tree of nine scripts can show as few
+// as its first three; until P-149 nothing said the rest had not been read. A file cut to its cap, or
+// to the room left, is not counted: its own text carries the omission marker.
+func behaviorExcerpt(dir string, eg egress) (text string, units []sourceUnit, shortened string) {
 	return behaviorExcerptSkipping(dir, eg, nil)
 }
 
@@ -524,9 +529,11 @@ func behaviorExcerpt(dir string, eg egress) (string, []sourceUnit) {
 var serverSkipDirs = map[string]bool{".github": true}
 
 // behaviorExcerptSkipping is behaviorExcerpt with directories, by name, left out of the walk.
-func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (string, []sourceUnit) {
-	var units []sourceUnit
+func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (text string, units []sourceUnit, shortened string) {
 	total := 0
+	// past counts the files the walk reaches once the budget is spent. They are not opened: a tree of
+	// any size costs what its first few files cost, as it did when the walk stopped there.
+	full, past := false, 0
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -545,6 +552,10 @@ func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (strin
 		if !behaviorExts[strings.ToLower(filepath.Ext(p))] {
 			return nil
 		}
+		if full {
+			past++
+			return nil
+		}
 		raw := readAtMost(p, maxFileRead)
 		if raw == nil {
 			return nil
@@ -559,7 +570,10 @@ func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (strin
 		header := "# " + detect.Redact(rel) + "\n"
 		room := maxExcerptBytes - total - len(header) - 2 // 2 = the blank line after each file
 		if room <= 0 {
-			return filepath.SkipAll
+			// The first file with no room ends the excerpt, as SkipAll did: a later one with a shorter
+			// name is not tried, so what is sent is what was sent.
+			full, past = true, 1
+			return nil
 		}
 		red, lm = capHeadTail(red, lm, room)
 		units = append(units, sourceUnit{file: detect.Redact(rel), text: red, firstLine: 1, lineMap: lm,
@@ -574,12 +588,15 @@ func behaviorExcerptSkipping(dir string, eg egress, skip map[string]bool) (strin
 	for k, u := range units {
 		files[k], texts[k] = u.file, u.text
 	}
-	text, sent, _ := fitUnits(texts, maxExcerptBytes, headed(files))
+	text, sent, left := fitUnits(texts, maxExcerptBytes, headed(files))
 	units = units[:len(sent)]
 	for k := range sent {
 		units[k].text = sent[k]
 	}
-	return text, units
+	if n := past + left; n > 0 {
+		shortened = fmt.Sprintf("%d of %d script or config file(s) past the %d-byte excerpt not sent", n, len(units)+n, maxExcerptBytes)
+	}
+	return text, units, shortened
 }
 
 // headed renders the intent pass's behavior: each file's text under a `# <file>` line, with a blank line

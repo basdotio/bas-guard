@@ -293,7 +293,8 @@ log record them — so a reading with thinking off is never compared with one th
 - **Every field a request carries is bounded, valid UTF-8 and redacted as a whole.** Behavior is at
   most 6,000 bytes on every pass: the deobfuscation pass sends whole decoded payloads and the collusion
   pass whole digest lines, from the first, while they fit, and the rest are named in the preview's
-  `shortened` and in an `LLM-000` note (eight payloads of 800 bytes used to make 6,435 bytes, and the
+  `shortened` and in an `LLM-000` note — as are, since P-149, the script files the intent and
+  server passes had no room for (eight payloads of 800 bytes used to make 6,435 bytes, and the
   digest had no cap). Each static finding's evidence — a triage item, a digest line — is at most 1,000
   bytes; its file position had no bound. Every cut falls on a character boundary, and a byte that is
   not UTF-8 is sent as U+FFFD — what the request's JSON encoding writes anyway — so the text a quote
@@ -310,7 +311,14 @@ log record them — so a reading with thinking off is never compared with one th
   attacker would address the reviewer), and files over the cap kept as head + tail with an
   "N line(s) omitted" marker rather than a prefix — payloads go at the end of files because
   that is where every casual read stops. Findings still cite real `file:line`: the excerpt
-  carries a line map back to the original. Padding goes before any cap, on every kind: inside a
+  carries a line map back to the original. **Files are taken by name until the 6000 bytes are spent,
+  and the report says how many were not** (P-149): a skill of nine scripts can show the judge as few as
+  its first three, and the rest — whichever they are, the one `SKILL.md` says to run first included —
+  are counted in the preview's `shortened` and in one `LLM-000` note (`skill:forms (6 of 9 script or
+  config file(s) past the 6000-byte excerpt not sent)`); a server's source pass says the same of its
+  modules. Until P-149 nothing said so. The note is a count, not a fix: those files were not judged,
+  and the static rules read every one of them regardless. Sending the files `SKILL.md` names first
+  was measured twice and does not help — what moves in pushes out as much as it brings (P-070). Padding goes before any cap, on every kind: inside a
   line, a run of more than 128 bytes of whitespace or invisible characters (Unicode spaces and the
   zero-width characters `INJ-004` reports) is sent as one space — nothing, if it held only invisible
   characters — which is how grounding already reads it. Without that, one line padded with a few

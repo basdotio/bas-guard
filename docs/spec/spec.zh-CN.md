@@ -232,7 +232,7 @@ type Rule struct {
 | MCP 配置语义 | MCP | 结构前提:有 server 配置 | collect 的配置项 | 已实现(`LLM-009`,维度 5)。**本机 MCP 配置**只有启动命令,看不到工具说明,tool poisoning 在这一路不可达 |
 | 服务器源码 | `check` 目标为 MCP 服务器源码(种类 `server`:导入 `mcp`/`fastmcp` 且声明工具的 Python 文件) | 结构前提:有带 docstring 的工具 | 声明侧 = 工具名 + docstring 首行(模块注释不算);行为侧 = 代码,走 skill 脚本摘录器 | 已实现(`LLM-010`,维度 10;P-053)。语料里 127 个 cisco 样本正是这个形状,此前判官一个问题都不问 |
 | **injection(connector)** | Connector | **无条件** | collect 读到的桌面版缓存工具清单(§4) | 已实现:远程 connector 的工具说明就是模型会读并照做的文本,静态那半是 `MCP-001..004`(§5.1),判官跑同一份渲染(`detect.ConnectorText`),两边看不到不同的东西 |
-| **intent** | Skill | **静态先行**:有静态发现 或 信誉库未知 | detect + reputation | 已实现 |
+| **intent** | Skill | **静态先行**:有静态发现 或 信誉库未知 | detect + reputation | 已实现。行为侧按文件名顺序取脚本,取满 6,000 字节为止;没取到的文件数出 `LLM-000`(P-149,§16.8;服务器源码一趟同) |
 | **result** | Skill | **无条件**,除非 `llm.result_pass: false`(默认开,P-106;关掉时判官块 `passes_off: ["result"]` 写明没问) | `SKILL.md` 正文 + 正文点名的文档(P-065 的伴随文档) | 已实现(`LLM-011`,维度 1;P-068)。问的是"必须的步骤是否改了用户拿到的结果",不是"有没有超出用途的指令";P-066 把它作为注入问题的一个从句,模型从未选用 |
 | **collusion** | Skill | **静态先行**:`EXFIL-002` 粗筛命中 | 静态跨文件粗筛(§5.1) | 已实现(`LLM-006`,只发能力摘要不发全文) |
 | triage | 任意有静态发现的 kind | **静态先行**(本质如此) | detect / permcheck 的 findings | 已实现(含 permission) |

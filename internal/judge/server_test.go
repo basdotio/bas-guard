@@ -249,8 +249,8 @@ func TestServerPass_LeavesOutGitHubWorkflows(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	server, _ := behaviorExcerptSkipping(dir, egress{}, serverSkipDirs)
-	skill, _ := behaviorExcerpt(dir, egress{})
+	server, _, _ := behaviorExcerptSkipping(dir, egress{}, serverSkipDirs)
+	skill, _, _ := behaviorExcerpt(dir, egress{})
 	if strings.Contains(server, ".github") || !strings.Contains(server, "server.py") {
 		t.Errorf("server excerpt:\n%s", server)
 	}

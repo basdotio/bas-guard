@@ -335,8 +335,9 @@ a request carries (declared purpose, behavior, triage evidence) is redacted once
 fixed point, and cut again if that lengthened it (`judge/bounds.go`, P-037): every cut falls on a
 character boundary (`detect.RunePrefix`), bytes that are not UTF-8 go as the U+FFFD the request's JSON
 would carry, behavior stays within 6,000 bytes on every pass (the deobfuscation and collusion fields
-drop whole payloads or digest lines from the end, disclosed as `LLM-000`), and one finding's evidence
-within 1,000.
+drop whole payloads or digest lines from the end, disclosed as `LLM-000`; the intent and server passes
+take a tree's script files by name until the bytes are spent and count the rest in the same note,
+P-149), and one finding's evidence within 1,000.
 
 Two properties matter more than the passes:
 

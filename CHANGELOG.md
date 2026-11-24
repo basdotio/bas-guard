@@ -14,6 +14,15 @@ and CI check both halves (`hack/changelog-check`, P-141).
 
 ## Unreleased
 
+- **The judge says how many of a tree's script files it was not shown** (P-149, @jasonqindev, 2026-11-24). The intent
+  pass (skills) and the server-source pass take a tree's script and config files by name, each cut to 2,000 bytes, until
+  the 6,000-byte excerpt is spent. The files after that were never sent, and no report said so: a skill of nine scripts
+  could have three in front of the judge and read as judged. A `--llm` report now counts them in its `LLM-000` note —
+  `skill:forms (6 of 9 script or config file(s) past the 6000-byte excerpt not sent)` — and `bas-guard llm preview` shows
+  the same words as the call's `shortened`. Nothing else changes: every request is the bytes it was, so no verdict,
+  score or exit code moves, and `--fail-on-llm` does not read the note. The files are still not judged; the static rules
+  read every file as before.
+
 ## v0.1.0
 
 - `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
