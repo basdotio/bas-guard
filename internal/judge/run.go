@@ -599,11 +599,12 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 		if !collect.SkillMDRefused(a.Path) {
 			skill := parse.ReadSkill(a.Path)
 			declared = declaredPurpose(skill.Description, eg)
-			behavior, behaviorUnits := behaviorExcerpt(a.Path, eg)
+			behavior, behaviorUnits, left := behaviorExcerpt(a.Path, eg)
 			// The declared purpose is part of what the model saw, so a verdict may legitimately
 			// quote it; it lives in SKILL.md's frontmatter, near the top.
 			intentUnits := append([]sourceUnit{{file: "SKILL.md", text: declared, firstLine: 1, collapsed: true}}, behaviorUnits...)
 			ask(Request{Mode: ModeIntent, Declared: declared, Behavior: behavior}, intentUnits)
+			out[len(out)-1].shortened = left // the scripts past the budget (P-149)
 
 			body, bodyLM := condense("SKILL.md", eg.redact(skill.Body), false)
 			body, bodyLM = settleExcerpt(capHeadTail(body, bodyLM, maxExcerptBytes))
@@ -677,9 +678,10 @@ func planFor(i int, a model.ArtifactReport, eg egress) []task {
 		// An MCP server's source (P-053): the tools' docstrings are the only description a client
 		// sees, the code is what runs. The intent question, with the skill passes' walker and caps.
 		declared, declaredUnits := serverDeclared(a.Path, eg)
-		behavior, behaviorUnits := behaviorExcerptSkipping(a.Path, eg, serverSkipDirs)
+		behavior, behaviorUnits, left := behaviorExcerptSkipping(a.Path, eg, serverSkipDirs)
 		if behavior != "" {
 			ask(Request{Mode: ModeServer, Declared: declared, Behavior: behavior}, append(declaredUnits, behaviorUnits...))
+			out[len(out)-1].shortened = left
 		}
 
 	case model.KindHook:
