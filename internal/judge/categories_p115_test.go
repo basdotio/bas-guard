@@ -17,8 +17,9 @@ import (
 // and that the catch-all points at its new neighbours. The result half (a covert-transmission row on
 // the result pass) was measured and withdrawn: 2 of the 9 misses it was for, against a line of 4.
 
-// TestSeverityFor_NewRows: the two new rows are high and take the ordinary disclosure step, and
-// the catch-all beside them stays medium.
+// TestSeverityFor_NewRows: the two new rows are high, disclosed or not (they took the server pass's
+// disclosure step until P-150 removed it from that pass), and the catch-all beside them stays
+// medium.
 func TestSeverityFor_NewRows(t *testing.T) {
 	cases := []struct {
 		mode      Mode
@@ -27,9 +28,9 @@ func TestSeverityFor_NewRows(t *testing.T) {
 		want      model.Severity
 	}{
 		{ModeServer, "resource-exhaustion", false, model.SevHigh},
-		{ModeServer, "resource-exhaustion", true, model.SevMedium}, // a load tester that says so
+		{ModeServer, "resource-exhaustion", true, model.SevHigh}, // P-150: a description does not lower it
 		{ModeServer, "result-tampering", false, model.SevHigh},
-		{ModeServer, "result-tampering", true, model.SevMedium},
+		{ModeServer, "result-tampering", true, model.SevHigh},
 		{ModeServer, "other", false, model.SevMedium},
 		{ModeServer, "denial-of-service", false, model.SevMedium}, // not in the table
 		// The result pass did not gain covert-transmission (withdrawn after measurement).
@@ -139,9 +140,9 @@ func TestDisclosedLowering_IsAnnotated(t *testing.T) {
 	}{
 		{ModeIntent, "credential-read", true, true},
 		{ModeIntent, "credential-read", false, false},
-		{ModeIntent, "other", true, true},            // medium → low is a step too
-		{ModeIntent, "software-source", true, false}, // exempt: no step taken
-		{ModeServer, "resource-exhaustion", true, true},
+		{ModeIntent, "other", true, true},                // medium → low is a step too
+		{ModeIntent, "software-source", true, false},     // exempt: no step taken
+		{ModeServer, "resource-exhaustion", true, false}, // P-150: no step on this pass, so nothing to say it took one
 		{ModeServer, "remote-execution", false, false},
 		{ModeInjection, "exfiltration", true, false}, // no disclosure notion on this pass
 		{ModeSteering, "forced-value", true, false},

@@ -98,8 +98,9 @@ type Verdict struct {
 	Flagged bool `json:"flagged"` // intent: undisclosed behavior; injection: hidden directive found
 	// Category is the kind of thing the model found, one name from the pass's closed list
 	// (severity.go). It is what sets the finding's severity; an unknown or missing name is
-	// medium. Disclosed, on the intent pass only, says the declared purpose stated the behaviour
-	// (one step lower, except a changed software source). P-041.
+	// medium. Disclosed says the declared side stated the behaviour: on the intent pass that is
+	// one step lower, except a changed software source (P-041); on the server pass it is written
+	// into the reason and weighs nothing (P-150).
 	Category  string `json:"category"`
 	Disclosed bool   `json:"disclosed"`
 	// Severity is the model's own word. It is recorded (the vote list shows it beside the
@@ -228,6 +229,10 @@ func finding(r Request, v Verdict) *model.Finding {
 		// the text"); this one did not, so a medium Cisco server reading "remote-execution,
 		// remote-execution, remote-execution" could not be told apart from a medium category.
 		why += " [disclosed: one step lower]"
+	} else if r.Mode == ModeServer && v.Disclosed {
+		// P-150: the server pass does not take the step; the reason still says the model read
+		// the tool descriptions as stating the behaviour.
+		why += disclosedMark
 	}
 	return &model.Finding{
 		RuleID:    ruleID,

@@ -108,6 +108,15 @@ const disclosureExempt = "software-source"
 // severityFor is the finding's severity for a verdict in a mode. A mode without a table keeps the
 // model's word, clamped (LLM-009, advisory-only). A category not in the table is medium. On the
 // intent pass a disclosed behaviour is one step lower, except disclosureExempt.
+//
+// The server pass asks for `disclosed` as well and does NOT take the step (P-150). P-053 carried
+// it over with the intent table; there the declared side is each tool's docstring, written by the
+// server's author and read by the agent that calls the tool. Replayed on the stored runs over 802
+// server trees, the step held 1 malicious server and 2 benign ones below high on gpt-4.1-mini and
+// 10 and 3 on glm-5.3: how often a model answers "flagged, and a description mentions it" is the
+// model's habit, not the server's property — one of Cisco's servers says "optional privilege
+// escalation" and edits /etc/sudoers. The question itself still tells the model not to flag what
+// a description states; only the weight of an answer that flagged anyway no longer moves.
 func severityFor(m Mode, v Verdict) model.Severity {
 	rows, ok := categoryTables[m]
 	if !ok {
@@ -121,11 +130,17 @@ func severityFor(m Mode, v Verdict) model.Severity {
 			break
 		}
 	}
-	if (m == ModeIntent || m == ModeServer) && v.Disclosed && cat != disclosureExempt {
+	if m == ModeIntent && v.Disclosed && cat != disclosureExempt {
 		sev = oneStepLower(sev)
 	}
 	return sev
 }
+
+// disclosedMark is what a server finding's reason carries when the model set `disclosed`: text
+// only, no weight (P-150). It tells a reader looking at a high on an honest server that the model
+// read the descriptions as saying so, and it is the one record from which a stored run can be
+// replayed with or without the step — which is how P-150 was measured without a model call.
+const disclosedMark = " [disclosed]"
 
 // disclosureLowered reports whether severityFor took the disclosure step for this verdict: the
 // same answer without `disclosed` would be higher. The finding's reason says so (P-115).
@@ -168,6 +183,8 @@ func categoryPrompt(m Mode) string {
 		"and never from what a script might contain — when all the text shows is that a local file is run, the category is the one " +
 		"that says so (process-control, other-directive or other). The tool sets the finding's severity from the category; your " +
 		"severity word is recorded but does not decide it.")
+	// Both passes are still asked for the field. The server pass no longer weighs it (P-150), and
+	// the sentence stays so that its prompt is byte-identical to the one the stored runs answered.
 	if m == ModeIntent || m == ModeServer {
 		b.WriteString(" Set disclosed=true when the DECLARED PURPOSE itself states this kind of behaviour in substance (a purpose that says it sends metrics to a collector discloses a network send, even without the host); set it false when the purpose is silent about it, however plausible the behaviour is for such a tool.")
 	}

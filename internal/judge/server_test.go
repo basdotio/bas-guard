@@ -63,8 +63,9 @@ func TestServerDeclared_IsTheToolDocstrings(t *testing.T) {
 }
 
 // TestRun_ServerSourceGetsLLM010 (P-053): the server kind gets the server pass and nothing else;
-// a flagged credential-read is an escalating LLM-010 at high, disclosed one step lower, and the
-// request carried the docstrings as DECLARED and the code as BEHAVIOR.
+// a flagged credential-read is an escalating LLM-010 at high, disclosed or not (P-150 reversed the
+// "disclosed one step lower" this test pinned until then), and the request carried the docstrings
+// as DECLARED and the code as BEHAVIOR.
 func TestRun_ServerSourceGetsLLM010(t *testing.T) {
 	var seen []Request
 	client := &scriptedClient{answer: func(r Request) (Verdict, error) {
@@ -92,11 +93,12 @@ func TestRun_ServerSourceGetsLLM010(t *testing.T) {
 	if findingByRule(arts[0], "LLM-001") != nil {
 		t.Error("a server must not also carry the skill intent rule")
 	}
-	// Disclosed lowers it, as on the intent pass.
+	// Disclosed does not lower it on this pass (P-150): the reason says the model set the field,
+	// and the weight is the row's.
 	arts = serverTree(t)
 	Run(context.Background(), categoryClient(Verdict{Flagged: true, Severity: "high", Category: "credential-read", Disclosed: true, Summary: "s"}), arts, Options{Concurrency: 1})
-	if f := findingByRule(arts[0], "LLM-010"); f == nil || f.Severity != model.SevMedium {
-		t.Errorf("disclosed credential-read on a server should be medium: %+v", f)
+	if f := findingByRule(arts[0], "LLM-010"); f == nil || f.Severity != model.SevHigh || !strings.Contains(f.Why, "[disclosed]") || strings.Contains(f.Why, "one step lower") {
+		t.Errorf("disclosed credential-read on a server should be high and marked [disclosed]: %+v", f)
 	}
 	// Reverse: a plain directory is still asked nothing.
 	if !AsksNothingOf(model.KindDirectory) || AsksNothingOf(model.KindServer) {
