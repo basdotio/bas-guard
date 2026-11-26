@@ -237,8 +237,8 @@ All asked at once. Each has a recommended answer.
 ## Done
 
 ```
-Merged: PR #177 (find the date and the sha with git log --grep P-150 after the merge)
-Released: pending
+Merged: PR #177 (2026-11-26; find the sha with git log --grep P-150)
+Released: v0.40.0
 Evidence: internal/judge/severity.go: severityFor takes the step when the pass is the intent pass only; internal/judge/judge.go: finding() appends "[disclosed]" to a server finding whose vote set the field and "[disclosed: one step lower]" to an intent finding as before; the server prompt still asks for the field
 Evidence: TestSeverityFor_ServerTakesNoDisclosureStep; TestServerDisclosed_IsMarkedNotLowered; TestTally_ServerDisclosedVotes: five vote shapes through finding() and tally(); TestRun_ServerCredentialReadDowngradesHoldWhenDisclosed: own service, own configuration, reaches past, each with the field false and true
 Evidence: reversed: TestRun_ServerSourceGetsLLM010's disclosed case expects high; TestSeverityFor_NewRows' two disclosed server rows are high; TestDisclosedLowering_IsAnnotated's server row carries no "one step lower"; with the old rule put back (the mutation was run) these three and the four new tests are red
