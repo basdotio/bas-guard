@@ -116,7 +116,9 @@ var asiByRule = map[string][]string{
 	"FS-002": {"ASI-02"},
 	"FS-003": {"ASI-02"},
 	"FS-004": {"ASI-02"},
-	"FS-005": {"ASI-02"}, // erasing logs or history: the tool surface turned on the record of its own use (the list has no repudiation category)
+	"FS-005": {"ASI-02"},           // erasing logs or history: the tool surface turned on the record of its own use (the list has no repudiation category)
+	"FS-006": {"ASI-03"},           // a credential file opened to other users: the secret an identity rests on, put within reach of whatever runs next
+	"FS-007": {"ASI-02", "ASI-05"}, // a startup file replaced: the user's own configuration destroyed, and the replacement run in every shell
 
 	// Exfiltration. ASI-02 because the tool surface is what carries the data out; the Agentic list has
 	// no standalone disclosure category (that lives in the LLM Top 10 as LLM06), which is exactly the

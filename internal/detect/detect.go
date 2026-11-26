@@ -391,6 +391,7 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 		var orders remoteOrders
 		ordersScope := !u.synthetic && hasInj005 && roleAllows(u.role, inj005)
 		lure := lureScope(u)
+		setupSteps := setupStepScope(u)
 		inj005Fired := false
 		// A.1: rules see the line an INTERPRETER would run (continuations joined, quoting that
 		// only splits a word folded, invisible characters gone); evidence quotes the line the
@@ -437,6 +438,13 @@ func (e *Engine) scanUnits(root string, units []unit) []model.Finding {
 			// judged by its own host; on text a reader follows, documents included (lure.go).
 			if lure && !ll.comment {
 				if f, ok := lureFinding(rel, lineNo, u, ll); ok {
+					findings = append(findings, f)
+				}
+			}
+			// FS-006 (P-152): chmod gives group or others read on a file that holds a secret. Structural
+			// because each path of the line is asked of collect's credential list (setupsteps.go).
+			if setupSteps && !ll.comment {
+				if f, ok := openedSecretFinding(rel, lineNo, u, ll); ok {
 					findings = append(findings, f)
 				}
 			}

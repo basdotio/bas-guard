@@ -14,6 +14,21 @@ and CI check both halves (`hack/changelog-check`, P-141).
 
 ## Unreleased
 
+- **Three setup steps a skill writes in plain text are reported: a credential file made readable by other users, pip's
+  second index on an unknown host, and a shell startup file replaced** (P-152, #179, @jasonqindev, 2026-11-26). A skill, a
+  script or a document the skill names could tell the agent to run `chmod 0644 /root/.netrc`, to write
+  `extra-index-url = https://<some host>/simple` into `pip.conf`, or to `cat > ~/.bashrc <<EOF`, and score 100. Two
+  rules are new, both high: `FS-006`, a `chmod` that gives group or others read on a file that holds a secret (a
+  `.netrc`, a `.env`, a private key, a `*.key`, a file inside `.ssh`, `.aws`, `.gnupg` and the like), and `FS-007`, a
+  shell startup file truncated and rewritten. `SUP-006` now reads pip's second index (`extra-index-url`,
+  `--extra-index-url`, `PIP_EXTRA_INDEX_URL`) as it reads the first, and judges every index a line names, so an
+  official index written first no longer vouches for the one after it. It also stops reporting two hosts:
+  `download.pytorch.org` and `pypi.nvidia.com`, PyTorch's and NVIDIA's own wheel indexes, whose documented install
+  commands were reported at high. Not reported, on purpose: a mode that tightens, a public key or a certificate, the
+  `~/.ssh` directory itself, a line appended to a startup file (how tools are installed), and a second index on PyPI,
+  a known mirror or loopback. A gate that passed can fail on a skill that does one of the three; a skill that only
+  installs PyTorch from its own index now passes where it failed. 100 rule IDs; reports carry a new `rules_version`.
+
 ## v0.1.0
 
 - `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
