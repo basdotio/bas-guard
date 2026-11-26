@@ -65,12 +65,25 @@ var officialRegistries = map[string]bool{
 	"crates.io": true, "index.crates.io": true, "static.crates.io": true,
 	"mirrors.aliyun.com": true, "mirrors.tuna.tsinghua.edu.cn": true, "mirrors.cloud.tencent.com": true,
 	"mirrors.huaweicloud.com": true, "mirrors.ustc.edu.cn": true, "pypi.tuna.tsinghua.edu.cn": true,
+	// Two vendors' own wheel indexes (P-152): PyTorch's and NVIDIA's documented install commands name
+	// them (`pip install torch --index-url https://download.pytorch.org/whl/cu121`), and each serves
+	// only what its owner publishes. Counted on 138,133 real SKILL.md files before they were added:
+	// 16 named the first as the index and 6 named one of the two as a second index, every one of them
+	// the vendor's own command. Only a host whose owner is certain goes here, counted first: a host
+	// under a hosting platform's suffix (*.github.io) never does, the name there is first come.
+	"download.pytorch.org": true, "pypi.nvidia.com": true,
 }
 
 // registryRE finds a line that tells a package manager where to fetch from: an .npmrc/.yarnrc
 // key, a CLI config command, or the environment variables the tools honour. Group 1 is the
 // target as written — a URL, or a shell variable that is resolved against the same file below.
-var registryRE = regexp.MustCompile(`(?i)(?:^|[\s"'` + "`" + `;&|(])(?:registry\s*[=:]\s*|registry\s+|index-url\s*[=:]\s*|--registry(?:=|\s+)|--index-url(?:=|\s+)|npm\s+config\s+set\s+registry\s+|yarn\s+config\s+set\s+(?:npmRegistryServer|registry)\s+|pip\s+config\s+set\s+global\.index-url\s+|GOPROXY\s*=\s*|PIP_INDEX_URL\s*=\s*|NPM_CONFIG_REGISTRY\s*=\s*|YARN_REGISTRY\s*=\s*|npmRegistryServer\s*:\s*)["']?([^\s"'` + "`" + `]+)`)
+//
+// pip's second index is read like its first (P-152): the extra-index-url key, the flag, the config
+// command and PIP_EXTRA_INDEX_URL. pip resolves every requirement across all its indexes and takes
+// the highest version it finds, so a host added as a second index can answer any package name. The
+// pattern used to ask for a boundary before `index-url`, and the hyphen of `extra-index-url` is not
+// one, so the key was never seen in any spelling.
+var registryRE = regexp.MustCompile(`(?i)(?:^|[\s"'` + "`" + `;&|(])(?:registry\s*[=:]\s*|registry\s+|(?:extra-)?index-url\s*[=:]\s*|--registry(?:=|\s+)|--(?:extra-)?index-url(?:=|\s+)|npm\s+config\s+set\s+registry\s+|yarn\s+config\s+set\s+(?:npmRegistryServer|registry)\s+|pip\s+config\s+set\s+global\.(?:extra-)?index-url\s+|GOPROXY\s*=\s*|PIP_(?:EXTRA_)?INDEX_URL\s*=\s*|NPM_CONFIG_REGISTRY\s*=\s*|YARN_REGISTRY\s*=\s*|npmRegistryServer\s*:\s*)["']?([^\s"'` + "`" + `]+)`)
 
 // shellAssignRE captures NAME=value assignments so `registry=${CORP_REGISTRY}` can be read
 // back to the URL the same file put in CORP_REGISTRY. One level, same file, no arithmetic:
@@ -182,25 +195,34 @@ func registryRedirects(rel, text string, commentLines map[int]bool) []model.Find
 		if commentLines[lineNo] {
 			continue
 		}
-		m := registryRE.FindStringSubmatch(l)
-		if m == nil {
-			continue
-		}
-		target := m[1]
-		// Only a URL or a shell expansion is a destination. Prose in SKILL.md ("the corporate
-		// registry mirror") and scheme-less words are not — .npmrc itself rejects them.
-		if !strings.Contains(target, "://") && !strings.HasPrefix(target, "$") {
-			continue
-		}
-		written := target
-		if strings.HasPrefix(target, "$") {
-			if vars == nil {
-				vars = shellAssignments(text)
+		// Every target the line names is judged, and the first that is not an accepted host is the
+		// finding (one per line). A line often names two (`--index-url https://pypi.org/simple
+		// --extra-index-url https://…`), and reading only the first let an accepted index vouch for
+		// whatever followed it (P-152).
+		var written, host string
+		known, found := false, false
+		for _, m := range registryRE.FindAllStringSubmatch(l, -1) {
+			target := m[1]
+			// Only a URL or a shell expansion is a destination. Prose in SKILL.md ("the corporate
+			// registry mirror") and scheme-less words are not — .npmrc itself rejects them.
+			if !strings.Contains(target, "://") && !strings.HasPrefix(target, "$") {
+				continue
 			}
-			target = resolveShellVar(target, vars)
+			w := target
+			if strings.HasPrefix(target, "$") {
+				if vars == nil {
+					vars = shellAssignments(text)
+				}
+				target = resolveShellVar(target, vars)
+			}
+			h, k := registryHost(target)
+			if k && (h == "" || officialRegistries[h] || isLoopbackHost(h)) {
+				continue
+			}
+			written, host, known, found = w, h, k, true
+			break
 		}
-		host, known := registryHost(target)
-		if known && (host == "" || officialRegistries[host] || isLoopbackHost(host)) {
+		if !found {
 			continue
 		}
 		// The destination is quoted out of the same line the snippet redacts, so it goes through

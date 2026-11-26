@@ -79,6 +79,19 @@ const (
 	appendToStartup = `(?:>>\s*|\btee\s+(?:-a|--append)\s+)["']?` + startupFile
 )
 
+// rewriteStartup is FS-007's pattern (P-152): a startup file as the target of a redirect that
+// truncates, or of tee without -a. The redirect needs a command in front of it: a line that is only
+// `> ~/.bashrc …` is a Markdown block quote (the reading FS-005 has), `2>` and `&>` are a command's
+// own streams, `->` and `=>` are arrows in a comment, and `>>` is an append, which is how nvm, cargo
+// and ROS are installed and stays EXEC-013's ground. tee is read only with the file as its first
+// argument, so `tee -a` is not this. The name must end where the file's name ends (startupEnd): a
+// backup written beside it (`> ~/.bashrc.bak`) and a drop-in under /etc/profile.d are other files,
+// and writing a drop-in there is the ordinary way a package adds itself to login shells.
+const (
+	startupEnd     = `(?:["'\x60\s;|&)<>]|$)`
+	rewriteStartup = `(?:[^\s>&\d=-]|\S\s+)>\s*["']?` + startupFile + startupEnd + `|\btee\s+["']?` + startupFile + startupEnd
+)
+
 func sourceOf(target string) string {
 	return `(?:\bsource|(?:^|[\s'"(;]|\\n)\.)\s+["']?` + target
 }
@@ -331,6 +344,13 @@ func builtinRules() []Rule {
 		// only when it names a log or a history file; /var/log is logs by definition. Measured on 2,879
 		// benign skill trees: 0.
 		rule("FS-005", 9, model.SevHigh, eraseTracesRE, "Erases logs or shell history", "Deletes or empties a log file under the home directory or /var/log, or clears the shell history. A tool has no need to remove the record of what it did; erasing it is how an action is kept from being noticed or reconstructed afterwards.", owaspTrace),
+		// FS-007 (P-152): a shell startup file truncated and rewritten. Two SkillHarm trees replace
+		// ~/.bashrc with a body of their own under "standardized shell configuration"; the user's file is
+		// gone and what replaced it runs in every shell. Truncation only: an append is the ordinary way
+		// to install a tool (12 benign trees in the corpus and 151 real skills append a line), and a
+		// script hooked in by an append is EXEC-013's. Measured: 0 of 4,942 benign and fresh trees, 1 of
+		// 138,133 real SKILL.md files (a container test recipe that writes a placeholder .zshrc).
+		rule("FS-007", 9, model.SevHigh, rewriteStartup, "Shell startup file rewritten", "A shell startup file (.bashrc, .profile, .zshrc, …) is the target of a write that truncates it: a redirect with a single `>`, or tee without -a. Whatever the user kept there is gone, and the content written in its place runs in every shell the user or the agent opens from then on. Installing a tool appends a line to such a file; replacing the file is not how anything is installed.", owaspPersist),
 
 		// 8 — Resource abuse (advisory: static can only hint)
 		rule("RES-001", 8, model.SevLow, `while\s+(true|True|1)\s*[:{)]`, "Possible infinite loop", "A loop with no exit condition may exhaust resources (advisory).", owaspLLM09).advisory(),

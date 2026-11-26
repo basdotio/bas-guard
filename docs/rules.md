@@ -17,18 +17,18 @@ never scores. See [architecture.md](architecture.md#scoring) for the full formul
 **Advisory** means static analysis cannot confirm it — the report says so, and you should
 read the evidence before acting.
 
-**98 rule IDs** in this build — 50 engine rules + 22 structural + 7 permission + 9 LLM
-+ 8 scan notes + 2 gate messages. Of these, **88 score** and 10 never do (dimension 0).
+**100 rule IDs** in this build — 51 engine rules + 23 structural + 7 permission + 9 LLM
++ 8 scan notes + 2 gate messages. Of these, **90 score** and 10 never do (dimension 0).
 These counts are generated from the same tables the drift check reads, so if a count
 anywhere else in this repository disagrees with this line, that other count is stale.
 
-**Rules version `6ed8b90f6b4f`** — reports from this build carry it as `rules_version` (`--json`),
+**Rules version `342aff30ea65`** — reports from this build carry it as `rules_version` (`--json`),
 and `bas-guard version` prints it. It covers deterministic detection only. Each ID a report can
 carry falls in exactly one class:
 
-- **Hashed:** the 50 engine rules — each one's ID, dimension, severity, flags and pattern, not
+- **Hashed:** the 51 engine rules — each one's ID, dimension, severity, flags and pattern, not
   the titles and explanations below.
-- **Covered only by the epoch:** the 22 structural checks, the 7 permission checks, the 5
+- **Covered only by the epoch:** the 23 structural checks, the 7 permission checks, the 5
   scan notes that are not `LLM-` IDs, and `GATE-001` (the gate message `scan` raises). The epoch is
   an integer folded into the hash, which the maintainers bump when deterministic detection
   code outside the engine rule table changes; nothing checks that they did.
@@ -49,7 +49,7 @@ agree were produced by the same engine rule table.
 - [6 — Obfuscation](#6--obfuscation) (10)
 - [7 — Backdoor](#7--backdoor) (4)
 - [8 — Resource abuse](#8--resource-abuse) (3)
-- [9 — Filesystem](#9--filesystem) (7)
+- [9 — Filesystem](#9--filesystem) (9)
 - [10 — Intent mismatch](#10--intent-mismatch) (2)
 - [Scan notes (dimension 0)](#scan-notes-dimension-0) (8)
 - [Load-time gate](#load-time-gate) (2)
@@ -135,7 +135,7 @@ agree were produced by the same engine rule table.
 | `SUP-003` | low | Unpinned dependency | Version not pinned — prone to poisoning / drift. |
 | `SUP-004` | medium | Artifact points the agent into an excluded directory | Generated/vendored directories (dist/, node_modules/, …) are not scanned, because the canonical hash must survive a rebuild. This fires when the artifact's readable half steers the agent at the half a directory name made unreadable — a path reference, not a bare word, and not in prose docs. |
 | `SUP-005` | high | Compiled Python bytecode shipped alongside the source | .pyc files (in __pycache__ or loose) travel with the artifact. Python loads a matching .pyc instead of compiling the .py beside it, so what runs need not be what anyone read; no text scanner reads bytecode, this one included. Raised from the tree walk, so it lands even though __pycache__ itself is skipped. |
-| `SUP-006` | high | Package source redirected to an unofficial registry | An .npmrc/.yarnrc/pip key, a `config set registry` command, or GOPROXY/PIP_INDEX_URL/NPM_CONFIG_REGISTRY points a package manager at a host that is not the vendor's registry, GitHub Packages, a known public mirror, or loopback. Shell variables are resolved one level within the same file; an unresolvable target is reported as unknown, not skipped. Comment-only lines are ignored; comments explaining why the redirect is fine are not consulted. |
+| `SUP-006` | high | Package source redirected to an unofficial registry | An .npmrc/.yarnrc/pip key, a `config set registry` command, or GOPROXY/PIP_INDEX_URL/NPM_CONFIG_REGISTRY points a package manager at a host that is not the vendor's registry, GitHub Packages, a known public mirror, PyTorch's or NVIDIA's own wheel index, or loopback. pip's second index counts like its first (the `extra-index-url` key, `--extra-index-url`, PIP_EXTRA_INDEX_URL): pip takes the highest version any of its indexes offers, so a second index can answer any package name. Every target a line names is judged. Shell variables are resolved one level within the same file; an unresolvable target is reported as unknown, not skipped. Comment-only lines are ignored; comments explaining why the redirect is fine are not consulted. |
 | `SUP-007` | high | Code downloaded over plaintext HTTP | A script or source file is fetched over http:// (not https) and saved where a later step runs or imports it. Nothing authenticates the server or the bytes, so whoever controls the host or the network path decides what code the agent runs. |
 | `SUP-008` | high | Install-time script runs unread, packed, inline or self-fetching code | A package.json's `preinstall`, `install` or `postinstall` script runs on the installing machine with no prompt, before any of the package's code is used. Raised when what it runs could not be vouched for: a file in the tree that was not read (over the 1 MiB cap, or not text), a file with a line of 4,096 bytes or more (packed or minified), a file that both reaches the network and starts a process, or inline interpreter code (`node -e`, `python -c`) that reads or writes files, reads the environment, opens the network, starts a process or evaluates code (printing a notice, or a chmod after a build, is not that). The script is followed one level, through `npm run <name>` and `sh -c` too; a name that differs from npm's only by case (`postInstall`) is reported and the finding says npm does not run it. Says what was not reviewed, not that it is malicious: a package whose install script runs its own minified bundle gets it too. `prepare`, dependencies under node_modules and other package managers are not read. |
 | `SUP-009` | medium | Package runs a script at install time | A package.json has a `preinstall`, `install` or `postinstall` script and none of SUP-008's reasons holds: the file it runs was read and is ordinary, it is absent from the tree (a build output not built yet; the finding names it), or the script runs a tool. Reported because it runs with no prompt; it does not fail `check` at the default threshold. One finding per script, never together with SUP-008. |
@@ -183,6 +183,8 @@ agree were produced by the same engine rule table.
 | `FS-003` | high | Dangerous recursive delete | rm -rf of a whole tree — the filesystem root, the home directory, or everything in the working directory. A scoped path under one of them (a cache, a build output) is not this rule. |
 | `FS-004` | medium | Path traversal to a sensitive directory | Multi-level .. traversal aimed at a system/credential directory — unauthorized-access surface. |
 | `FS-005` | high | Erases logs or shell history | Deletes or empties a log file under the home directory or /var/log, or clears the shell history. A tool has no need to remove the record of what it did; erasing it is how an action is kept from being noticed or reconstructed afterwards. |
+| `FS-006` | high | Credential file made readable by other users | A `chmod` gives group or others read (an octal mode such as 644 or 640, or a symbolic one such as a+r, o+r, go+r) on a file that holds a secret: a name such as .netrc, .env, id_rsa, credentials, *.key or *.p12, or a file inside .ssh, .aws, .gnupg, .kube, .docker or .password-store. Such a file is owner-only so that no other user or process can read it, and no setup needs it opened; once it is, whatever runs later with fewer rights can take the credential. Not reported: a mode that tightens (600, 400, go-r), the public files of .ssh (*.pub, authorized_keys, known_hosts, config), a .pem (usually a public certificate), and the credential directory itself. Read in scripts, instruction files and the code of a document a SKILL.md names; a mode set from code, or a path the line does not spell, is not seen. |
+| `FS-007` | high | Shell startup file rewritten | A shell startup file (.bashrc, .profile, .zshrc, …) is the target of a write that truncates it: a redirect with a single `>`, or tee without -a. Whatever the user kept there is gone, and the content written in its place runs in every shell the user or the agent opens from then on. Installing a tool appends a line to such a file; replacing the file is not how anything is installed. |
 | `PERM-003` | low | Overly broad file read/write grant | Read/Write/Edit grant with an over-broad glob (`**`); narrow to specific sub-paths. |
 | `SCOPE-001` | medium | Symlink escapes its boundary | A file of an artifact resolves outside the boundary it may be read in and was NOT read (invariant #2): for any file, the artifact's own directory; for a skill's SKILL.md — the file Claude Code loads, following any symlink — the skills directory that holds the skill, or the plugin root for a plugin's skill. Scored on the artifact, one finding listing the entries, because what Claude Code loads or the agent runs was not audited; a refused SKILL.md also leaves the skill with no content hash, so it cannot be approved. A link that does not resolve is placed by its link text. The same ID, as a scan-level note, reports a skill directory, a plugin installPath or an instruction file that resolves outside HOME and was not collected. |
 

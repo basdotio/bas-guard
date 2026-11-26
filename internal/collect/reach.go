@@ -122,6 +122,47 @@ func CredentialPath(real string) (model.Severity, bool) {
 	return credentialFile(real)
 }
 
+// sshPublic are the files of an .ssh directory that are public by design: every setup guide tells
+// the reader to make them readable (`chmod 644 ~/.ssh/id_ed25519.pub`), and none of them is a secret.
+// A public key carries the suffix; the three names are the files ssh itself reads beside the keys.
+var sshPublic = map[string]bool{"authorized_keys": true, "known_hosts": true, "config": true}
+
+// HoldsSecret reports whether a path, as a file wrote it, names a file that holds a secret and
+// nothing else: a name in credentialFile's high tier (.netrc, .env, id_rsa, *.key, …) wherever it
+// sits, or any file inside one of sensitiveDirs' directories. It is the question FS-006 asks of a
+// chmod target (P-152), answered from the same two lists CredentialPath reads, so "what is a
+// credential" has one definition. Three things CredentialPath refuses to read are not secrets
+// here, each for a measured reason:
+//
+//   - the medium tier (.pem, .npmrc, .pypirc) and anything merely under .config: a .pem is usually
+//     a public certificate, and .config is where every tool keeps its settings;
+//   - the credential directory itself (`~/.ssh`, no file after it): the real skills that write
+//     `chmod 755 ~/.ssh` quote it as what not to do;
+//   - the public files of .ssh (sshPublic, *.pub): nine real skills in 138,133 tell the reader to
+//     chmod 644 one, correctly.
+//
+// The path is read as text. Nothing is opened or resolved, so a variable or a glob is judged by
+// what it spells: `~/.ssh/*` is every file of .ssh, `~/.ssh/*.pub` is the public keys.
+func HoldsSecret(path string) bool {
+	segs := strings.FieldsFunc(filepath.ToSlash(path), func(r rune) bool { return r == '/' })
+	if len(segs) == 0 {
+		return false
+	}
+	base := strings.ToLower(segs[len(segs)-1])
+	// The directory first: inside .ssh a .pem is a private key, whatever tier the name alone has.
+	for _, seg := range segs[:len(segs)-1] {
+		if seg == ".config" || !sensitiveDirs[seg] {
+			continue
+		}
+		if seg == ".ssh" && (sshPublic[base] || strings.HasSuffix(base, ".pub")) {
+			return false
+		}
+		return true
+	}
+	sev, ok := credentialFile(base)
+	return ok && sev == model.SevHigh
+}
+
 func isSymlink(p string) bool {
 	fi, err := os.Lstat(p)
 	return err == nil && fi.Mode()&os.ModeSymlink != 0
