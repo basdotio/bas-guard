@@ -233,3 +233,21 @@ All asked at once. Each has a recommended answer.
    its raw archive (scrubbed) on the next release; leave the row-build run as a local measurement mentioned here, since
    its build is not on `main`. The replay script goes into the result directory beside `compare.txt`.
    **Decided (2026-11-26)**: as recommended.
+
+## Done
+
+```
+Merged: PR #177 (find the date and the sha with git log --grep P-150 after the merge)
+Released: pending
+Evidence: internal/judge/severity.go: severityFor takes the step when the pass is the intent pass only; internal/judge/judge.go: finding() appends "[disclosed]" to a server finding whose vote set the field and "[disclosed: one step lower]" to an intent finding as before; the server prompt still asks for the field
+Evidence: TestSeverityFor_ServerTakesNoDisclosureStep; TestServerDisclosed_IsMarkedNotLowered; TestTally_ServerDisclosedVotes: five vote shapes through finding() and tally(); TestRun_ServerCredentialReadDowngradesHoldWhenDisclosed: own service, own configuration, reaches past, each with the field false and true
+Evidence: reversed: TestRun_ServerSourceGetsLLM010's disclosed case expects high; TestSeverityFor_NewRows' two disclosed server rows are high; TestDisclosedLowering_IsAnnotated's server row carries no "one step lower"; with the old rule put back (the mutation was run) these three and the four new tests are red
+Evidence: green without an edit: TestSeverity_IntentDisclosedIsOneStepLower, the four TestPromptVersion_* tests, TestExcerptVersion_IsPinnedWithItsGolden; bas-guard version prints judge-prompt=9cd57da1a4bd · judge-excerpt=10, as on main
+Evidence: replay.py on the stored answers, 802 Python server trees (179 malicious, 623 benign), no model call: gpt-4.1-mini malicious 135 → 136, benign 38 → 40; glm-5.3 (v0.39.0) malicious 91 → 101, benign 29 → 32; nothing open on either run, and the "high now" column equals judge.jsonl's own count on both
+Evidence: every malicious server that lifts on glm-5.3 is one gpt-4.1-mini reports high in its stored run; compare.txt lists each changed server (3 on gpt-4.1-mini, 13 on glm-5.3) with its row and the model's sentence
+Evidence: baselines/results/aguard/2026-11-25-llm-glm-5.3-servers-s3/: judge.jsonl, ledger.jsonl, verdicts.jsonl (802 lines each), per-kind-rule.txt, replay.py, compare.txt; no run.yaml (a two-part run, said in compare.txt); baselines/judgefold/schema_test.go counts 103 files and 52,265 lines
+Evidence: other readings, local runs, totals only: glm-5.3 with P-118's row malicious 120 → 129, benign 25 → 27; gpt-4.1-mini on the 237 TypeScript and JavaScript trees 9 → 9 and 24 → 24 or 25 (one finding open); glm-5.3 on the 30 hand-written servers 28 → 28; the intent pass, which keeps the step: gpt-4.1-mini 115 → 115 and 35 → 36, glm-5.3 64 → 64 and 0 → 0
+Evidence: docs/llm-judge.md and docs/llm-judge.zh-CN.md, the P-041 bullet of docs/spec/spec.zh-CN.md, .claude/rules/judge.md, a closing section in issues/028
+Evidence: go test -count=1 ./baselines/cmd/judgefold/ ok, goldens untouched; make verify: all gates passed
+Owed: the glm-5.3 run's raw archive, scrubbed, on the release that carries this change
+```
