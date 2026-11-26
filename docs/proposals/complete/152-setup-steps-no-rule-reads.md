@@ -294,3 +294,20 @@ All asked at once. Each has a recommended answer.
    directory holds the list of texts whose findings differ (repository, path, line, the finding), and `compare.txt`
    says how to fetch the dataset and rerun; the prototype scripts stay outside the repository.
    **Decided (2026-11-26)**: as recommended.
+
+## Done
+
+```
+Merged: PR #179 (find the date and the sha with git log --grep P-152 after the merge)
+Released: pending
+Evidence: internal/detect/setupsteps.go: FS-006 reads a chmod's mode (opensToOthers) and asks collect.HoldsSecret of each path of the line; internal/collect/reach.go: HoldsSecret answers from credentialFile and sensitiveDirs, the two lists CredentialPath reads; internal/detect/rules_data.go: FS-007 (rewriteStartup, startupEnd); internal/detect/shape.go: registryRE reads (extra-)index-url in four spellings, registryRedirects judges every target of a line, officialRegistries gains download.pytorch.org and pypi.nvidia.com; rulesEpoch 31, rules=342aff30ea65, 100 rule IDs
+Evidence: TestDetect_CredentialFileOpenedToOthers: 18 rows fire at high / dimension 9, 22 stay quiet (a tightening mode, the public files of .ssh, the directory, a .pem, the medium tier, a comment, bundled prose, a mode set from code); TestOpensToOthers: 38 modes; TestHoldsSecret and TestHoldsSecret_ReadsTheListsCredentialPathReads
+Evidence: TestDetect_StartupFileRewritten: 8 rows fire, 17 stay quiet (an append, tee -a, a backup beside the file, a drop-in under /etc/profile.d, stderr, an arrow, a block quote); TestDetect_StartupFileRewritten_LeavesTheAppendRuleAlone
+Evidence: TestRegistryRedirects_PipSecondIndex: 10 rows fire, 5 stay quiet, and a line with an accepted first index names the second index's host; TestRegistryRedirects_VendorWheelIndexes: 5 accepted, 7 look-alikes reported, the list's size pinned at 25
+Evidence: reverse: every existing SUP-006 and EXEC-013 test green without an edit; with each change undone in turn (six mutations) 1 to 14 of the new rows fail
+Evidence: corpus ed3c871b, main c46cbc2 against 60478cd: target trees 11 of 11; malicious 253 → 264 of 749, none lost; benign 341 → 340 of 4,534, none new (the one lost is ben-skill-sk-SecKatie__katies-ai-skills__skills__llm, PyTorch's index); hard negatives 4 → 4; 17 samples differ, all in FS-006, FS-007 and SUP-006
+Evidence: held-out, totals only: malicious 134 → 135 of 243, benign 6 → 6 of 216; fresh216 9 → 9 of 212, fresh200 24 → 23 of 200; no benign or fresh tree carries FS-006 or FS-007
+Evidence: SkillMD-138K, 2,619 texts, both binaries: FS-006 on 0, FS-007 on 1, SUP-006 newly on 6 and no longer on 17 (29 findings, each on a line naming download.pytorch.org); the maintainer's own environment: the same 111 findings on both builds
+Evidence: baselines/results/aguard/2026-11-26-p152-{corpus,heldout,fresh216,fresh200}-{main,changed}/; compare.txt and skillmd-138k-differ.jsonl in …-corpus-changed/
+Evidence: make verify: all gates passed; Linux CI build-test and changelog green on the PR
+```

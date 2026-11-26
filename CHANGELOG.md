@@ -15,7 +15,7 @@ and CI check both halves (`hack/changelog-check`, P-141).
 ## Unreleased
 
 - **Three setup steps a skill writes in plain text are reported: a credential file made readable by other users, pip's
-  second index on an unknown host, and a shell startup file replaced** (P-152, @jasonqindev, 2026-11-26). A skill, a
+  second index on an unknown host, and a shell startup file replaced** (P-152, #179, @jasonqindev, 2026-11-26). A skill, a
   script or a document the skill names could tell the agent to run `chmod 0644 /root/.netrc`, to write
   `extra-index-url = https://<some host>/simple` into `pip.conf`, or to `cat > ~/.bashrc <<EOF`, and score 100. Two
   rules are new, both high: `FS-006`, a `chmod` that gives group or others read on a file that holds a secret (a
