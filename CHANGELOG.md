@@ -14,26 +14,6 @@ and CI check both halves (`hack/changelog-check`, P-141).
 
 ## Unreleased
 
-- **The judge says how many of a tree's script files it was not shown** (P-149, #176, @jasonqindev, 2026-11-24). The intent
-  pass (skills) and the server-source pass take a tree's script and config files by name, each cut to 2,000 bytes, until
-  the 6,000-byte excerpt is spent. The files after that were never sent, and no report said so: a skill of nine scripts
-  could have three in front of the judge and read as judged. A `--llm` report now counts them in its `LLM-000` note —
-  `skill:forms (6 of 9 script or config file(s) past the 6000-byte excerpt not sent)` — and `bas-guard llm preview` shows
-  the same words as the call's `shortened`. Nothing else changes: every request is the bytes it was, so no verdict,
-  score or exit code moves, and `--fail-on-llm` does not read the note. The files are still not judged; the static rules
-  read every file as before.
-
-- **The judge no longer weighs an MCP server's finding lower because a tool description mentions the behaviour**
-  (P-150, #177, @jasonqindev, 2026-11-26). On the server-source pass (`LLM-010`) a finding the model marked `disclosed` was
-  taken one step down, high to medium, as on the skill intent pass; a server whose docstring says "optional privilege
-  escalation" and whose code edits `/etc/sudoers` weighed medium. The step now applies to skills only. With `--llm`, a
-  server finding that used to read medium with `[disclosed: one step lower]` reads its category's weight with
-  `[disclosed]` in the reason, so `overall_effective` and `--fail-on-llm` can change for a server that does what the
-  model flagged and says so. Replayed on stored runs over 802 server trees: with gpt-4.1-mini one more malicious and two
-  more benign servers at high; with glm-5.3 ten and three. The question asked of the model is unchanged, a server that
-  only does what its descriptions say is still not a finding, and nothing changes for skills, the static rules or
-  `--fail-on`.
-
 ## v0.1.0
 
 - `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
@@ -46,7 +26,41 @@ and CI check both halves (`hack/changelog-check`, P-141).
 - Invariants: never executes scanned content, no cross-root symlink reads, secret redaction before storage (+ high-entropy fallback).
 - Single static binary (`CGO_ENABLED=0`), MIT + SPDX, CI, bilingual README.
 
-## v0.2.0 – v0.39.0
+## v0.2.0 – v0.40.0
+
+**v0.40.0 (2026-11-26) — the judge no longer weighs an MCP server's finding lower because a tool description mentions
+the behaviour, and a `--llm` report says how many of a tree's script files the judge was not shown.**
+
+Both changes are in the optional judge. A run without `--llm` reports, scores and exits as on v0.39.0; `llm preview`
+now says which planned calls leave script files out. No flag, exit code, config key or JSON field is new or changed
+meaning, and no rule is new (98 rule IDs). `rules` (`6ed8b90f6b4f`), `judge-prompt` (`9cd57da1a4bd`) and
+`judge-excerpt` (10) are all unchanged: the judge is sent what it was sent. What changed is the weight the tool gives
+one kind of answer, so with `--llm` a server's `overall_effective` can be lower and a `--fail-on-llm` gate can go red
+on upgrade (see "Upgrading a CI gate" below).
+
+- **The judge says how many of a tree's script files it was not shown** (P-149, #176, @jasonqindev, 2026-11-24). The intent
+  pass (skills) and the server-source pass take a tree's script and config files by name, each cut to 2,000 bytes, until
+  the 6,000-byte excerpt is spent. The files after that were never sent, and no report said so: a skill of nine scripts
+  could have three in front of the judge and read as judged. A `--llm` report now counts them in its `LLM-000` note —
+  `skill:forms (6 of 9 script or config file(s) past the 6000-byte excerpt not sent)` — and `bas-guard llm preview` shows
+  the same words as the call's `shortened`. Nothing else changes: every request is the bytes it was, so no verdict,
+  score or exit code moves, and `--fail-on-llm` does not read the note. The files are still not judged; the static rules
+  read every file as before.
+- **The judge no longer weighs an MCP server's finding lower because a tool description mentions the behaviour**
+  (P-150, #177, @jasonqindev, 2026-11-26). On the server-source pass (`LLM-010`) a finding the model marked `disclosed` was
+  taken one step down, high to medium, as on the skill intent pass; a server whose docstring says "optional privilege
+  escalation" and whose code edits `/etc/sudoers` weighed medium. The step now applies to skills only. With `--llm`, a
+  server finding that used to read medium with `[disclosed: one step lower]` reads its category's weight with
+  `[disclosed]` in the reason, so `overall_effective` and `--fail-on-llm` can change for a server that does what the
+  model flagged and says so. Replayed on stored runs over 802 server trees: with gpt-4.1-mini one more malicious and two
+  more benign servers at high; with glm-5.3 ten and three. The question asked of the model is unchanged, a server that
+  only does what its descriptions say is still not a finding, and nothing changes for skills, the static rules or
+  `--fail-on`.
+- **Upgrading a CI gate:** `--fail-on` reads no judge finding and is untouched. With `--fail-on-llm`, a server finding
+  the model marked `disclosed` is no longer one step lower (P-150): it reads its category's weight, high for most
+  categories, and a gate that passed can fail with `1` on a server that does what the model flagged and says so in a
+  tool description. Skills are weighed as before. A report can carry one more `LLM-000` note (P-149); the note changes
+  no exit code. `rules_version` is the one v0.39.0 reports carry.
 
 **v0.39.0 (2026-11-24) — a key sent to a host that only looks like its service's is reported high again, a Python client
 imported after another name counts as a way to send, and the judge stops asking a question whose outcome is settled and
