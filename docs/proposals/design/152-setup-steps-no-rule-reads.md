@@ -258,6 +258,7 @@ example (`pypi.example.com`). `SUP-006` no longer on 17 texts (29 findings), eve
 | 1 | `FS-006`, `SUP-006`'s second index and the two hosts, `FS-007`, tests, epoch, generated rules doc, changelog | `detect: a credential file opened to other users is FS-006, a startup file rewritten is FS-007, and SUP-006 reads pip's second index (P-152)` |
 | 1a | Two test rows the criteria name literally (`pytorch.org.evil.net`, `2> ~/.bashrc.err`), added after the measured build | `detect: two rows the criteria of P-152 name (P-152)` |
 | 2 | `.claude/rules/detect.md` and the spec line | `docs: three setup steps the rules now read (P-152)` |
+| 2a | The guidance folded into the shape-check bullet: `.claude/rules/detect.md` is held to 200 lines and the paragraph took it to 205 | `docs: the setup-steps guidance joins the shape-check bullet (P-152)` |
 | 3 | Static runs, `main` and branch: corpus, held-out, fresh skills, the SkillMD-138K texts | `baselines: P-152 static runs, main and branch (P-152)` |
 | 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-152 done (P-152)` |
 
