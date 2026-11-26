@@ -23,6 +23,17 @@ and CI check both halves (`hack/changelog-check`, P-141).
   score or exit code moves, and `--fail-on-llm` does not read the note. The files are still not judged; the static rules
   read every file as before.
 
+- **The judge no longer weighs an MCP server's finding lower because a tool description mentions the behaviour**
+  (P-150, #177, @jasonqindev, 2026-11-26). On the server-source pass (`LLM-010`) a finding the model marked `disclosed` was
+  taken one step down, high to medium, as on the skill intent pass; a server whose docstring says "optional privilege
+  escalation" and whose code edits `/etc/sudoers` weighed medium. The step now applies to skills only. With `--llm`, a
+  server finding that used to read medium with `[disclosed: one step lower]` reads its category's weight with
+  `[disclosed]` in the reason, so `overall_effective` and `--fail-on-llm` can change for a server that does what the
+  model flagged and says so. Replayed on stored runs over 802 server trees: with gpt-4.1-mini one more malicious and two
+  more benign servers at high; with glm-5.3 ten and three. The question asked of the model is unchanged, a server that
+  only does what its descriptions say is still not a finding, and nothing changes for skills, the static rules or
+  `--fail-on`.
+
 ## v0.1.0
 
 - `scan` / `check` / `clean` / `hash` / `version` commands; terminal + JSON + self-contained HTML reports.
