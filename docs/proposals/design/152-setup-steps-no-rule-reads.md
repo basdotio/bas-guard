@@ -97,7 +97,7 @@ Three small changes on the static side, measured on the static bench (free):
 
 Code:
 
-- [ ] `FS-006` (high, dimension 9; `TestDetect_CredentialFileOpenedToOthers`): a line runs `chmod`, with or without
+- [x] `FS-006` (high, dimension 9; `TestDetect_CredentialFileOpenedToOthers`): a line runs `chmod`, with or without
       options, with a mode that **gives group or others read**, on a path that is a **credential file**. One finding
       per line, quoting the line through the redactor.
   - The mode is read, not listed: an octal mode whose group or other digit has the read bit (`644`, `0644`, `640`,
@@ -107,61 +107,112 @@ Code:
     in its high tier (`.netrc`, `.env` and its stage suffixes, `id_rsa` and kin, `credentials`, `.git-credentials`,
     `*.key`, `*.p12`, `*.pfx`, …), or a file inside one of its credential directories other than `.config`. In
     `.ssh` the files that are public by design do not count: `*.pub`, `authorized_keys`, `known_hosts`, `config`.
+    *As built:* the question is a new function of `collect`, `HoldsSecret`, beside `CredentialPath` and reading its
+    two lists; the directory is asked before the name, so a `.pem` inside `.ssh` is a private key.
   - Runs where the rules run: scripts, instruction files, the code of a document `SKILL.md` names (P-091). Not
     bundled prose, tool descriptions or config data.
-- [ ] Reverse: `chmod 600 ~/.netrc`, `chmod 400 server.key`, `chmod u+r`, `chmod go-r`, `chmod 644 ~/.ssh/id_rsa.pub`,
+- [x] Reverse: `chmod 600 ~/.netrc`, `chmod 400 server.key`, `chmod u+r`, `chmod go-r`, `chmod 644 ~/.ssh/id_rsa.pub`,
   `authorized_keys`, `known_hosts` and `~/.ssh/config` at `644`, `chmod 644 cert.pem`, `chmod 644 .env.example`,
   `chmod 755 ~/.ssh` (the directory: open question 3), `chmod +x run.sh` and `chmod 644 README.md` raise nothing.
-- [ ] `SUP-006` reads pip's second index (`TestRegistryRedirects_PipSecondIndex`): the `extra-index-url` key, `pip
+- [x] `SUP-006` reads pip's second index (`TestRegistryRedirects_PipSecondIndex`): the `extra-index-url` key, `pip
       config set global.extra-index-url`, the `--extra-index-url` flag (with `=` or a space) and
       `PIP_EXTRA_INDEX_URL`. Same rule, same severity, same reading of the target (a URL or a shell variable resolved
       one level in the same file; an unreadable target is reported, not skipped; a comment line is not read).
-- [ ] `download.pytorch.org` and `pypi.nvidia.com` join the accepted hosts, for the first index and the second (open
+      *Added while building:* every target a line names is judged, and the first that is not accepted is the finding.
+      The rule read only the first, so `--index-url https://pypi.org/simple --extra-index-url https://…` would have
+      passed on the strength of the index written first. This also changes how the rule reads two targets of the
+      kinds it already knew; no sample in any of the measured sets changed for it.
+- [x] `download.pytorch.org` and `pypi.nvidia.com` join the accepted hosts, for the first index and the second (open
       question 2). `TestRegistryRedirects_VendorWheelIndexes` pins the two by name and that nothing else was added:
       `lattifai.github.io`, `pypi.example.com`, `pytorch.org.evil.net` and `download.pytorch.org.evil.net` are still
       reported.
-- [ ] Reverse: every existing `SUP-006` test is green without an edit (`TestShapeRulesGateAtHigh` among them); a
+- [x] Reverse: every existing `SUP-006` test is green without an edit (`TestShapeRulesGateAtHigh` among them); a
   second index on `pypi.org` or on loopback raises nothing; "use the extra index" in prose, with no URL, raises
   nothing.
-- [ ] `FS-007` (high, dimension 9; `TestDetect_StartupFileRewritten`): a shell startup file (the list `EXEC-013`
+- [x] `FS-007` (high, dimension 9; `TestDetect_StartupFileRewritten`): a shell startup file (the list `EXEC-013`
       already holds: `.bashrc`, `.bash_profile`, `.bash_login`, `.profile`, `.zshrc`, `.zshenv`, `.zprofile`,
       `.zlogin`, `/etc/profile`, `/etc/bash.bashrc`, `/etc/zsh/zshrc`) is the target of a redirect that truncates
       (`cmd > file`, `cat > file <<EOF`) or of `tee` without `-a`. One finding per line.
-- [ ] Reverse: `>>` and `tee -a` (any content: that is P-093's ground and stays as it is), a redirect *from* the file
+- [x] Reverse: `>>` and `tee -a` (any content: that is P-093's ground and stays as it is), a redirect *from* the file
   (`cat ~/.bashrc > backup`), `cp ~/.bashrc ~/.bashrc.bak`, `2> ~/.bashrc.err`, an arrow in a comment
   (`data.csv -> ~/.bashrc`: the prototype's one false match) and a bare `> ~/.bashrc …` at the start of a Markdown
   line (a block quote, as `FS-005` already treats it) raise nothing. Every existing `EXEC-013` test is green without
   an edit.
-- [ ] `rulesEpoch` 30 → 31, `make docs`, `TestEveryRuleIDIsDocumented` green, each new rule with its OWASP position;
+  *Added while building:* the file's name must end where the path ends, so a backup written beside it
+  (`> ~/.bashrc.bak`), a file that begins with its name (`~/.zshrc.local`) and a drop-in under `/etc/profile.d/` are
+  not it. The prototype did not ask this; it is a narrowing, and the two target trees are unaffected.
+- [x] `rulesEpoch` 30 → 31, `make docs`, `TestEveryRuleIDIsDocumented` green, each new rule with its OWASP position;
   a `CHANGELOG.md` entry under `## Unreleased`; `make verify` green, read from its own exit code.
 
 Measurement (static, threshold high, corpus `ed3c871b`: 749 malicious, 4,534 benign, 19 hard negatives; `main` at
 `c46cbc2` against the branch, both built the same day). Lines set before the run:
 
-- [ ] **Target**: each of the eleven trees in the table is flagged at high by the rule its row belongs to (`FS-006`
+- [x] **Target**: each of the eleven trees in the table is flagged at high by the rule its row belongs to (`FS-006`
   on the first four, `SUP-006` on the next five, `FS-007` on the last two). Eleven of eleven.
-- [ ] **Malicious**: no sample flagged on `main` is unflagged on the branch.
-- [ ] **Benign**: no benign sample, alert-justified ones included, carries `FS-006` or `FS-007`. No benign sample is
+- [x] **Malicious**: no sample flagged on `main` is unflagged on the branch.
+- [x] **Benign**: no benign sample, alert-justified ones included, carries `FS-006` or `FS-007`. No benign sample is
   flagged on the branch that is not on `main`. A benign sample may stop being flagged only when every `SUP-006`
   target it holds is one of the two added hosts; each such sample is named.
-- [ ] **Hard negatives**: the same samples flagged as on `main`.
-- [ ] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on `main`; benign flagged not more.
-- [ ] **Fresh benign skills** (`fresh216`, `fresh200`): none carries `FS-006` or `FS-007`; no tree is flagged on the
+- [x] **Hard negatives**: the same samples flagged as on `main`.
+- [x] **Held-out** (`heldout-all`, totals only): malicious flagged not fewer than on `main`; benign flagged not more.
+- [x] **Fresh benign skills** (`fresh216`, `fresh200`): none carries `FS-006` or `FS-007`; no tree is flagged on the
   branch that is not on `main`.
-- [ ] **Real skills** (SkillMD-138K: the 2,619 texts that hold `chmod`, an `index-url` spelling or a startup file's
+- [x] **Real skills** (SkillMD-138K: the 2,619 texts that hold `chmod`, an `index-url` spelling or a startup file's
   name, each given to `check` as a skill directory holding that one `SKILL.md`, on `main` and on the branch). Every
   text whose findings differ is listed with its line. `FS-006` on **at most two** texts, `FS-007` on **at most two**,
   `SUP-006` newly on **at most eight**; each is read and described. (The prototype says zero, one and six.) Texts
   that stop carrying `SUP-006` are counted, and each must hold only the two added hosts.
-- [ ] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch; what differs is
+- [x] **Read, not gated**: a scan of the maintainer's own `~/.claude` on `main` and on the branch; what differs is
   reported.
 
 Docs:
 
-- [ ] `.claude/rules/detect.md`: what not to widen. Not the directory, not `.pem`, not the medium tier of the
+- [x] `.claude/rules/detect.md`: what not to widen. Not the directory, not `.pem`, not the medium tier of the
   credential list; not an append to a startup file; the accepted hosts grow only by a host whose owner is certain,
   counted on real skills first.
-- [ ] `docs/spec/spec.zh-CN.md`: one clause in the shape-check bullet (`SUP-006` reads pip's second index).
+- [x] `docs/spec/spec.zh-CN.md`: one clause in the shape-check bullet (`SUP-006` reads pip's second index).
+
+## Readings
+
+Static, threshold high, corpus `ed3c871b`, `main` at `c46cbc2` (`rules=6ed8b90f6b4f`) against the branch at `60478cd`
+(`rules=342aff30ea65`), both built 2026-11-26. The eight runs are
+`baselines/results/aguard/2026-11-26-p152-{corpus,heldout,fresh216,fresh200}-{main,changed}/`; `compare.txt` in
+`…-corpus-changed/` names every sample that changed where naming is allowed, and `skillmd-138k-differ.jsonl` beside
+it lists every finding that differs on the real skills.
+
+| line (set before the run) | main | branch | |
+|---|---:|---:|---|
+| target trees flagged by their row's rule | 0 | **11** | eleven of eleven ✓ |
+| malicious flagged, of 749 | 253 | **264** | none lost ✓ |
+| benign flagged, of 4,534 | 341 | **340** | none new; none carries `FS-006` or `FS-007` ✓ |
+| hard negatives flagged, of 19 | 4 | 4 | the same ✓ |
+| held-out, totals only: malicious of 243 / benign of 216 | 134 / 6 | **135** / 6 | not fewer / not more ✓ |
+| fresh skills flagged (`fresh216`, 212 on disk; `fresh200`) | 9; 24 | 9; **23** | none new; none carries `FS-006` or `FS-007` ✓ |
+| real skills, of 2,619 texts: `FS-006` | 0 | 0 | at most two ✓ |
+| real skills: `FS-007` | 0 | 1 | at most two ✓ |
+| real skills: `SUP-006` newly | — | 6 | at most eight ✓ |
+| the maintainer's own environment, 125 artifacts | 111 findings | 111 findings | none differs |
+
+**Corpus.** The eleven gained are the eleven of the table, each by its own rule. Seventeen samples differ in any
+finding, all in the three rules: the eleven, four trees that open `/root/.ssh/id_rsa` and were flagged by `FS-001`
+(they gain `FS-006`), one tree already flagged that gains a second `SUP-006` line, and one benign sample that loses
+its only high finding: `ben-skill-sk-SecKatie__katies-ai-skills__skills__llm`, on the line `--index-url
+https://download.pytorch.org/whl/nightly/cpu`. `SUP-006` is now high on 10 benign samples, 11 before.
+
+**Held-out.** One more malicious tree flagged, none lost, benign unchanged. Two malicious trees carry `FS-006`; three
+samples differ in any finding. No tree was read.
+
+**Fresh skills.** `fresh200`: one tree stops being flagged (`dgapex-td-tox-builder`, a PyTorch `--index-url` line in
+a PowerShell script) and one loses a `SUP-006` finding and stays flagged for something else
+(`haiderfarooq3-khan-explainer`, the same host in a deploy file). `fresh216`: no finding differs.
+
+**Real skills.** Of the 2,619 texts, 24 differ. `FS-007` on one: the container test recipe read above. `SUP-006` newly
+on six: the five skills of one vendor installing its own package from `lattifai.github.io`, and the private index
+example (`pypi.example.com`). `SUP-006` no longer on 17 texts (29 findings), every one on a line naming
+`download.pytorch.org`; none of the 17 carries another `SUP-006` finding. The prototype's port had said 16. Exit code
+1 newly on seven texts and no longer on 16. `FS-006` on none.
+
+**Not run.** The hostile-input fixtures (`-no-fixtures`): they test termination, which this change does not touch.
 
 ## Out of scope
 
@@ -205,6 +256,7 @@ Docs:
 | W | In one sentence | Commit message (no sha; a rebase changes it) |
 |---|---|---|
 | 1 | `FS-006`, `SUP-006`'s second index and the two hosts, `FS-007`, tests, epoch, generated rules doc, changelog | `detect: a credential file opened to other users is FS-006, a startup file rewritten is FS-007, and SUP-006 reads pip's second index (P-152)` |
+| 1a | Two test rows the criteria name literally (`pytorch.org.evil.net`, `2> ~/.bashrc.err`), added after the measured build | `detect: two rows the criteria of P-152 name (P-152)` |
 | 2 | `.claude/rules/detect.md` and the spec line | `docs: three setup steps the rules now read (P-152)` |
 | 3 | Static runs, `main` and branch: corpus, held-out, fresh skills, the SkillMD-138K texts | `baselines: P-152 static runs, main and branch (P-152)` |
 | 4 | Done, `complete/` or `rejected/`, the index row | `proposals: P-152 done (P-152)` |

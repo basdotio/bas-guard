@@ -1,0 +1,144 @@
+P-152 static runs, threshold high, corpus ed3c871b (5,302 samples: 749 malicious, 4,534 benign, 19 hard negatives),
+both binaries built 2026-11-26. Eight runs: corpus, held-out, fresh216, fresh200, each on main and on the branch; their
+ledgers, verdicts, scorecards and run.yaml are the eight directories 2026-11-26-p152-<set>-<main|changed>. The runs
+were made with -no-fixtures (the hostile-input fixtures are about termination, which this change does not touch), so no
+fixtures.jsonl is written.
+
+A sample is named here only where reading it is allowed: the corpus, except the members of fresh216 that sit in it,
+and fresh200. The held-out list and fresh216 are totals.
+
+main   bas-guard v0.40.0 (commit c46cbc2, built 2026-11-26T11:14:29Z) · rules=6ed8b90f6b4f
+branch bas-guard v0.40.0-1-g60478cda (commit 60478cd, built 2026-11-26T11:14:28Z) · rules=342aff30ea65
+
+== corpus (5302 listed, 5302 scored on main, 5302 on the branch):
+benign         n= 4534  flagged main  341  branch  340
+hard-negative  n=   19  flagged main    4  branch    4
+malicious      n=  749  flagged main  253  branch  264
+malicious lost: 0; verdict changes: 12
+FS-006 carriers at high: main {}  branch {'malicious': 8}
+FS-007 carriers at high: main {}  branch {'malicious': 2}
+SUP-006 carriers at high: main {'benign': 11, 'malicious': 12}  branch {'benign': 10, 'malicious': 17}
+samples whose findings differ (rule, severity, file, line; notes included): 17; raw not readable: main 0, branch 0
+rules other than the three in those differences: none
+   ben ben-skill-sk-SecKatie__katies-ai-skills__skills__llm           flagged -> clean     +[] -['SUP-006@setup.md:80']
+   mal mal-skill-sh-backdoor-injection-4c0de944ad                     clean -> flagged     +['SUP-006@SKILL.md:24'] -[]
+   mal mal-skill-sh-backdoor-injection-bafdd1a574                     clean -> flagged     +['SUP-006@setup_env.sh:14'] -[]
+   mal mal-skill-sh-backdoor-injection-d607fb8d1d                     clean -> flagged     +['SUP-006@INSTALL.md:26'] -[]
+   mal mal-skill-sh-dos-2f6fcd7c6e                                    flagged -> flagged   +['SUP-006@SKILL.md:22'] -[]
+   mal mal-skill-sh-privilege-escalation-1275e1397e                   flagged -> flagged   +['FS-006@SKILL.md:16'] -[]
+   mal mal-skill-sh-privilege-escalation-301b1c6e66                   clean -> flagged     +['FS-006@SKILL.md:23'] -[]
+   mal mal-skill-sh-privilege-escalation-3bb68ae2bd                   flagged -> flagged   +['FS-006@SKILL.md:18'] -[]
+   mal mal-skill-sh-privilege-escalation-3dc1f345d0                   clean -> flagged     +['FS-006@workflow-setup.md:27'] -[]
+   mal mal-skill-sh-privilege-escalation-4e0471eaa2                   flagged -> flagged   +['FS-006@ENVIRONMENT_SETUP.md:25'] -[]
+   mal mal-skill-sh-privilege-escalation-512c2b30e4                   clean -> flagged     +['FS-006@SKILL.md:20'] -[]
+   mal mal-skill-sh-privilege-escalation-8574f04cbc                   flagged -> flagged   +['FS-006@SKILL.md:16'] -[]
+   mal mal-skill-sh-privilege-escalation-d5d6c1e7f8                   clean -> flagged     +['FS-006@SKILL.md:14'] -[]
+   mal mal-skill-sh-system-corruption-22022eee4e                      clean -> flagged     +['SUP-006@environment_preparation.md:20'] -[]
+   mal mal-skill-sh-system-corruption-2457e7da1c                      clean -> flagged     +['SUP-006@prepare_environment.py:23'] -[]
+   mal mal-skill-sh-unauthorized-file-modification-a8fcdad909         clean -> flagged     +['FS-007@SKILL.md:21'] -[]
+   mal mal-skill-sh-unauthorized-file-modification-e24d224b58         clean -> flagged     +['FS-007@SKILL.md:15'] -[]
+
+-- the eleven target trees (branch): flagged, and carrying their row's rule at high
+   FS-006   privilege-escalation-301b1c6e66                main clean    branch flagged  FS-006 at high: True
+   FS-006   privilege-escalation-512c2b30e4                main clean    branch flagged  FS-006 at high: True
+   FS-006   privilege-escalation-d5d6c1e7f8                main clean    branch flagged  FS-006 at high: True
+   FS-006   privilege-escalation-3dc1f345d0                main clean    branch flagged  FS-006 at high: True
+   SUP-006  backdoor-injection-4c0de944ad                  main clean    branch flagged  SUP-006 at high: True
+   SUP-006  backdoor-injection-bafdd1a574                  main clean    branch flagged  SUP-006 at high: True
+   SUP-006  backdoor-injection-d607fb8d1d                  main clean    branch flagged  SUP-006 at high: True
+   SUP-006  system-corruption-2457e7da1c                   main clean    branch flagged  SUP-006 at high: True
+   SUP-006  system-corruption-22022eee4e                   main clean    branch flagged  SUP-006 at high: True
+   FS-007   unauthorized-file-modification-a8fcdad909      main clean    branch flagged  FS-007 at high: True
+   FS-007   unauthorized-file-modification-e24d224b58      main clean    branch flagged  FS-007 at high: True
+   target: 11 of 11
+
+== heldout (459 listed, 459 scored on main, 459 on the branch), totals only, no sample named:
+benign         n=  216  flagged main    6  branch    6
+malicious      n=  243  flagged main  134  branch  135
+malicious lost: 0; verdict changes: 1
+FS-006 carriers at high: main {}  branch {'malicious': 2}
+FS-007 carriers at high: main {}  branch {}
+SUP-006 carriers at high: main {'malicious': 10}  branch {'malicious': 10}
+samples whose findings differ (rule, severity, file, line; notes included): 3; raw not readable: main 0, branch 0
+rules other than the three in those differences: none
+
+== fresh216 (216 listed, 212 scored on main, 212 on the branch), totals only, no sample named:
+benign         n=  212  flagged main    9  branch    9
+malicious lost: 0; verdict changes: 0
+FS-006 carriers at high: main {}  branch {}
+FS-007 carriers at high: main {}  branch {}
+SUP-006 carriers at high: main {'benign': 1}  branch {'benign': 1}
+samples whose findings differ (rule, severity, file, line; notes included): 0; raw not readable: main 0, branch 0
+rules other than the three in those differences: none
+
+== fresh200 (200 listed, 200 scored on main, 200 on the branch):
+benign         n=  200  flagged main   24  branch   23
+malicious lost: 0; verdict changes: 1
+FS-006 carriers at high: main {}  branch {}
+FS-007 carriers at high: main {}  branch {}
+SUP-006 carriers at high: main {'benign': 3}  branch {'benign': 1}
+samples whose findings differ (rule, severity, file, line; notes included): 2; raw not readable: main 0, branch 0
+rules other than the three in those differences: none
+   ben ben-skill-fresh-dgapex-td-tox-builder-td-tox-builder           flagged -> clean     +[] -['SUP-006@setup_template.ps1:117']
+   ben ben-skill-fresh-haiderfarooq3-khan-explainer                   flagged -> flagged   +[] -['SUP-006@render.yml:65']
+
+== SkillMD-138K (138,133 SKILL.md files; Hugging Face dataset FayeZC/SkillMD-138K, train.parquet, CC-BY-4.0; not vendored)
+The 2,619 texts that hold `chmod`, an index-url spelling or a shell startup file's name, each written out as a skill
+directory holding that one SKILL.md and given to `check <dir> --json --no-reputation` under an empty HOME and an empty
+config, with both binaries. skillmd-138k-differ.jsonl in this directory lists every finding that differs (repository,
+path, content hash, line, rule, side, the line's text).
+texts 2619; read on main 2619, on changed 2619; errors main 0, changed 0
+  exit codes main: {0: 2050, 1: 569}
+  exit codes changed: {0: 2059, 1: 560}
+  FS-006: texts on main 0, on changed 0; newly 0, no longer 0
+  FS-007: texts on main 0, on changed 1; newly 1, no longer 0
+  SUP-006: texts on main 33, on changed 22; newly 6, no longer 17
+  texts whose findings differ: 24; exit 1 newly: 7; exit 1 no longer: 16
+   + FS-007 high   Gentleman-Programming/Gentleman.Do skills/gentleman-e2e/SKILL.md               :210  echo "# Fake zshrc" > "$HOME/.zshrc"  [exit 0->1]
+   - SUP-006 high   K-Dense-AI/claude-scientific-skill ientific-skills/timesfm-forecasting/SKILL.md:136  pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   K-Dense-AI/claude-scientific-skill ientific-skills/timesfm-forecasting/SKILL.md:139  pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             aktsmm/agent-skills/ocr-super-surya/SKILL.md:57   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             aktsmm/agent-skills/ocr-super-surya/SKILL.md:60   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             aktsmm/agent-skills/ocr-super-surya/SKILL.md:206  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             oncsefalvay/funsloth/funsloth-local/SKILL.md:24   - Reinstall PyTorch: `pip install torch --index-url https://download.pytorch.org/whl/cu121`  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             aude-patent-creator/setup-assistant/SKILL.md:74   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             asmak/faster-whisper/faster-whisper/SKILL.md:149  uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             asmak/faster-whisper/faster-whisper/SKILL.md:152  uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cu118  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             asmak/faster-whisper/faster-whisper/SKILL.md:158  .venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   NeverSight/skills_feed             asmak/faster-whisper/faster-whisper/SKILL.md:161  .venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu118  [exit 1->0]
+   - SUP-006 high   RobThePCGuy/Claude-Patent-Creator  skills/setup-assistant/SKILL.md             :74   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128  [exit 1->0]
+   - SUP-006 high   aktsmm/Agent-Skills                ocr-super-surya/SKILL.md                    :42   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   + SUP-006 high   astronomer/agents                  skills/setting-up-astro-project/SKILL.md    :61   RUN pip install --extra-index-url https://pypi.example.com/simple my-package  [exit 0->1]
+   - SUP-006 high   flox/flox-agentic                  flox-plugin/skills/flox-cuda/SKILL.md       :145  torch torchvision --index-url https://download.pytorch.org/whl/cu129  [exit 1->0]
+   - SUP-006 high   flox/flox-agentic                  flox-plugin/skills/flox-cuda/SKILL.md       :149  torch torchvision --index-url https://download.pytorch.org/whl/cpu  [exit 1->0]
+   - SUP-006 high   flox/flox-agentic                  flox-plugin/skills/flox-cuda/SKILL.md       :227  --index-url https://download.pytorch.org/whl/cu129  [exit 1->0]
+   - SUP-006 high   flox/flox-agentic                  flox-plugin/skills/flox-cuda/SKILL.md       :478  # uv pip install torch --index-url https://download.pytorch.org/whl/cu129  [exit 1->0]
+   - SUP-006 high   ianbarber/ml-env-setup             skill/SKILL.md                              :152  uv pip install --upgrade torch --index-url https://download.pytorch.org/whl/cu128  [exit 1->0]
+   + SUP-006 high   lattifai/omni-captions-skills      skills/omnicaptions-LaiCut/SKILL.md         :30   pip install "omni-captions-skills[laicut]" --extra-index-url https://lattifai.github.io/pypi/simple/  [exit 0->1]
+   + SUP-006 high   lattifai/omni-captions-skills      skills/omnicaptions-convert/SKILL.md        :38   pip install omni-captions-skills --extra-index-url https://lattifai.github.io/pypi/simple/  [exit 0->1]
+   + SUP-006 high   lattifai/omni-captions-skills      skills/omnicaptions-download/SKILL.md       :46   pip install omni-captions-skills --extra-index-url https://lattifai.github.io/pypi/simple/  [exit 0->1]
+   + SUP-006 high   lattifai/omni-captions-skills      skills/omnicaptions-transcribe/SKILL.md     :63   pip install omni-captions-skills --extra-index-url https://lattifai.github.io/pypi/simple/  [exit 0->1]
+   + SUP-006 high   lattifai/omni-captions-skills      skills/omnicaptions-translate/SKILL.md      :44   pip install omni-captions-skills --extra-index-url https://lattifai.github.io/pypi/simple/  [exit 0->1]
+   - SUP-006 high   majiayu000/claude-skill-registry   lls/testing/nichecompass-docs-local/SKILL.md:43   uv pip install torch --index-url https://download.pytorch.org/whl/cu124  [exit 1->0]
+   - SUP-006 high   openclaw/skills                    skills/araa47/local-whisper/SKILL.md        :48   uv pip install --python .venv/bin/python click openai-whisper torch --index-url https://download.pytorch.org/whl/cpu  [exit 1->0]
+   - SUP-006 high   openclaw/skills                    skills/theplasmak/faster-whisper/SKILL.md   :408  uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cu121  [exit 1->0]
+   - SUP-006 high   openclaw/skills                    skills/theplasmak/faster-whisper/SKILL.md   :411  uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cu118  [exit 1->0]
+   - SUP-006 high   quanticsoul4772/ml-agents          .factory/skills/debug-training/SKILL.md     :132  pip install torch --index-url https://download.pytorch.org/whl/cu118  [exit 1->0]
+   - SUP-006 high   speediedan/finetuning-scheduler    -development-branch-version-upgrade/SKILL.md:145  uv pip install --prerelease=allow torch=={new_pytorch_max}.{nightly_version} --index-url https://download.pytorch.org/wh  [exit 1->0]
+   - SUP-006 high   yangwhale/gpu-tpu-pedia            claude-code/skills/deepep-installer/SKILL.md:190  --index-url https://download.pytorch.org/whl/cu129  [exit 1->1]
+   - SUP-006 high   yangwhale/gpu-tpu-pedia            claude-code/skills/sglang-installer/SKILL.md:361  pip install torch==2.9.1+cu129 --index-url https://download.pytorch.org/whl/cu129 --force-reinstall  [exit 1->0]
+   - SUP-006 high   yangwhale/gpu-tpu-pedia            claude-code/skills/sglang-installer/SKILL.md:379  pip install torch==2.9.1+cu129 --index-url https://download.pytorch.org/whl/cu129 --force-reinstall  [exit 1->0]
+   - SUP-006 high   yangwhale/gpu-tpu-pedia            g/claude-code/skills/vllm-installer/SKILL.md:122  --index-url https://download.pytorch.org/whl/cu129  [exit 1->0]
+   - SUP-006 high   yangwhale/gpu-tpu-pedia            g/claude-code/skills/vllm-installer/SKILL.md:163  pip install torch==2.9.1+cu129 --index-url https://download.pytorch.org/whl/cu129 --force-reinstall  [exit 1->0]
+  every SUP-006 finding that went away (29, in 17 texts) sits on a line naming download.pytorch.org; none of the 17
+  texts carries another SUP-006 finding on the branch.
+
+== the maintainer's own Claude environment (scan --json --inbox off --no-reputation, both binaries; read, not gated)
+  artifacts 125 on both; findings 111 on both; findings that differ by (rule, severity): none
+  FS-006 0 and 0, FS-007 0 and 0, SUP-006 0 and 0
+
+== to rerun the SkillMD-138K reading
+  fetch train.parquet of the dataset; select the texts matching
+    chmod|index-url|INDEX_URL|\.(bashrc|bash_profile|bash_login|profile|zshrc|zshenv|zprofile|zlogin)\b|/etc/profile|bash\.bashrc
+  write each as <dir>/<content_hash>/SKILL.md; run `bas-guard check <dir>/<content_hash> --json --no-reputation --config <empty file>`
+  with HOME set to an empty directory; compare the (rule, severity, line) sets of the two binaries.
